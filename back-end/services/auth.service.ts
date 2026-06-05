@@ -109,3 +109,25 @@ export async function autenticarComGoogle(code: string): Promise<LoginResult> {
 
   return { token, usuario };
 }
+
+/**
+ * Busca os dados públicos de um usuário pelo id (usado para restaurar a sessão
+ * a partir do JWT). Não expõe os tokens do Google.
+ *
+ * @param id Identificador do usuário (vindo do payload do JWT).
+ * @returns Dados públicos do usuário.
+ * @throws {AppError} 404 quando o usuário não existe mais no banco.
+ */
+export async function buscarUsuarioPorId(id: number): Promise<UsuarioPublico> {
+  const { rows } = await pool.query<UsuarioPublico>(
+    `SELECT id, nome, email, role FROM usuarios WHERE id = $1`,
+    [id],
+  );
+
+  const usuario = rows[0];
+  if (!usuario) {
+    throw new AppError('Usuário não encontrado.', 404);
+  }
+
+  return usuario;
+}

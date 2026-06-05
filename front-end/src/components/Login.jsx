@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Navigate } from 'react-router-dom'
 import {
   Card,
   CardHeader,
@@ -8,7 +8,7 @@ import {
   CardFooter,
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { loginComGoogle } from '@/api/modules/auth'
+import { useAuth } from '@/auth/auth-context'
 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 
@@ -40,40 +40,12 @@ function GoogleIcon() {
 }
 
 export default function Login() {
-  const [carregando, setCarregando] = useState(false)
-  const [erro, setErro] = useState('')
-  const [logado, setLogado] = useState(false)
-  const trocaIniciada = useRef(false)
+  const { autenticado, carregando, erro } = useAuth()
 
-  // Retorno do Google: se houver ?code= na URL, troca pelo JWT de sessão.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const code = params.get('code')
-    if (!code) return
-
-    // O StrictMode roda o effect 2x em dev. Como o "code" do Google é de uso
-    // único, a 2ª troca falharia (invalid_grant) e mascararia o sucesso.
-    if (trocaIniciada.current) return
-    trocaIniciada.current = true
-
-    setCarregando(true)
-    loginComGoogle(code)
-      .then(({ token }) => {
-        localStorage.setItem('intranet_token', token)
-        // Limpa o ?code= da URL para evitar reuso do código.
-        window.history.replaceState({}, document.title, window.location.pathname)
-        setLogado(true)
-        // TODO: redirecionar para o dashboard quando a rota existir.
-      })
-      .catch((e) => {
-        console.error('[login] falha na troca do code:', e)
-        setErro(e?.response?.data?.message ?? 'Falha ao autenticar. Tente novamente.')
-      })
-      .finally(() => setCarregando(false))
-  }, [])
+  // Sessão já ativa (token válido): vai direto para a home.
+  if (autenticado) return <Navigate to="/" replace />
 
   const handleGoogle = () => {
-    setErro('')
     window.location.href = montarUrlGoogle()
   }
 
@@ -116,26 +88,18 @@ export default function Login() {
             </CardDescription>
           </CardHeader>
 
-          {(logado || erro) && (
+          {erro && (
             <CardContent>
-              {logado ? (
-                <p className="text-sm font-medium text-emerald-600">
-                  ✓ Autenticado com sucesso! (dashboard ainda não implementado)
-                </p>
-              ) : (
-                <p className="text-sm text-destructive">{erro}</p>
-              )}
+              <p className="text-sm text-destructive">{erro}</p>
             </CardContent>
           )}
 
-          {!logado && (
-            <CardFooter>
-              <Button className="w-full" onClick={handleGoogle} disabled={carregando}>
-                <GoogleIcon />
-                {carregando ? 'Entrando...' : 'Entrar com o Google Workspace'}
-              </Button>
-            </CardFooter>
-          )}
+          <CardFooter>
+            <Button className="w-full" onClick={handleGoogle} disabled={carregando}>
+              <GoogleIcon />
+              {carregando ? 'Entrando…' : 'Entrar com o Google Workspace'}
+            </Button>
+          </CardFooter>
         </Card>
       </main>
     </div>

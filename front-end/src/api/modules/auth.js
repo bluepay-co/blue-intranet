@@ -1,4 +1,4 @@
-import api from '@/api/api'
+import api, { TOKEN_KEY } from '@/api/api'
 
 /**
  * Domínio: Autenticação (Google Workspace + JWT).
@@ -15,4 +15,21 @@ import api from '@/api/api'
 export async function loginComGoogle(code) {
   const { data } = await api.post('/api/auth/google', { code })
   return data
+}
+
+/**
+ * Recupera os dados do usuário logado a partir do JWT salvo (rota protegida).
+ * Usada para restaurar/validar a sessão ao recarregar a página.
+ *
+ * @returns {Promise<{ id: number, nome: string, email: string, role: string }>}
+ *          Dados públicos do usuário autenticado.
+ */
+export async function buscarUsuarioLogado() {
+  const { data } = await api.get('/api/auth/me')
+  return data.usuario
+}
+
+/** Encerra a sessão no cliente removendo o JWT salvo. */
+export function logout() {
+  localStorage.removeItem(TOKEN_KEY)
 }
