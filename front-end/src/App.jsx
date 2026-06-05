@@ -4,6 +4,7 @@ import AppLayout from '@/components/layout/AppLayout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import Dashboard from '@/pages/Dashboard'
 import Agenda from '@/pages/Agenda'
+import Tarefas from '@/pages/Tarefas'
 import Usuarios from '@/pages/Usuarios'
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
       >
         <Route index element={<Dashboard />} />
         <Route path="agenda" element={<Agenda />} />
+        <Route path="tarefas" element={<Tarefas />} />
         <Route
           path="usuarios"
           element={

@@ -1,4 +1,4 @@
-import { LayoutDashboard, Calendar, Users } from 'lucide-react'
+import { LayoutDashboard, Calendar, CalendarDays, ListTodo, Users } from 'lucide-react'
 
 /**
  * Itens da navegação principal (sidebar), com controle por cargo (RBAC).
@@ -10,7 +10,14 @@ import { LayoutDashboard, Calendar, Users } from 'lucide-react'
  */
 export const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/agenda', label: 'Agenda', icon: Calendar },
+  {
+    label: 'Agenda',
+    icon: Calendar,
+    children: [
+      { to: '/agenda', label: 'Agenda', icon: CalendarDays, end: true },
+      { to: '/tarefas', label: 'Tarefas', icon: ListTodo },
+    ],
+  },
   { to: '/usuarios', label: 'Usuários', icon: Users, roles: ['TI'] },
 ]
 

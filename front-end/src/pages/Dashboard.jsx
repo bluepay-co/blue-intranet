@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Calendar, Users, ArrowRight } from 'lucide-react'
+import { Calendar, ListTodo, Users, ArrowRight } from 'lucide-react'
 import {
   Card,
   CardHeader,
@@ -16,6 +16,12 @@ const ATALHOS = [
     titulo: 'Agenda',
     descricao: 'Seus compromissos sincronizados com o Google Calendar.',
     icon: Calendar,
+  },
+  {
+    to: '/tarefas',
+    titulo: 'Tarefas',
+    descricao: 'Crie e acompanhe suas tarefas do Google Tasks.',
+    icon: ListTodo,
   },
   {
     to: '/usuarios',

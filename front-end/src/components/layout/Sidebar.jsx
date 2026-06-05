@@ -1,9 +1,10 @@
-import { NavLink } from 'react-router-dom'
 import { LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/auth/auth-context'
 import { itensVisiveis } from './nav-items'
+import NavItemLink from './NavItemLink'
+import NavGroup from './NavGroup'
 
 /** Primeira letra do nome, para o avatar. */
 function inicial(nome) {
@@ -41,33 +42,13 @@ export default function Sidebar({ className, onNavigate }) {
         <p className="px-3 pb-2 text-[0.7rem] font-semibold tracking-wider text-brand-foreground/40 uppercase">
           Navegação
         </p>
-        {itens.map(({ to, label, icon: Icon, end }) => (
-          <NavLink key={to} to={to} end={end} onClick={onNavigate} className="group block">
-            {({ isActive }) => (
-              <span
-                className={cn(
-                  'relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all',
-                  isActive
-                    ? 'bg-white/10 text-white'
-                    : 'text-brand-foreground/65 hover:bg-white/5 hover:text-white',
-                )}
-              >
-                {isActive && (
-                  <span className="absolute inset-y-1.5 left-0 w-1 rounded-r-full bg-brand-accent" />
-                )}
-                <Icon
-                  className={cn(
-                    'size-4 shrink-0 transition-colors',
-                    isActive
-                      ? 'text-brand-accent'
-                      : 'text-brand-foreground/50 group-hover:text-white',
-                  )}
-                />
-                {label}
-              </span>
-            )}
-          </NavLink>
-        ))}
+        {itens.map((item) =>
+          item.children ? (
+            <NavGroup key={item.label} item={item} onNavigate={onNavigate} />
+          ) : (
+            <NavItemLink key={item.to} {...item} onNavigate={onNavigate} />
+          ),
+        )}
       </nav>
 
       {/* Usuário + sair */}
