@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Card,
   CardHeader,
@@ -45,6 +45,8 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState('')
+  const [logado, setLogado] = useState(false)
+  const trocaIniciada = useRef(false)
 
   // Retorno do Google: se houver ?code= na URL, troca pelo JWT de sessão.
   useEffect(() => {
@@ -52,15 +54,22 @@ export default function Login() {
     const code = params.get('code')
     if (!code) return
 
+    // O StrictMode roda o effect 2x em dev. Como o "code" do Google é de uso
+    // único, a 2ª troca falharia (invalid_grant) e mascararia o sucesso.
+    if (trocaIniciada.current) return
+    trocaIniciada.current = true
+
     setCarregando(true)
     loginComGoogle(code)
       .then(({ token }) => {
         localStorage.setItem('intranet_token', token)
         // Limpa o ?code= da URL para evitar reuso do código.
         window.history.replaceState({}, document.title, window.location.pathname)
+        setLogado(true)
         // TODO: redirecionar para o dashboard quando a rota existir.
       })
       .catch((e) => {
+        console.error('[login] falha na troca do code:', e)
         setErro(e?.response?.data?.message ?? 'Falha ao autenticar. Tente novamente.')
       })
       .finally(() => setCarregando(false))
@@ -82,24 +91,34 @@ export default function Login() {
         </CardHeader>
 
         <CardContent className="flex flex-col gap-3">
-          <Input
-            type="email"
-            placeholder="seu.nome@empresa.com"
-            autoComplete="email"
-            value={email}
-            disabled={carregando}
-            onChange={(e) => setEmail(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleGoogle()}
-          />
-          {erro && <p className="text-sm text-destructive">{erro}</p>}
+          {logado ? (
+            <p className="text-sm font-medium text-emerald-600">
+              ✓ Autenticado com sucesso! (dashboard ainda não implementado)
+            </p>
+          ) : (
+            <>
+              <Input
+                type="email"
+                placeholder="seu.nome@empresa.com"
+                autoComplete="email"
+                value={email}
+                disabled={carregando}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleGoogle()}
+              />
+              {erro && <p className="text-sm text-destructive">{erro}</p>}
+            </>
+          )}
         </CardContent>
 
-        <CardFooter>
-          <Button className="w-full" onClick={handleGoogle} disabled={carregando}>
-            <GoogleIcon />
-            {carregando ? 'Entrando...' : 'Entrar com o Google Workspace'}
-          </Button>
-        </CardFooter>
+        {!logado && (
+          <CardFooter>
+            <Button className="w-full" onClick={handleGoogle} disabled={carregando}>
+              <GoogleIcon />
+              {carregando ? 'Entrando...' : 'Entrar com o Google Workspace'}
+            </Button>
+          </CardFooter>
+        )}
       </Card>
     </div>
   )
