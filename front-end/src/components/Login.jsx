@@ -81,45 +81,75 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-svh bg-background text-foreground flex items-center justify-center p-6">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Blue Intranet</CardTitle>
-          <CardDescription>
-            Acesse com sua conta corporativa do Google Workspace.
-          </CardDescription>
-        </CardHeader>
+    <div className="grid min-h-svh bg-background text-foreground lg:grid-cols-2">
+      {/* Painel da marca (esquerda) — oculto no mobile */}
+      <aside className="relative hidden flex-col justify-between overflow-hidden bg-brand p-10 text-brand-foreground lg:flex">
+        {/* Brilho decorativo na cor secundária */}
+        <div className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full bg-brand-accent/25 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-32 -left-20 h-80 w-80 rounded-full bg-brand-accent/10 blur-3xl" />
 
-        <CardContent className="flex flex-col gap-3">
-          {logado ? (
-            <p className="text-sm font-medium text-emerald-600">
-              ✓ Autenticado com sucesso! (dashboard ainda não implementado)
-            </p>
-          ) : (
-            <>
-              <Input
-                type="email"
-                placeholder="seu.nome@empresa.com"
-                autoComplete="email"
-                value={email}
-                disabled={carregando}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleGoogle()}
-              />
-              {erro && <p className="text-sm text-destructive">{erro}</p>}
-            </>
+        <img src="/logo-branca.svg" alt="Blue Pay Solutions" className="relative h-9 w-auto" />
+
+        <div className="relative space-y-3">
+          <h2 className="text-3xl font-semibold leading-tight">Intranet corporativa</h2>
+          <p className="max-w-sm text-brand-foreground/70">
+            Acesse ferramentas, agenda e recursos internos da Blue Pay Solutions
+            em um só lugar.
+          </p>
+        </div>
+
+        <p className="relative text-xs text-brand-foreground/50">
+          © {new Date().getFullYear()} Blue Pay Solutions
+        </p>
+      </aside>
+
+      {/* Painel do formulário (direita) */}
+      <main className="flex items-center justify-center p-6">
+        <Card className="w-full max-w-sm border-border/60 shadow-sm">
+          <CardHeader className="text-center">
+            {/* No mobile o painel da marca some, então mostramos o logo aqui */}
+            <img
+              src="/logo-azul.svg"
+              alt="Blue Pay Solutions"
+              className="mx-auto mb-2 h-8 w-auto lg:hidden"
+            />
+            <CardTitle className="text-2xl">Bem-vindo</CardTitle>
+            <CardDescription>
+              Acesse com sua conta corporativa do Google Workspace.
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent className="flex flex-col gap-3">
+            {logado ? (
+              <p className="text-sm font-medium text-emerald-600">
+                ✓ Autenticado com sucesso! (dashboard ainda não implementado)
+              </p>
+            ) : (
+              <>
+                <Input
+                  type="email"
+                  placeholder="seu.nome@bluepaysolutions.com.br"
+                  autoComplete="email"
+                  value={email}
+                  disabled={carregando}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleGoogle()}
+                />
+                {erro && <p className="text-sm text-destructive">{erro}</p>}
+              </>
+            )}
+          </CardContent>
+
+          {!logado && (
+            <CardFooter>
+              <Button className="w-full" onClick={handleGoogle} disabled={carregando}>
+                <GoogleIcon />
+                {carregando ? 'Entrando...' : 'Entrar com o Google Workspace'}
+              </Button>
+            </CardFooter>
           )}
-        </CardContent>
-
-        {!logado && (
-          <CardFooter>
-            <Button className="w-full" onClick={handleGoogle} disabled={carregando}>
-              <GoogleIcon />
-              {carregando ? 'Entrando...' : 'Entrar com o Google Workspace'}
-            </Button>
-          </CardFooter>
-        )}
-      </Card>
+        </Card>
+      </main>
     </div>
   )
 }
