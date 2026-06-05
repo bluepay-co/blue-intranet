@@ -13,7 +13,7 @@ export default function AppLayout() {
   const [menuAberto, setMenuAberto] = useState(false)
 
   return (
-    <div className="flex min-h-svh bg-background text-foreground">
+    <div className="flex h-svh overflow-hidden bg-background text-foreground">
       {/* Sidebar fixa (desktop) */}
       <Sidebar className="hidden w-64 shrink-0 border-r border-white/5 md:flex" />
 

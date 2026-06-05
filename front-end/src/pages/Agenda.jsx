@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Loader2, RotateCw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, RotateCw, RefreshCw, Search, X } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 import PageHeader from '@/components/layout/PageHeader'
 import VisaoDia from '@/components/agenda/VisaoDia'
 import VisaoSemana from '@/components/agenda/VisaoSemana'
@@ -40,6 +42,7 @@ export default function Agenda() {
   const [erro, setErro] = useState('')
   const [tentativa, setTentativa] = useState(0)
   const [selecionado, setSelecionado] = useState(null)
+  const [busca, setBusca] = useState('')
 
   // Janela de consulta conforme a visão atual.
   const { inicio, fim } = useMemo(() => {
@@ -72,7 +75,17 @@ export default function Agenda() {
     }
   }, [inicio, fim, tentativa])
 
-  const mapa = useMemo(() => agruparPorDia(eventos), [eventos])
+  const termo = busca.trim().toLowerCase()
+  const eventosFiltrados = useMemo(() => {
+    if (!termo) return eventos
+    return eventos.filter((ev) =>
+      [ev.titulo, ev.local, ev.organizador, ...(ev.participantes ?? [])]
+        .filter(Boolean)
+        .some((t) => t.toLowerCase().includes(termo)),
+    )
+  }, [eventos, termo])
+
+  const mapa = useMemo(() => agruparPorDia(eventosFiltrados), [eventosFiltrados])
 
   const labelData = useMemo(() => {
     if (visao === 'dia') {
@@ -129,22 +142,57 @@ export default function Agenda() {
           <h2 className="ml-1 text-lg font-semibold">{labelData}</h2>
         </div>
 
-        {/* Seletor de visão */}
-        <div className="inline-flex rounded-lg border bg-card p-0.5">
-          {VISOES.map((v) => (
-            <button
-              key={v.id}
-              onClick={() => setVisao(v.id)}
-              className={
-                'rounded-md px-3 py-1.5 text-sm font-medium transition-colors ' +
-                (visao === v.id
-                  ? 'bg-brand text-brand-foreground'
-                  : 'text-muted-foreground hover:text-foreground')
-              }
-            >
-              {v.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Busca / filtro */}
+          <div className="relative">
+            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar eventos..."
+              className="h-8 w-44 pr-8 pl-8 sm:w-56"
+            />
+            {busca && (
+              <button
+                type="button"
+                onClick={() => setBusca('')}
+                aria-label="Limpar busca"
+                className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Atualizar */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setTentativa((t) => t + 1)}
+            disabled={carregando}
+            aria-label="Atualizar eventos"
+            title="Atualizar eventos"
+          >
+            <RefreshCw className={cn('size-4', carregando && 'animate-spin')} />
+          </Button>
+
+          {/* Seletor de visão */}
+          <div className="inline-flex rounded-lg border bg-card p-0.5">
+            {VISOES.map((v) => (
+              <button
+                key={v.id}
+                onClick={() => setVisao(v.id)}
+                className={cn(
+                  'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                  visao === v.id
+                    ? 'bg-brand-accent text-brand-accent-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
