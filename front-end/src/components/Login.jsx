@@ -7,14 +7,13 @@ import {
   CardContent,
   CardFooter,
 } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { loginComGoogle } from '@/api/modules/auth'
 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 
 /** Monta a URL de consentimento OAuth2 do Google (Authorization Code Flow). */
-function montarUrlGoogle(loginHint) {
+function montarUrlGoogle() {
   const params = new URLSearchParams({
     client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
     redirect_uri: import.meta.env.VITE_GOOGLE_REDIRECT_URI,
@@ -25,7 +24,6 @@ function montarUrlGoogle(loginHint) {
   })
   const dominio = import.meta.env.VITE_CORPORATE_DOMAIN
   if (dominio) params.set('hd', dominio) // restringe ao Workspace corporativo
-  if (loginHint) params.set('login_hint', loginHint)
   return `${GOOGLE_AUTH_URL}?${params.toString()}`
 }
 
@@ -42,7 +40,6 @@ function GoogleIcon() {
 }
 
 export default function Login() {
-  const [email, setEmail] = useState('')
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState('')
   const [logado, setLogado] = useState(false)
@@ -77,7 +74,7 @@ export default function Login() {
 
   const handleGoogle = () => {
     setErro('')
-    window.location.href = montarUrlGoogle(email.trim())
+    window.location.href = montarUrlGoogle()
   }
 
   return (
@@ -119,26 +116,17 @@ export default function Login() {
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="flex flex-col gap-3">
-            {logado ? (
-              <p className="text-sm font-medium text-emerald-600">
-                ✓ Autenticado com sucesso! (dashboard ainda não implementado)
-              </p>
-            ) : (
-              <>
-                <Input
-                  type="email"
-                  placeholder="seu.nome@bluepaysolutions.com.br"
-                  autoComplete="email"
-                  value={email}
-                  disabled={carregando}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleGoogle()}
-                />
-                {erro && <p className="text-sm text-destructive">{erro}</p>}
-              </>
-            )}
-          </CardContent>
+          {(logado || erro) && (
+            <CardContent>
+              {logado ? (
+                <p className="text-sm font-medium text-emerald-600">
+                  ✓ Autenticado com sucesso! (dashboard ainda não implementado)
+                </p>
+              ) : (
+                <p className="text-sm text-destructive">{erro}</p>
+              )}
+            </CardContent>
+          )}
 
           {!logado && (
             <CardFooter>
