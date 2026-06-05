@@ -19,4 +19,30 @@ export interface EventoAgenda {
   /** Nomes (ou e-mails) dos convidados do evento. */
   participantes: string[];
   status: string | null;
+  /** Tipo do evento (espelha o eventType do Google). */
+  tipo: TipoEvento;
+}
+
+/** Tipos de evento suportados (menu "Criar" do Google Agenda). */
+export type TipoEvento = 'evento' | 'ausente' | 'foco' | 'local' | 'aniversario';
+
+/** Payload de criação/edição de um evento. `tarefa` é tratada via Google Tasks. */
+export interface EntradaEvento {
+  tipo: 'evento' | 'ausente' | 'foco' | 'local';
+  titulo: string;
+  /** ISO (timed) ou YYYY-MM-DD (dia inteiro / local de trabalho). */
+  inicio?: string;
+  fim?: string;
+  diaInteiro?: boolean;
+  local?: string | null;
+  descricao?: string | null;
+  participantes?: string[];
+  comMeet?: boolean;
+  /** Ausente/Foco: recusar automaticamente reuniões conflitantes. */
+  recusarConflitos?: boolean;
+  mensagemRecusa?: string | null;
+  /** Local de trabalho. */
+  tipoLocal?: 'casa' | 'escritorio' | 'personalizado';
+  rotuloLocal?: string | null;
+  timeZone?: string;
 }

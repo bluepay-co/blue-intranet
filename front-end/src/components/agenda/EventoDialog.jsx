@@ -1,4 +1,4 @@
-import { Clock, MapPin, User, Users, Video, ExternalLink, AlignLeft } from 'lucide-react'
+import { Clock, MapPin, User, Users, Video, ExternalLink, AlignLeft, Pencil, Trash2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -63,7 +63,7 @@ function Linha({ icon: Icon, children }) {
  *
  * @param {{ evento: object|null, aberto: boolean, onOpenChange: (v:boolean)=>void }} props
  */
-export default function EventoDialog({ evento, aberto, onOpenChange }) {
+export default function EventoDialog({ evento, aberto, onOpenChange, onEditar, onExcluir }) {
   const status = evento ? STATUS_LABEL[evento.status] : null
   const descricao = evento?.descricao ? limparHtml(evento.descricao) : ''
 
@@ -132,8 +132,8 @@ export default function EventoDialog({ evento, aberto, onOpenChange }) {
               )}
             </div>
 
-            {(evento.linkReuniao || evento.link) && (
-              <div className="flex flex-wrap gap-2 border-t pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
+              <div className="flex flex-wrap gap-2">
                 {evento.linkReuniao && (
                   <Button asChild size="sm">
                     <a href={evento.linkReuniao} target="_blank" rel="noreferrer">
@@ -151,7 +151,24 @@ export default function EventoDialog({ evento, aberto, onOpenChange }) {
                   </Button>
                 )}
               </div>
-            )}
+
+              {evento.tipo !== 'aniversario' && (
+                <div className="flex gap-2">
+                  {onEditar && (
+                    <Button variant="outline" size="sm" onClick={() => onEditar(evento)}>
+                      <Pencil className="size-4" />
+                      Editar
+                    </Button>
+                  )}
+                  {onExcluir && (
+                    <Button variant="destructive" size="sm" onClick={() => onExcluir(evento)}>
+                      <Trash2 className="size-4" />
+                      Excluir
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
           </>
         )}
       </DialogContent>

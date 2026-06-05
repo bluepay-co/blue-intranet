@@ -61,13 +61,21 @@ export function lancarErroGoogle(err: unknown, contexto: string): never {
     code?: number;
     message?: string;
     response?: { status?: number };
-    errors?: Array<{ reason?: string }>;
+    errors?: Array<{ reason?: string; message?: string }>;
   };
   const status = e.code ?? e.response?.status;
   const reason = e.errors?.[0]?.reason;
 
   if (status === 401 || e.message?.includes('invalid_grant')) {
     throw new AppError('Sessão do Google expirada. Faça login novamente.', 401);
+  }
+  if (status === 400) {
+    // Repassa o motivo exato do Google (ex.: regras de "Local de trabalho").
+    const msg = e.errors?.[0]?.message ?? e.message ?? 'Requisição inválida.';
+    throw new AppError(msg, 400);
+  }
+  if (status === 404) {
+    throw new AppError('Evento ou recurso não encontrado no Google.', 404);
   }
   if (status === 403) {
     console.error(`[${contexto}] 403 do Google. reason:`, reason ?? '(desconhecido)', '-', e.message);

@@ -1,10 +1,20 @@
 import { Router } from 'express';
-import { getEventos } from '../controllers/agenda.controller';
+import {
+  getEventos,
+  postEvento,
+  patchEvento,
+  deleteEvento,
+} from '../controllers/agenda.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 
 const agendaRouter = Router();
 
-// GET /api/agenda/eventos -> eventos do Google Calendar do usuário logado.
-agendaRouter.get('/eventos', authMiddleware, getEventos);
+// Todas as rotas exigem sessão válida (Google Calendar do usuário logado).
+agendaRouter.use(authMiddleware);
+
+agendaRouter.get('/eventos', getEventos);
+agendaRouter.post('/eventos', postEvento);
+agendaRouter.patch('/eventos/:id', patchEvento);
+agendaRouter.delete('/eventos/:id', deleteEvento);
 
 export { agendaRouter };

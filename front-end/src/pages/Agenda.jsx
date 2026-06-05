@@ -9,8 +9,10 @@ import VisaoDia from '@/components/agenda/VisaoDia'
 import VisaoSemana from '@/components/agenda/VisaoSemana'
 import VisaoMes from '@/components/agenda/VisaoMes'
 import EventoDialog from '@/components/agenda/EventoDialog'
+import EventoFormDialog from '@/components/agenda/EventoFormDialog'
+import BotaoCriar from '@/components/agenda/BotaoCriar'
 import { useAuth } from '@/auth/auth-context'
-import { listarEventos } from '@/api/modules/agenda'
+import { listarEventos, removerEvento } from '@/api/modules/agenda'
 import {
   inicioDoDia,
   fimDoDia,
@@ -43,6 +45,7 @@ export default function Agenda() {
   const [tentativa, setTentativa] = useState(0)
   const [selecionado, setSelecionado] = useState(null)
   const [busca, setBusca] = useState('')
+  const [form, setForm] = useState({ aberto: false, tipo: 'evento', evento: null })
 
   // Janela de consulta conforme a visão atual.
   const { inicio, fim } = useMemo(() => {
@@ -112,6 +115,31 @@ export default function Agenda() {
     setVisao('dia')
   }
 
+  const recarregar = () => setTentativa((t) => t + 1)
+
+  const abrirCriar = (tipo) => setForm({ aberto: true, tipo, evento: null })
+
+  const abrirEditar = (evento) => {
+    setSelecionado(null)
+    setForm({ aberto: true, tipo: evento.tipo === 'aniversario' ? 'evento' : evento.tipo, evento })
+  }
+
+  const excluir = async (evento) => {
+    if (!window.confirm(`Excluir "${evento.titulo}"?`)) return
+    try {
+      await removerEvento(evento.id)
+      setSelecionado(null)
+      recarregar()
+    } catch (e) {
+      alert(e?.response?.data?.message ?? 'Não foi possível excluir o evento.')
+    }
+  }
+
+  const aoSalvar = () => {
+    setForm((f) => ({ ...f, aberto: false }))
+    recarregar()
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -123,7 +151,9 @@ export default function Agenda() {
             Google Agenda.
           </>
         }
-      />
+      >
+        <BotaoCriar onSelecionar={abrirCriar} />
+      </PageHeader>
 
       {/* Barra de controle */}
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -234,6 +264,17 @@ export default function Agenda() {
         evento={selecionado}
         aberto={Boolean(selecionado)}
         onOpenChange={(aberto) => !aberto && setSelecionado(null)}
+        onEditar={abrirEditar}
+        onExcluir={excluir}
+      />
+
+      <EventoFormDialog
+        aberto={form.aberto}
+        tipo={form.tipo}
+        evento={form.evento}
+        referencia={referencia}
+        onOpenChange={(aberto) => setForm((f) => ({ ...f, aberto }))}
+        onSalvo={aoSalvar}
       />
     </div>
   )

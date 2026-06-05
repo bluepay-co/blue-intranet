@@ -30,3 +30,33 @@ export async function listarEventos({ inicio, fim }) {
   const { data } = await api.get('/api/agenda/eventos', { params: { inicio, fim } })
   return data.eventos
 }
+
+/**
+ * Cria um evento (tipo: evento | ausente | foco | local).
+ * @param {object} evento - Payload do evento.
+ * @returns {Promise<EventoAgenda>}
+ */
+export async function criarEvento(evento) {
+  const { data } = await api.post('/api/agenda/eventos', evento)
+  return data.evento
+}
+
+/**
+ * Atualiza um evento existente.
+ * @param {string} id
+ * @param {object} evento
+ * @returns {Promise<EventoAgenda>}
+ */
+export async function atualizarEvento(id, evento) {
+  const { data } = await api.patch(`/api/agenda/eventos/${id}`, evento)
+  return data.evento
+}
+
+/**
+ * Exclui um evento.
+ * @param {string} id
+ * @returns {Promise<void>}
+ */
+export async function removerEvento(id) {
+  await api.delete(`/api/agenda/eventos/${id}`)
+}

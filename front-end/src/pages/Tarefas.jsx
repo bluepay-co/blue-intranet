@@ -194,7 +194,11 @@ export default function Tarefas() {
               className="h-9 w-auto"
               title="Vencimento (opcional)"
             />
-            <Button type="submit" disabled={salvando || !novoTitulo.trim()}>
+            <Button
+              type="submit"
+              disabled={salvando || !novoTitulo.trim()}
+              className="bg-brand-accent text-brand-accent-foreground hover:bg-brand-accent/90"
+            >
               {salvando ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
               Adicionar
             </Button>
