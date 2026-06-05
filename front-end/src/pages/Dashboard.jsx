@@ -6,6 +6,7 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card'
+import PageHeader from '@/components/layout/PageHeader'
 import { useAuth } from '@/auth/auth-context'
 
 /** Atalhos do dashboard, filtrados por cargo. */
@@ -31,18 +32,15 @@ export default function Dashboard() {
   const atalhos = ATALHOS.filter((a) => !a.roles || a.roles.includes(usuario?.role))
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Olá, {primeiroNome} 👋
-        </h1>
-        <p className="text-muted-foreground">
-          Bem-vindo à intranet da Blue Pay Solutions.
-          <span className="ml-2 rounded-full bg-brand-accent/10 px-2.5 py-0.5 text-xs font-medium text-brand-accent">
-            {usuario?.role}
-          </span>
-        </p>
-      </header>
+    <div className="max-w-5xl space-y-8">
+      <PageHeader
+        title={`Olá, ${primeiroNome}`}
+        subtitle="Bem-vindo à intranet da Blue Pay Solutions."
+      >
+        <span className="rounded-full bg-brand-accent/10 px-3 py-1 text-xs font-semibold tracking-wide text-brand-accent uppercase">
+          {usuario?.role}
+        </span>
+      </PageHeader>
 
       <section className="grid gap-4 sm:grid-cols-2">
         {atalhos.map(({ to, titulo, descricao, icon: Icon }) => (

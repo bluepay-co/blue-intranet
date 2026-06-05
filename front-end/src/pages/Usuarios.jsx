@@ -6,24 +6,17 @@ import {
   CardDescription,
   CardContent,
 } from '@/components/ui/card'
+import PageHeader from '@/components/layout/PageHeader'
 
 export default function Usuarios() {
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <header className="flex items-center gap-2">
-        <div className="space-y-1">
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-            Usuários
-            <span className="inline-flex items-center gap-1 rounded-full bg-brand-accent/10 px-2.5 py-0.5 text-xs font-medium text-brand-accent">
-              <ShieldCheck className="size-3" />
-              Somente T.I
-            </span>
-          </h1>
-          <p className="text-muted-foreground">
-            Gestão de acessos e cargos (RBAC) da intranet.
-          </p>
-        </div>
-      </header>
+    <div className="max-w-5xl space-y-6">
+      <PageHeader title="Usuários" subtitle="Gestão de acessos e cargos (RBAC) da intranet.">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-accent/10 px-3 py-1 text-xs font-semibold tracking-wide text-brand-accent uppercase">
+          <ShieldCheck className="size-3.5" />
+          Somente T.I
+        </span>
+      </PageHeader>
 
       <Card>
         <CardHeader>
@@ -36,7 +29,7 @@ export default function Usuarios() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">🚧 Em construção.</p>
+          <p className="text-sm text-muted-foreground">Em construção.</p>
         </CardContent>
       </Card>
     </div>
