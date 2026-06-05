@@ -26,6 +26,9 @@ Thumbs.db
 # Ferramentas de IA / Claude Code
 .claude/
 
+# Querys de apoio para execução manual no banco (uso local apenas)
+querys/
+
 # Configurações de editores de código (Opcional, mas bom ter)
 .vscode/
 .idea/
