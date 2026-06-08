@@ -6,6 +6,7 @@
 /** Cargos corporativos (RBAC). Reflete o CHECK da coluna `role`. */
 export enum Role {
   TI = 'TI',
+  DESENVOLVEDOR = 'DESENVOLVEDOR',
   MARKETING = 'MARKETING',
   INSIGHT_SALES = 'INSIGHT_SALES',
   KAM = 'KAM',

@@ -1,4 +1,4 @@
-import { LayoutDashboard, Calendar, CalendarDays, ListTodo, Users } from 'lucide-react'
+import { LayoutDashboard, Calendar, CalendarDays, ListTodo, Users, Newspaper, Megaphone, LayoutList } from 'lucide-react'
 
 /**
  * Itens da navegação principal (sidebar), com controle por cargo (RBAC).
@@ -18,7 +18,16 @@ export const NAV_ITEMS = [
       { to: '/tarefas', label: 'Tarefas', icon: ListTodo },
     ],
   },
-  { to: '/usuarios', label: 'Usuários', icon: Users, roles: ['TI'] },
+  { to: '/blog', label: 'Blog', icon: Newspaper },
+  {
+    label: 'Marketing',
+    icon: Megaphone,
+    roles: ['MARKETING', 'DESENVOLVEDOR'],
+    children: [
+      { to: '/marketing/admin', label: 'Painel Blog', icon: LayoutList },
+    ],
+  },
+  { to: '/usuarios', label: 'Usuários', icon: Users, roles: ['TI', 'DESENVOLVEDOR'] },
 ]
 
 /** Filtra os itens visíveis para o cargo informado. */

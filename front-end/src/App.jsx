@@ -6,6 +6,8 @@ import Dashboard from '@/pages/Dashboard'
 import Agenda from '@/pages/Agenda'
 import Tarefas from '@/pages/Tarefas'
 import Usuarios from '@/pages/Usuarios'
+import Blog from '@/pages/Blog'
+import AdminBlog from '@/pages/marketing/AdminBlog'
 
 function App() {
   return (
@@ -24,10 +26,19 @@ function App() {
         <Route index element={<Dashboard />} />
         <Route path="agenda" element={<Agenda />} />
         <Route path="tarefas" element={<Tarefas />} />
+        <Route path="blog" element={<Blog />} />
+        <Route
+          path="marketing/admin"
+          element={
+            <ProtectedRoute roles={['MARKETING', 'DESENVOLVEDOR']}>
+              <AdminBlog />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="usuarios"
           element={
-            <ProtectedRoute roles={['TI']}>
+            <ProtectedRoute roles={['TI', 'DESENVOLVEDOR']}>
               <Usuarios />
             </ProtectedRoute>
           }

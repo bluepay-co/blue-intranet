@@ -25,7 +25,8 @@ Thumbs.db
 
 # Ferramentas de IA / Claude Code
 .claude/
-
+test-results/
+CLAUDE.md
 # Querys de apoio para execução manual no banco (uso local apenas)
 querys/
 
