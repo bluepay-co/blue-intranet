@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom'
 import { Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { NotificacoesBlogProvider } from '@/notificacoes/NotificacoesBlogProvider'
 import Sidebar from './Sidebar'
 
 /**
@@ -13,6 +14,7 @@ export default function AppLayout() {
   const [menuAberto, setMenuAberto] = useState(false)
 
   return (
+    <NotificacoesBlogProvider>
     <div className="flex h-svh overflow-hidden bg-background text-foreground">
       {/* Sidebar fixa (desktop) */}
       <Sidebar className="hidden w-64 shrink-0 border-r border-white/5 md:flex" />
@@ -47,5 +49,6 @@ export default function AppLayout() {
         </main>
       </div>
     </div>
+    </NotificacoesBlogProvider>
   )
 }

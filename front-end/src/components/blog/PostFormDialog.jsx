@@ -33,6 +33,8 @@ export default function PostFormDialog({ aberto, onFechar, postEditando, onSalvo
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro]         = useState('')
   const inputRef = useRef(null)
+  // Post já publicado não pode voltar a rascunho — a opção fica travada.
+  const jaPublicado = Boolean(postEditando?.publicado)
 
   function selecionarImagem(e) {
     const file = e.target.files?.[0]
@@ -132,15 +134,27 @@ export default function PostFormDialog({ aberto, onFechar, postEditando, onSalvo
             className="hidden"
           />
 
-          <label className="flex cursor-pointer select-none items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={publicado}
-              onChange={(e) => setPublicado(e.target.checked)}
-              className="rounded"
-            />
-            Publicar imediatamente
-          </label>
+          <div className="flex flex-col gap-1">
+            <label
+              className={`flex select-none items-center gap-2 text-sm ${
+                jaPublicado ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={publicado}
+                disabled={jaPublicado}
+                onChange={(e) => setPublicado(e.target.checked)}
+                className="rounded"
+              />
+              Publicar imediatamente
+            </label>
+            <p className="text-xs text-muted-foreground">
+              {jaPublicado
+                ? 'Este post já está publicado e não pode voltar para rascunho.'
+                : 'Atenção: após publicar, o post não volta para rascunho.'}
+            </p>
+          </div>
 
           {erro && <p className="text-sm text-destructive">{erro}</p>}
 

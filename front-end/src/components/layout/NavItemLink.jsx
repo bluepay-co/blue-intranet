@@ -6,10 +6,10 @@ import { cn } from '@/lib/utils'
  *
  * @param {{
  *   to: string, label: string, icon?: React.ComponentType,
- *   end?: boolean, onNavigate?: () => void, nested?: boolean,
+ *   end?: boolean, onNavigate?: () => void, nested?: boolean, badge?: number,
  * }} props
  */
-export default function NavItemLink({ to, label, icon: Icon, end, onNavigate, nested = false }) {
+export default function NavItemLink({ to, label, icon: Icon, end, onNavigate, nested = false, badge = 0 }) {
   return (
     <NavLink to={to} end={end} onClick={onNavigate} className="group block">
       {({ isActive }) => (
@@ -34,6 +34,11 @@ export default function NavItemLink({ to, label, icon: Icon, end, onNavigate, ne
             />
           )}
           {label}
+          {badge > 0 && (
+            <span className="ml-auto grid min-w-5 place-items-center rounded-full bg-brand-accent px-1.5 text-[0.65rem] font-bold text-brand-accent-foreground">
+              {badge > 99 ? '99+' : badge}
+            </span>
+          )}
         </span>
       )}
     </NavLink>

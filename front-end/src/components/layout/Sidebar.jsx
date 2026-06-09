@@ -2,6 +2,7 @@ import { LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/auth/auth-context'
+import { useNotificacoesBlog } from '@/notificacoes/notificacoes-blog'
 import { itensVisiveis } from './nav-items'
 import NavItemLink from './NavItemLink'
 import NavGroup from './NavGroup'
@@ -20,6 +21,7 @@ function inicial(nome) {
  */
 export default function Sidebar({ className, onNavigate }) {
   const { usuario, logout } = useAuth()
+  const { naoVistos } = useNotificacoesBlog()
   const itens = itensVisiveis(usuario?.role)
 
   return (
@@ -46,7 +48,12 @@ export default function Sidebar({ className, onNavigate }) {
           item.children ? (
             <NavGroup key={item.label} item={item} onNavigate={onNavigate} />
           ) : (
-            <NavItemLink key={item.to} {...item} onNavigate={onNavigate} />
+            <NavItemLink
+              key={item.to}
+              {...item}
+              badge={item.to === '/blog' ? naoVistos : 0}
+              onNavigate={onNavigate}
+            />
           ),
         )}
       </nav>

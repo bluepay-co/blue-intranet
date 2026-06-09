@@ -5,11 +5,13 @@ import { Button } from '@/components/ui/button'
 import PageHeader from '@/components/layout/PageHeader'
 import PostCard from '@/components/blog/PostCard'
 import { listarFeed } from '@/api/modules/blog'
+import { useNotificacoesBlog } from '@/notificacoes/notificacoes-blog'
 
 export default function Blog() {
   const [posts, setPosts]         = useState([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro]           = useState('')
+  const { marcarVisto }           = useNotificacoesBlog()
 
   const buscar = useCallback(async () => {
     setErro('')
@@ -24,6 +26,11 @@ export default function Blog() {
   }, [])
 
   useEffect(() => { buscar() }, [buscar])
+
+  // Ao visualizar o feed, marca os posts como vistos (zera o badge da sidebar).
+  useEffect(() => {
+    if (posts.length) marcarVisto(posts[0].id)
+  }, [posts, marcarVisto])
 
   return (
     <div className="flex flex-col gap-6">

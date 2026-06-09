@@ -92,9 +92,13 @@ export async function editarPost(
   if (!conteudo.trim()) throw new AppError('Conteúdo é obrigatório.', 400);
   if (titulo.trim().length > 200) throw new AppError('Título excede 200 caracteres.', 400);
 
+  // `publicado = (publicado OR $4)`: garante o fluxo unidirecional — um post já
+  // publicado permanece publicado (edição básica não o devolve a rascunho); um
+  // rascunho ainda pode ser publicado marcando a opção no formulário.
   const { rowCount } = await pool.query(
     `UPDATE blog_posts
-     SET titulo = $1, conteudo = $2, imagem_url = $3, publicado = $4, atualizado_em = now()
+     SET titulo = $1, conteudo = $2, imagem_url = $3,
+         publicado = (publicado OR $4), atualizado_em = now()
      WHERE id = $5`,
     [titulo.trim(), conteudo.trim(), imagemUrl, publicado, id],
   );
@@ -115,16 +119,26 @@ export async function deletarPost(id: number): Promise<string | null> {
   return deletado.imagem_url;
 }
 
-/** Alterna o estado publicado/rascunho de um post. */
+/**
+ * Publica um post (rascunho → publicado). Operação IRREVERSÍVEL: um post já
+ * publicado não pode voltar para rascunho (responde 409).
+ */
 export async function togglePublicar(id: number): Promise<{ publicado: boolean }> {
   const { rows } = await pool.query<{ publicado: boolean }>(
-    `UPDATE blog_posts SET publicado = NOT publicado, atualizado_em = now()
-     WHERE id = $1 RETURNING publicado`,
+    `SELECT publicado FROM blog_posts WHERE id = $1`,
     [id],
   );
-  const resultado = rows[0];
-  if (!resultado) throw new AppError('Post não encontrado.', 404);
-  return resultado;
+  const atual = rows[0];
+  if (!atual) throw new AppError('Post não encontrado.', 404);
+  if (atual.publicado) {
+    throw new AppError('Um post publicado não pode voltar para rascunho.', 409);
+  }
+
+  await pool.query(
+    `UPDATE blog_posts SET publicado = true, atualizado_em = now() WHERE id = $1`,
+    [id],
+  );
+  return { publicado: true };
 }
 
 /**

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Pencil, Trash2, Eye, EyeOff } from 'lucide-react'
+import { Plus, Pencil, Trash2, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import PageHeader from '@/components/layout/PageHeader'
@@ -52,12 +52,18 @@ export default function AdminBlog() {
     }
   }
 
-  async function handleTogglePublicar(post) {
+  async function handlePublicar(post) {
+    // Aviso explícito: publicação é definitiva (não volta para rascunho).
+    const aviso =
+      `Publicar "${post.titulo}"?\n\n` +
+      'Atenção: após publicar, o post NÃO volta para rascunho. ' +
+      'Só será possível editar título, conteúdo e imagem.'
+    if (!confirm(aviso)) return
     try {
       await togglePublicar(post.id)
       buscar()
-    } catch {
-      alert('Erro ao alterar publicação.')
+    } catch (err) {
+      alert(err?.response?.data?.message ?? 'Erro ao publicar o post.')
     }
   }
 
@@ -159,18 +165,16 @@ export default function AdminBlog() {
 
                   {/* Ações */}
                   <div className="flex shrink-0 items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      title={post.publicado ? 'Despublicar' : 'Publicar'}
-                      onClick={() => handleTogglePublicar(post)}
-                    >
-                      {post.publicado ? (
-                        <EyeOff className="size-4" />
-                      ) : (
+                    {!post.publicado && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Publicar"
+                        onClick={() => handlePublicar(post)}
+                      >
                         <Eye className="size-4" />
-                      )}
-                    </Button>
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"
