@@ -33,7 +33,7 @@ export default function Blog() {
       />
 
       {carregando && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
           {Array.from({ length: 3 }).map((_, i) => (
             <Card key={i} className="animate-pulse">
               <div className="h-52 rounded-t-xl bg-muted" />
@@ -72,7 +72,7 @@ export default function Blog() {
       )}
 
       {!carregando && !erro && posts.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
           {posts.map((post) => (
             <PostCard key={post.id} post={post} onReagir={buscar} />
           ))}

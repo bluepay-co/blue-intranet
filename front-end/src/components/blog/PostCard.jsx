@@ -40,7 +40,7 @@ export default function PostCard({ post, onReagir }) {
         <img
           src={imagemSrc}
           alt={post.titulo}
-          className="h-52 w-full object-cover"
+          className="aspect-[4/5] w-full rounded-t-xl object-cover"
         />
       )}
       <CardHeader>

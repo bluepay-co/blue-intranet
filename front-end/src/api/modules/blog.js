@@ -47,7 +47,9 @@ export async function criarPost(payload) {
   form.append('conteudo', payload.conteudo)
   form.append('publicado', String(payload.publicado))
   if (payload.imagem) form.append('imagem', payload.imagem)
-  const { data } = await api.post('/api/blog/admin/posts', form)
+  const { data } = await api.post('/api/blog/admin/posts', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
   return data.post
 }
 
@@ -70,7 +72,9 @@ export async function editarPost(id, payload) {
   } else {
     form.append('imagem_url', payload.imagem_url ?? '')
   }
-  const { data } = await api.put(`/api/blog/admin/posts/${id}`, form)
+  const { data } = await api.put(`/api/blog/admin/posts/${id}`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
   return data.post
 }
 
