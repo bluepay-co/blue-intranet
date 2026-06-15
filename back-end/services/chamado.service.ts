@@ -244,16 +244,17 @@ export async function alterarStatus(
     throw new AppError('Status inválido.', 400);
   }
 
+  const assumindo = novoStatus === StatusChamado.EM_ANDAMENTO;
   const { rows } = await pool.query<{ id: number; status: StatusChamado }>(
     `UPDATE chamados
         SET status = $1,
             atendente_id = CASE
-              WHEN $1 = 'EM_ANDAMENTO' AND atendente_id IS NULL THEN $2
+              WHEN $2 AND atendente_id IS NULL THEN $3
               ELSE atendente_id END,
             atualizado_em = now()
-      WHERE id = $3
+      WHERE id = $4
       RETURNING id, status`,
-    [novoStatus, atendenteId, id],
+    [novoStatus, assumindo, atendenteId, id],
   );
 
   const atualizado = rows[0];
