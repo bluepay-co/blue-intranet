@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { LifeBuoy, Plus, Eye, Pencil, Search, AlertCircle, Clock, Loader2, CheckCircle2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -6,17 +7,15 @@ import { Input } from '@/components/ui/input'
 import DataTable from '@/components/ui/data-table'
 import PageHeader from '@/components/layout/PageHeader'
 import { listarMeus, rotuloCategoria } from '@/api/modules/chamados'
-import { useNotificacoesChamados } from '@/notificacoes/notificacoes-chamados'
 import { StatusBadge, CriticidadeBadge } from '@/components/chamados/badges'
 import ChamadoFormDialog from '@/components/chamados/ChamadoFormDialog'
-import ChamadoDetalheDialog from '@/components/chamados/ChamadoDetalheDialog'
 
 function formatarData(iso) {
   return iso ? new Date(iso).toLocaleDateString('pt-BR') : '—'
 }
 
 export default function Chamados() {
-  const { marcarVisto } = useNotificacoesChamados()
+  const navigate = useNavigate()
   const [chamados, setChamados] = useState([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
@@ -24,7 +23,6 @@ export default function Chamados() {
   const [dataFiltro, setDataFiltro] = useState('')
   const [formAberto, setFormAberto] = useState(false)
   const [editando, setEditando] = useState(null)
-  const [detalheId, setDetalheId] = useState(null)
 
   const carregar = useCallback(async () => {
     setErro('')
@@ -78,8 +76,7 @@ export default function Chamados() {
   }
 
   function abrirDetalhe(c) {
-    setDetalheId(c.id)
-    marcarVisto(c.id)
+    navigate(`/chamados/${c.id}`)
   }
 
   const colunas = [
@@ -222,13 +219,6 @@ export default function Chamados() {
         onFechar={() => setFormAberto(false)}
         chamadoEditando={editando}
         onSalvo={carregar}
-      />
-      <ChamadoDetalheDialog
-        key={detalheId ?? 'nenhum'}
-        aberto={detalheId !== null}
-        chamadoId={detalheId}
-        onFechar={() => setDetalheId(null)}
-        onAtualizado={carregar}
       />
     </div>
   )
