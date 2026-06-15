@@ -22,6 +22,8 @@ export interface Usuario {
   nome: string;
   email: string;
   role: Role;
+  /** Quando true, o usuário fica impedido de logar/restaurar a sessão (bloqueio pela T.I). */
+  bloqueado: boolean;
   google_access_token: string | null;
   google_refresh_token: string | null;
   criado_em: Date;
@@ -30,3 +32,9 @@ export interface Usuario {
 
 /** Subconjunto seguro do usuário exposto ao Frontend (sem tokens do Google). */
 export type UsuarioPublico = Pick<Usuario, 'id' | 'nome' | 'email' | 'role'>;
+
+/** Visão administrativa (painel da T.I): inclui estado de bloqueio e data de cadastro. */
+export type UsuarioAdmin = Pick<
+  Usuario,
+  'id' | 'nome' | 'email' | 'role' | 'bloqueado' | 'criado_em'
+>;

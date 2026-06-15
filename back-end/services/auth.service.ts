@@ -75,7 +75,7 @@ export async function autenticarComGoogle(code: string): Promise<LoginResult> {
   // 4. Upsert: novos usuários nascem como COLABORADOR; em conflito NÃO sobrescreve
   //    o cargo (definido pela TI) e preserva o refresh_token quando o Google não
   //    devolve um novo (só vem no primeiro consentimento).
-  const { rows } = await pool.query<UsuarioPublico>(
+  const { rows } = await pool.query<UsuarioPublico & { bloqueado: boolean }>(
     `INSERT INTO usuarios (nome, email, role, google_access_token, google_refresh_token)
      VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (email) DO UPDATE
@@ -83,14 +83,21 @@ export async function autenticarComGoogle(code: string): Promise<LoginResult> {
            google_access_token = EXCLUDED.google_access_token,
            google_refresh_token = COALESCE(EXCLUDED.google_refresh_token, usuarios.google_refresh_token),
            atualizado_em = now()
-     RETURNING id, nome, email, role`,
+     RETURNING id, nome, email, role, bloqueado`,
     [nome, email, Role.COLABORADOR, accessToken, refreshToken],
   );
 
-  const usuario = rows[0];
-  if (!usuario) {
+  const registro = rows[0];
+  if (!registro) {
     throw new AppError('Falha ao persistir o usuário.', 500);
   }
+
+  // Bloqueio pela T.I: mesmo com e-mail corporativo válido, o acesso é negado.
+  if (registro.bloqueado) {
+    throw new AppError('Seu acesso à intranet foi bloqueado. Procure a equipe de T.I.', 403);
+  }
+
+  const { bloqueado: _bloqueado, ...usuario } = registro;
 
   // 5. JWT da sessão
   const secret = process.env.JWT_SECRET;
@@ -119,15 +126,21 @@ export async function autenticarComGoogle(code: string): Promise<LoginResult> {
  * @throws {AppError} 404 quando o usuário não existe mais no banco.
  */
 export async function buscarUsuarioPorId(id: number): Promise<UsuarioPublico> {
-  const { rows } = await pool.query<UsuarioPublico>(
-    `SELECT id, nome, email, role FROM usuarios WHERE id = $1`,
+  const { rows } = await pool.query<UsuarioPublico & { bloqueado: boolean }>(
+    `SELECT id, nome, email, role, bloqueado FROM usuarios WHERE id = $1`,
     [id],
   );
 
-  const usuario = rows[0];
-  if (!usuario) {
+  const registro = rows[0];
+  if (!registro) {
     throw new AppError('Usuário não encontrado.', 404);
   }
 
+  // Usuário bloqueado depois de logado perde a sessão na próxima validação.
+  if (registro.bloqueado) {
+    throw new AppError('Seu acesso à intranet foi bloqueado. Procure a equipe de T.I.', 403);
+  }
+
+  const { bloqueado: _bloqueado, ...usuario } = registro;
   return usuario;
 }

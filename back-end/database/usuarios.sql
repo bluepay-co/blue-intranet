@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS usuarios (
   email                 VARCHAR(150) NOT NULL UNIQUE,
   role                  VARCHAR(20)  NOT NULL DEFAULT 'COLABORADOR'
                         CONSTRAINT usuarios_role_check
-                        CHECK (role IN ('TI', 'MARKETING', 'INSIGHT_SALES', 'KAM', 'RH', 'VENDAS', 'FINANCEIRO', 'DIRETORIA', 'COLABORADOR')),
+                        CHECK (role IN ('TI', 'DESENVOLVEDOR', 'MARKETING', 'INSIGHT_SALES', 'KAM', 'RH', 'VENDAS', 'FINANCEIRO', 'DIRETORIA', 'COLABORADOR')),
+  bloqueado             BOOLEAN      NOT NULL DEFAULT false,
   google_access_token   TEXT,
   google_refresh_token  TEXT,
   criado_em             TIMESTAMPTZ  NOT NULL DEFAULT now(),
