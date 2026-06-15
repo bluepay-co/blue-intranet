@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/auth/auth-context'
 import { useNotificacoesBlog } from '@/notificacoes/notificacoes-blog'
+import { useNotificacoesChamados } from '@/notificacoes/notificacoes-chamados'
 import { secoesVisiveis } from './nav-items'
 import NavItemLink from './NavItemLink'
 import NavGroup from './NavGroup'
@@ -22,6 +23,7 @@ function inicial(nome) {
 export default function Sidebar({ className, onNavigate }) {
   const { usuario, logout } = useAuth()
   const { naoVistos } = useNotificacoesBlog()
+  const { naoVistos: chamadosNaoVistos } = useNotificacoesChamados()
   const secoes = secoesVisiveis(usuario?.role)
 
   return (
@@ -53,7 +55,13 @@ export default function Sidebar({ className, onNavigate }) {
                 <NavItemLink
                   key={item.to}
                   {...item}
-                  badge={item.to === '/blog' ? naoVistos : 0}
+                  badge={
+                    item.to === '/blog'
+                      ? naoVistos
+                      : item.to === '/chamados' || item.to === '/ti/chamados'
+                        ? chamadosNaoVistos
+                        : 0
+                  }
                   onNavigate={onNavigate}
                 />
               ),

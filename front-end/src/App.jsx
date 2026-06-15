@@ -8,6 +8,8 @@ import Tarefas from '@/pages/Tarefas'
 import Usuarios from '@/pages/Usuarios'
 import Blog from '@/pages/Blog'
 import AdminBlog from '@/pages/marketing/AdminBlog'
+import Chamados from '@/pages/Chamados'
+import ChamadosTI from '@/pages/ti/ChamadosTI'
 
 function App() {
   return (
@@ -27,6 +29,15 @@ function App() {
         <Route path="agenda" element={<Agenda />} />
         <Route path="tarefas" element={<Tarefas />} />
         <Route path="blog" element={<Blog />} />
+        <Route path="chamados" element={<Chamados />} />
+        <Route
+          path="ti/chamados"
+          element={
+            <ProtectedRoute roles={['TI', 'DESENVOLVEDOR']}>
+              <ChamadosTI />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="marketing/admin"
           element={
