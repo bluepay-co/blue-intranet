@@ -75,8 +75,10 @@ export async function criarChamado(usuarioId: number, dados: NovoChamado): Promi
       notificarNovoChamado({
         id: rows[0].id,
         titulo,
+        descricao: dados.descricao,
         categoria: dados.categoria,
         criticidade: dados.criticidade,
+        status: StatusChamado.ABERTO,
         autorNome: u[0]?.nome ?? 'Colaborador',
       });
     })
