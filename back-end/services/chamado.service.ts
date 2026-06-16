@@ -71,8 +71,12 @@ export async function criarChamado(usuarioId: number, dados: NovoChamado): Promi
 
   // Notificação Slack em background — não bloqueia nem quebra o fluxo.
   pool
-    .query<{ nome: string }>('SELECT nome FROM usuarios WHERE id = $1', [usuarioId])
+    .query<{ nome: string; role: string }>('SELECT nome, role FROM usuarios WHERE id = $1', [usuarioId])
     .then(({ rows: u }) => {
+      const webhook = u[0]?.role === Role.CX
+        ? 'SLACK_WEBHOOK_PRODUTOS'
+        : 'SLACK_WEBHOOK_CHAMADOS';
+
       notificarNovoChamado({
         id: rows[0].id,
         titulo,
@@ -81,7 +85,7 @@ export async function criarChamado(usuarioId: number, dados: NovoChamado): Promi
         criticidade: dados.criticidade,
         status: StatusChamado.ABERTO,
         autorNome: u[0]?.nome ?? 'Colaborador',
-      });
+      }, webhook);
     })
     .catch(() => undefined);
 

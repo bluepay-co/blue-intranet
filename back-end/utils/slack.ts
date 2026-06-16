@@ -35,11 +35,15 @@ const LABEL_STATUS: Record<string, string> = {
 };
 
 const LABEL_CATEGORIA: Record<string, string> = {
-  IMPRESSORA: 'Impressora',
-  COMPUTADOR: 'Computador',
-  REDE:       'Rede',
-  ACESSOS:    'Acessos',
-  OUTROS:     'Outros',
+  IMPRESSORA:  'Impressora',
+  COMPUTADOR:  'Computador',
+  REDE:        'Rede',
+  ACESSOS:     'Acessos',
+  OUTROS:      'Outros',
+  BUG:         'Bug',
+  MELHORIA:    'Melhoria',
+  DUVIDA:      'Dúvida',
+  INTEGRACAO:  'Integração',
 };
 
 // ─── Builder ──────────────────────────────────────────────────────────────────
@@ -121,8 +125,8 @@ function buildPayloadNovoChamado(c: DadosChamadoSlack, frontendUrl: string): obj
 
 // ─── Função pública ───────────────────────────────────────────────────────────
 
-export function notificarNovoChamado(chamado: DadosChamadoSlack): void {
-  const webhookUrl  = process.env.SLACK_WEBHOOK_CHAMADOS;
+export function notificarNovoChamado(chamado: DadosChamadoSlack, webhookEnvVar = 'SLACK_WEBHOOK_CHAMADOS'): void {
+  const webhookUrl  = process.env[webhookEnvVar];
   const frontendUrl = (process.env.FRONTEND_URL ?? '').replace(/\/$/, '');
 
   if (!webhookUrl) return;
@@ -131,6 +135,6 @@ export function notificarNovoChamado(chamado: DadosChamadoSlack): void {
     .post(webhookUrl, buildPayloadNovoChamado(chamado, frontendUrl))
     .catch((err: unknown) => {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error('[Slack] Falha ao notificar novo chamado:', msg);
+      console.error(`[Slack] Falha ao notificar novo chamado (${webhookEnvVar}):`, msg);
     });
 }
