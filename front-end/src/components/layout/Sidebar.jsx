@@ -2,7 +2,9 @@ import { LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/auth/auth-context'
-import { itensVisiveis } from './nav-items'
+import { useNotificacoesBlog } from '@/notificacoes/notificacoes-blog'
+import { useNotificacoesChamados } from '@/notificacoes/notificacoes-chamados'
+import { secoesVisiveis } from './nav-items'
 import NavItemLink from './NavItemLink'
 import NavGroup from './NavGroup'
 
@@ -20,7 +22,9 @@ function inicial(nome) {
  */
 export default function Sidebar({ className, onNavigate }) {
   const { usuario, logout } = useAuth()
-  const itens = itensVisiveis(usuario?.role)
+  const { naoVistos } = useNotificacoesBlog()
+  const { naoVistos: chamadosNaoVistos } = useNotificacoesChamados()
+  const secoes = secoesVisiveis(usuario?.role)
 
   return (
     <aside
@@ -37,18 +41,33 @@ export default function Sidebar({ className, onNavigate }) {
         <img src="/logo-branca.svg" alt="Blue Pay Solutions" className="h-7 w-auto" />
       </div>
 
-      {/* Navegação */}
-      <nav className="relative flex-1 space-y-1 px-3 py-4">
-        <p className="px-3 pb-2 text-[0.7rem] font-semibold tracking-wider text-brand-foreground/40 uppercase">
-          Navegação
-        </p>
-        {itens.map((item) =>
-          item.children ? (
-            <NavGroup key={item.label} item={item} onNavigate={onNavigate} />
-          ) : (
-            <NavItemLink key={item.to} {...item} onNavigate={onNavigate} />
-          ),
-        )}
+      {/* Navegação — agrupada por seção/setor */}
+      <nav className="relative flex-1 space-y-5 px-3 py-4">
+        {secoes.map((secao) => (
+          <div key={secao.label} className="space-y-1">
+            <p className="px-3 pb-1 text-[0.7rem] font-semibold tracking-wider text-brand-foreground/40 uppercase">
+              {secao.label}
+            </p>
+            {secao.items.map((item) =>
+              item.children ? (
+                <NavGroup key={item.label} item={item} onNavigate={onNavigate} />
+              ) : (
+                <NavItemLink
+                  key={item.to}
+                  {...item}
+                  badge={
+                    item.to === '/blog'
+                      ? naoVistos
+                      : item.to === '/chamados' || item.to === '/ti/chamados'
+                        ? chamadosNaoVistos
+                        : 0
+                  }
+                  onNavigate={onNavigate}
+                />
+              ),
+            )}
+          </div>
+        ))}
       </nav>
 
       {/* Usuário + sair */}
