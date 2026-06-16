@@ -112,3 +112,9 @@ export async function dashboard() {
   const { data } = await api.get('/api/chamados/admin/dashboard')
   return data
 }
+
+/** Lista todos os chamados do time CX, com filtro opcional por nome do colaborador. */
+export async function listarCx(filtros = {}) {
+  const { data } = await api.get('/api/chamados/cx/todos', { params: filtros })
+  return data.chamados
+}

@@ -4,6 +4,7 @@ import {
   criarChamado,
   listarMeusChamados,
   listarTodos,
+  listarChamadosCX,
   buscarChamado,
   editarChamado,
   alterarStatus,
@@ -79,6 +80,19 @@ export async function getDashboard(_req: Request, res: Response) {
     if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
     console.error('[chamado.controller] getDashboard:', err);
     return res.status(500).json({ message: 'Erro interno ao carregar o painel.' });
+  }
+}
+
+/** GET /api/chamados/cx/todos — todos os chamados do time CX. */
+export async function getChamadosCX(req: Request, res: Response) {
+  try {
+    const { busca } = req.query as { busca?: string };
+    const chamados = await listarChamadosCX({ busca });
+    return res.status(200).json({ chamados });
+  } catch (err) {
+    if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
+    console.error('[chamado.controller] getChamadosCX:', err);
+    return res.status(500).json({ message: 'Erro interno ao listar os chamados do CX.' });
   }
 }
 

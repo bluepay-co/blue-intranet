@@ -46,6 +46,13 @@ export const NAV_SECTIONS = [
       { to: '/marketing/admin', label: 'Painel Blog', icon: LayoutList },
     ],
   },
+  {
+    label: 'Customer Experience',
+    roles: ['CX', 'DESENVOLVEDOR'],
+    items: [
+      { to: '/cx/chamados', label: 'Chamados', icon: Headset },
+    ],
+  },
 ]
 
 /** Filtra as seções visíveis para o cargo informado (RBAC). */

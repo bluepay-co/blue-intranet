@@ -12,6 +12,7 @@ import Chamados from '@/pages/Chamados'
 import ChamadoDetalhe from '@/pages/ChamadoDetalhe'
 import ChamadosTI from '@/pages/ti/ChamadosTI'
 import DashboardTI from '@/pages/ti/DashboardTI'
+import ChamadosCX from '@/pages/cx/ChamadosCX'
 
 function App() {
   return (
@@ -54,6 +55,14 @@ function App() {
           element={
             <ProtectedRoute roles={['MARKETING', 'DESENVOLVEDOR']}>
               <AdminBlog />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="cx/chamados"
+          element={
+            <ProtectedRoute roles={['CX', 'DESENVOLVEDOR']}>
+              <ChamadosCX />
             </ProtectedRoute>
           }
         />

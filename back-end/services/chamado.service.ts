@@ -150,6 +150,32 @@ export async function listarTodos(filtros: FiltrosChamado = {}): Promise<Chamado
   return rows;
 }
 
+/** Lista todos os chamados abertos por membros do time CX, com busca opcional por colaborador. */
+export async function listarChamadosCX(filtros: { busca?: string } = {}): Promise<ChamadoLista[]> {
+  const params: unknown[] = [];
+  const condicoes: string[] = [`u.role = '${Role.CX}'`];
+
+  if (filtros.busca?.trim()) {
+    params.push(`%${filtros.busca.trim().toLowerCase()}%`);
+    condicoes.push(`LOWER(u.nome) LIKE $${params.length}`);
+  }
+
+  const where = `WHERE ${condicoes.join(' AND ')}`;
+
+  const { rows } = await pool.query<ChamadoLista>(
+    `SELECT c.id, c.titulo, c.categoria, c.criticidade, c.status,
+            (c.anexo_url IS NOT NULL) AS tem_anexo,
+            c.usuario_id AS autor_id, u.nome AS autor_nome,
+            c.criado_em, c.atualizado_em
+       FROM chamados c
+       JOIN usuarios u ON u.id = c.usuario_id
+       ${where}
+      ORDER BY c.criado_em DESC`,
+    params,
+  );
+  return rows;
+}
+
 /** Busca a ficha completa + chat, aplicando o isolamento (dono ou T.I.). */
 export async function buscarChamado(idBruto: unknown, usuario: AuthPayload): Promise<ChamadoDetalhe> {
   const id = validarId(idBruto);
@@ -167,6 +193,7 @@ export async function buscarChamado(idBruto: unknown, usuario: AuthPayload): Pro
     autor_id: number;
     autor_nome: string;
     autor_email: string;
+    autor_role: Role;
     atendente_id: number | null;
     criado_em: Date;
     atualizado_em: Date;
@@ -174,7 +201,7 @@ export async function buscarChamado(idBruto: unknown, usuario: AuthPayload): Pro
     `SELECT c.id, c.titulo, c.descricao, c.categoria, c.criticidade, c.status,
             c.anexo_url, c.anexo_nome, c.anexo_mime,
             c.usuario_id AS autor_id, u.nome AS autor_nome, u.email AS autor_email,
-            c.atendente_id, c.criado_em, c.atualizado_em
+            u.role AS autor_role, c.atendente_id, c.criado_em, c.atualizado_em
        FROM chamados c
        JOIN usuarios u ON u.id = c.usuario_id
       WHERE c.id = $1`,
@@ -184,8 +211,10 @@ export async function buscarChamado(idBruto: unknown, usuario: AuthPayload): Pro
   const chamado = rows[0];
   if (!chamado) throw new AppError('Chamado não encontrado.', 404);
 
-  // Isolamento: só o dono ou a equipe de T.I. acessam.
-  if (chamado.autor_id !== usuario.id && !ehEquipeTI(usuario.role)) {
+  const ehDono = chamado.autor_id === usuario.id;
+  const ehCXVendoCX = usuario.role === Role.CX && chamado.autor_role === Role.CX;
+
+  if (!ehDono && !ehEquipeTI(usuario.role) && !ehCXVendoCX) {
     throw new AppError('Você não tem acesso a este chamado.', 403);
   }
 
