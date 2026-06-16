@@ -5,6 +5,7 @@ import {
   listarMeusChamados,
   listarTodos,
   listarChamadosCX,
+  listarChamadosProdutos,
   buscarChamado,
   editarChamado,
   alterarStatus,
@@ -23,6 +24,8 @@ export async function postCriar(req: Request, res: Response) {
       criticidade?: string;
     };
 
+    const { identificadorUrl } = req.body as { identificadorUrl?: string };
+
     const chamado = await criarChamado(req.usuario!.id, {
       titulo: titulo ?? '',
       descricao: descricao ?? '',
@@ -31,6 +34,7 @@ export async function postCriar(req: Request, res: Response) {
       anexoUrl: req.file ? `/uploads/chamados/${req.file.filename}` : null,
       anexoNome: req.file ? req.file.originalname : null,
       anexoMime: req.file ? req.file.mimetype : null,
+      identificadorUrl: identificadorUrl?.trim() || null,
     });
 
     return res.status(201).json({ chamado });
@@ -80,6 +84,19 @@ export async function getDashboard(_req: Request, res: Response) {
     if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
     console.error('[chamado.controller] getDashboard:', err);
     return res.status(500).json({ message: 'Erro interno ao carregar o painel.' });
+  }
+}
+
+/** GET /api/chamados/produtos/todos — chamados do CX visíveis para o time de Produtos. */
+export async function getChamadosProdutos(req: Request, res: Response) {
+  try {
+    const { busca } = req.query as { busca?: string };
+    const chamados = await listarChamadosProdutos({ busca });
+    return res.status(200).json({ chamados });
+  } catch (err) {
+    if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
+    console.error('[chamado.controller] getChamadosProdutos:', err);
+    return res.status(500).json({ message: 'Erro interno ao listar os chamados de Produtos.' });
   }
 }
 

@@ -17,6 +17,15 @@ export const CATEGORIAS = [
   { value: 'OUTROS', label: 'Outros' },
 ]
 
+/** Categorias específicas para chamados abertos pelo CX (fluxo CX → Produtos). */
+export const CATEGORIAS_CX = [
+  { value: 'BUG', label: 'Bug' },
+  { value: 'MELHORIA', label: 'Melhoria' },
+  { value: 'DUVIDA', label: 'Dúvida' },
+  { value: 'INTEGRACAO', label: 'Integração' },
+  { value: 'OUTROS', label: 'Outros' },
+]
+
 /** Níveis de criticidade com o rótulo de prazo (SLA) exibido ao usuário. */
 export const CRITICIDADES = [
   { value: 'BAIXO', label: 'Baixo', prazo: 'até 5 dias úteis' },
@@ -74,6 +83,7 @@ export async function criarChamado(payload) {
   form.append('categoria', payload.categoria)
   form.append('criticidade', payload.criticidade)
   if (payload.anexo) form.append('anexo', payload.anexo)
+  if (payload.identificadorUrl) form.append('identificadorUrl', payload.identificadorUrl)
   const { data } = await api.post('/api/chamados', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
@@ -116,5 +126,11 @@ export async function dashboard() {
 /** Lista todos os chamados do time CX, com filtro opcional por nome do colaborador. */
 export async function listarCx(filtros = {}) {
   const { data } = await api.get('/api/chamados/cx/todos', { params: filtros })
+  return data.chamados
+}
+
+/** Lista chamados do CX para o time de Produtos, com filtro opcional por colaborador. */
+export async function listarProdutos(filtros = {}) {
+  const { data } = await api.get('/api/chamados/produtos/todos', { params: filtros })
   return data.chamados
 }

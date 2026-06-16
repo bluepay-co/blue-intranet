@@ -8,7 +8,7 @@ import PageHeader from '@/components/layout/PageHeader'
 import { listarCx, rotuloCategoria } from '@/api/modules/chamados'
 import { StatusBadge, CriticidadeBadge } from '@/components/chamados/badges'
 import { tempoDecorrido } from '@/components/chamados/tempo'
-import ChamadoFormDialog from '@/components/chamados/ChamadoFormDialog'
+import ChamadoFormDialogCX from '@/components/chamados/ChamadoFormDialogCX'
 import { useAuth } from '@/auth/auth-context'
 
 /** Cor da borda esquerda do card por criticidade. */
@@ -249,7 +249,7 @@ export default function ChamadosCX() {
         </div>
       )}
 
-      <ChamadoFormDialog
+      <ChamadoFormDialogCX
         key={editando?.id ?? 'novo'}
         aberto={formAberto}
         onFechar={() => setFormAberto(false)}

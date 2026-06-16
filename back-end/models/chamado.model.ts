@@ -17,6 +17,10 @@ export enum CategoriaChamado {
   REDE = 'REDE',
   ACESSOS = 'ACESSOS',
   OUTROS = 'OUTROS',
+  BUG = 'BUG',
+  MELHORIA = 'MELHORIA',
+  DUVIDA = 'DUVIDA',
+  INTEGRACAO = 'INTEGRACAO',
 }
 
 /** Nível de criticidade / SLA (reflete o CHECK da coluna `criticidade`). */
@@ -38,6 +42,7 @@ export interface Chamado {
   anexo_url: string | null;
   anexo_nome: string | null;
   anexo_mime: string | null;
+  identificador_url: string | null;
   usuario_id: number;
   atendente_id: number | null;
   fechado_em: Date | null;
@@ -64,6 +69,7 @@ export interface ChamadoLista {
   criticidade: CriticidadeChamado;
   status: StatusChamado;
   tem_anexo: boolean;
+  identificador_url: string | null;
   autor_id: number;
   autor_nome: string;
   atendente_nome: string | null;
@@ -92,6 +98,7 @@ export interface ChamadoDetalhe {
   anexo_url: string | null;
   anexo_nome: string | null;
   anexo_mime: string | null;
+  identificador_url: string | null;
   autor_id: number;
   autor_nome: string;
   autor_email: string;

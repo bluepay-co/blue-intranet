@@ -16,6 +16,7 @@ export enum Role {
   DIRETORIA = 'DIRETORIA',
   COLABORADOR = 'COLABORADOR',
   CX = 'CX',
+  PRODUTOS = 'PRODUTOS',
 }
 
 export interface Usuario {

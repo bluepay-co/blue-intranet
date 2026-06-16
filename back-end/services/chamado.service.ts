@@ -45,6 +45,7 @@ interface NovoChamado {
   anexoUrl: string | null;
   anexoNome: string | null;
   anexoMime: string | null;
+  identificadorUrl: string | null;
 }
 
 /** Cria um novo chamado (sempre nasce com status ABERTO). */
@@ -60,10 +61,10 @@ export async function criarChamado(usuarioId: number, dados: NovoChamado): Promi
 
   const { rows } = await pool.query<{ id: number }>(
     `INSERT INTO chamados
-       (titulo, descricao, categoria, criticidade, status, anexo_url, anexo_nome, anexo_mime, usuario_id)
-     VALUES ($1, $2, $3, $4, 'ABERTO', $5, $6, $7, $8)
+       (titulo, descricao, categoria, criticidade, status, anexo_url, anexo_nome, anexo_mime, identificador_url, usuario_id)
+     VALUES ($1, $2, $3, $4, 'ABERTO', $5, $6, $7, $8, $9)
      RETURNING id`,
-    [titulo, descricao, dados.categoria, dados.criticidade, dados.anexoUrl, dados.anexoNome, dados.anexoMime, usuarioId],
+    [titulo, descricao, dados.categoria, dados.criticidade, dados.anexoUrl, dados.anexoNome, dados.anexoMime, dados.identificadorUrl, usuarioId],
   );
 
   if (!rows[0]) throw new AppError('Falha ao persistir o chamado.', 500);
@@ -91,7 +92,7 @@ export async function criarChamado(usuarioId: number, dados: NovoChamado): Promi
 export async function listarMeusChamados(usuarioId: number): Promise<ChamadoLista[]> {
   const { rows } = await pool.query<ChamadoLista>(
     `SELECT c.id, c.titulo, c.categoria, c.criticidade, c.status,
-            (c.anexo_url IS NOT NULL) AS tem_anexo,
+            (c.anexo_url IS NOT NULL) AS tem_anexo, c.identificador_url,
             c.usuario_id AS autor_id, u.nome AS autor_nome,
             c.criado_em, c.atualizado_em
        FROM chamados c
@@ -136,7 +137,7 @@ export async function listarTodos(filtros: FiltrosChamado = {}): Promise<Chamado
 
   const { rows } = await pool.query<ChamadoLista>(
     `SELECT c.id, c.titulo, c.categoria, c.criticidade, c.status,
-            (c.anexo_url IS NOT NULL) AS tem_anexo,
+            (c.anexo_url IS NOT NULL) AS tem_anexo, c.identificador_url,
             c.usuario_id AS autor_id, u.nome AS autor_nome,
             at.nome AS atendente_nome,
             c.criado_em, c.atualizado_em
@@ -150,10 +151,11 @@ export async function listarTodos(filtros: FiltrosChamado = {}): Promise<Chamado
   return rows;
 }
 
-/** Lista todos os chamados abertos por membros do time CX, com busca opcional por colaborador. */
-export async function listarChamadosCX(filtros: { busca?: string } = {}): Promise<ChamadoLista[]> {
+/** Lista todos os chamados abertos por membros de um role específico, com busca opcional por colaborador. */
+async function listarChamadosPorRole(role: Role, filtros: { busca?: string } = {}): Promise<ChamadoLista[]> {
   const params: unknown[] = [];
-  const condicoes: string[] = [`u.role = '${Role.CX}'`];
+  const condicoes: string[] = [`u.role = $1`];
+  params.push(role);
 
   if (filtros.busca?.trim()) {
     params.push(`%${filtros.busca.trim().toLowerCase()}%`);
@@ -164,7 +166,7 @@ export async function listarChamadosCX(filtros: { busca?: string } = {}): Promis
 
   const { rows } = await pool.query<ChamadoLista>(
     `SELECT c.id, c.titulo, c.categoria, c.criticidade, c.status,
-            (c.anexo_url IS NOT NULL) AS tem_anexo,
+            (c.anexo_url IS NOT NULL) AS tem_anexo, c.identificador_url,
             c.usuario_id AS autor_id, u.nome AS autor_nome,
             c.criado_em, c.atualizado_em
        FROM chamados c
@@ -174,6 +176,15 @@ export async function listarChamadosCX(filtros: { busca?: string } = {}): Promis
     params,
   );
   return rows;
+}
+
+export async function listarChamadosCX(filtros: { busca?: string } = {}): Promise<ChamadoLista[]> {
+  return listarChamadosPorRole(Role.CX, filtros);
+}
+
+/** Lista chamados do CX para o time de Produtos (mesma fonte de dados). */
+export async function listarChamadosProdutos(filtros: { busca?: string } = {}): Promise<ChamadoLista[]> {
+  return listarChamadosPorRole(Role.CX, filtros);
 }
 
 /** Busca a ficha completa + chat, aplicando o isolamento (dono ou T.I.). */
@@ -199,7 +210,7 @@ export async function buscarChamado(idBruto: unknown, usuario: AuthPayload): Pro
     atualizado_em: Date;
   }>(
     `SELECT c.id, c.titulo, c.descricao, c.categoria, c.criticidade, c.status,
-            c.anexo_url, c.anexo_nome, c.anexo_mime,
+            c.anexo_url, c.anexo_nome, c.anexo_mime, c.identificador_url,
             c.usuario_id AS autor_id, u.nome AS autor_nome, u.email AS autor_email,
             u.role AS autor_role, c.atendente_id, c.criado_em, c.atualizado_em
        FROM chamados c
@@ -213,8 +224,9 @@ export async function buscarChamado(idBruto: unknown, usuario: AuthPayload): Pro
 
   const ehDono = chamado.autor_id === usuario.id;
   const ehCXVendoCX = usuario.role === Role.CX && chamado.autor_role === Role.CX;
+  const ehProdutosVendoCX = usuario.role === Role.PRODUTOS && chamado.autor_role === Role.CX;
 
-  if (!ehDono && !ehEquipeTI(usuario.role) && !ehCXVendoCX) {
+  if (!ehDono && !ehEquipeTI(usuario.role) && !ehCXVendoCX && !ehProdutosVendoCX) {
     throw new AppError('Você não tem acesso a este chamado.', 403);
   }
 
