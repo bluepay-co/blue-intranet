@@ -11,6 +11,7 @@ import AdminBlog from '@/pages/marketing/AdminBlog'
 import Chamados from '@/pages/Chamados'
 import ChamadoDetalhe from '@/pages/ChamadoDetalhe'
 import ChamadosTI from '@/pages/ti/ChamadosTI'
+import DashboardTI from '@/pages/ti/DashboardTI'
 
 function App() {
   return (
@@ -32,6 +33,14 @@ function App() {
         <Route path="blog" element={<Blog />} />
         <Route path="chamados" element={<Chamados />} />
         <Route path="chamados/:id" element={<ChamadoDetalhe />} />
+        <Route
+          path="ti/dashboard"
+          element={
+            <ProtectedRoute roles={['TI', 'DESENVOLVEDOR']}>
+              <DashboardTI />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="ti/chamados"
           element={

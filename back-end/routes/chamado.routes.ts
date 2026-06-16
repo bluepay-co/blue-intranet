@@ -14,6 +14,7 @@ import {
   putEditar,
   patchStatus,
   postComentario,
+  getDashboard,
 } from '../controllers/chamado.controller';
 
 const uploadDir = path.join(__dirname, '..', 'uploads', 'chamados');
@@ -46,6 +47,7 @@ chamadosRouter.use(authMiddleware);
 // ── Rotas literais antes das dinâmicas (/:id) ─────────────────────────────────
 chamadosRouter.get('/resumo', getResumo);
 chamadosRouter.get('/admin/todos', roleMiddleware(Role.TI, Role.DESENVOLVEDOR), getTodos);
+chamadosRouter.get('/admin/dashboard', roleMiddleware(Role.TI, Role.DESENVOLVEDOR), getDashboard);
 
 // ── Colaborador (dono) + acesso compartilhado com T.I. ────────────────────────
 chamadosRouter.get('/', getMeus);

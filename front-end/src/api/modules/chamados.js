@@ -106,3 +106,9 @@ export async function resumo() {
   const { data } = await api.get('/api/chamados/resumo')
   return data.chamados
 }
+
+/** Métricas globais do painel da T.I. (KPIs + dados dos gráficos). */
+export async function dashboard() {
+  const { data } = await api.get('/api/chamados/admin/dashboard')
+  return data
+}

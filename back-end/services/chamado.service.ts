@@ -10,6 +10,9 @@ import type {
   ChamadoDetalhe,
   ComentarioPublico,
   ChamadoResumo,
+  DashboardTI,
+  ContagemRotulo,
+  TendenciaDia,
 } from '../models/chamado.model';
 import type { AuthPayload } from '../middleware/auth.middleware';
 import { AppError } from '../utils/app-error';
@@ -117,9 +120,11 @@ export async function listarTodos(filtros: FiltrosChamado = {}): Promise<Chamado
     `SELECT c.id, c.titulo, c.categoria, c.criticidade, c.status,
             (c.anexo_url IS NOT NULL) AS tem_anexo,
             c.usuario_id AS autor_id, u.nome AS autor_nome,
+            at.nome AS atendente_nome,
             c.criado_em, c.atualizado_em
        FROM chamados c
        JOIN usuarios u ON u.id = c.usuario_id
+       LEFT JOIN usuarios at ON at.id = c.atendente_id
        ${where}
       ORDER BY c.criado_em DESC`,
     params,
@@ -245,16 +250,18 @@ export async function alterarStatus(
   }
 
   const assumindo = novoStatus === StatusChamado.EM_ANDAMENTO;
+  const fechando = novoStatus === StatusChamado.FECHADO;
   const { rows } = await pool.query<{ id: number; status: StatusChamado }>(
     `UPDATE chamados
         SET status = $1,
             atendente_id = CASE
               WHEN $2 AND atendente_id IS NULL THEN $3
               ELSE atendente_id END,
+            fechado_em = CASE WHEN $4 THEN now() ELSE NULL END,
             atualizado_em = now()
-      WHERE id = $4
+      WHERE id = $5
       RETURNING id, status`,
-    [novoStatus, assumindo, atendenteId, id],
+    [novoStatus, assumindo, atendenteId, fechando, id],
   );
 
   const atualizado = rows[0];
@@ -328,4 +335,76 @@ export async function resumoChamados(usuario: AuthPayload): Promise<ChamadoResum
     params,
   );
   return rows;
+}
+
+/** Métricas globais para o painel da T.I. (agregações em todo o banco). */
+export async function dashboardTI(): Promise<DashboardTI> {
+  const kpisRes = await pool.query<{
+    ativos: number;
+    criticos: number;
+    tempo_medio_horas: string | null;
+    total_mes: number;
+  }>(
+    `SELECT
+       COUNT(*) FILTER (WHERE status IN ('ABERTO','EM_ANDAMENTO'))::int AS ativos,
+       COUNT(*) FILTER (WHERE criticidade IN ('ALTO','CRITICO') AND status <> 'FECHADO')::int AS criticos,
+       AVG(EXTRACT(EPOCH FROM (fechado_em - criado_em)))
+         FILTER (WHERE status = 'FECHADO' AND fechado_em IS NOT NULL) / 3600 AS tempo_medio_horas,
+       COUNT(*) FILTER (WHERE criado_em >= date_trunc('month', now()))::int AS total_mes
+     FROM chamados`,
+  );
+  const k = kpisRes.rows[0];
+
+  const porStatus = (
+    await pool.query<ContagemRotulo>(
+      `SELECT status AS rotulo, COUNT(*)::int AS total FROM chamados GROUP BY status`,
+    )
+  ).rows;
+
+  const porSetor = (
+    await pool.query<ContagemRotulo>(
+      `SELECT u.role AS rotulo, COUNT(*)::int AS total
+         FROM chamados c JOIN usuarios u ON u.id = c.usuario_id
+        GROUP BY u.role ORDER BY total DESC`,
+    )
+  ).rows;
+
+  const porCategoria = (
+    await pool.query<ContagemRotulo>(
+      `SELECT categoria AS rotulo, COUNT(*)::int AS total
+         FROM chamados GROUP BY categoria ORDER BY total DESC`,
+    )
+  ).rows;
+
+  const tendencia = (
+    await pool.query<TendenciaDia>(
+      `WITH dias AS (
+         SELECT generate_series(
+           date_trunc('day', now()) - interval '29 days',
+           date_trunc('day', now()),
+           interval '1 day'
+         )::date AS dia
+       )
+       SELECT to_char(d.dia, 'YYYY-MM-DD') AS dia,
+              (SELECT COUNT(*)::int FROM chamados
+                WHERE date_trunc('day', criado_em)::date = d.dia) AS abertos,
+              (SELECT COUNT(*)::int FROM chamados
+                WHERE fechado_em IS NOT NULL AND date_trunc('day', fechado_em)::date = d.dia) AS finalizados
+         FROM dias d
+        ORDER BY d.dia`,
+    )
+  ).rows;
+
+  return {
+    kpis: {
+      ativos: k?.ativos ?? 0,
+      criticos: k?.criticos ?? 0,
+      tempoMedioHoras: k?.tempo_medio_horas != null ? Number(k.tempo_medio_horas) : null,
+      totalMes: k?.total_mes ?? 0,
+    },
+    porStatus,
+    porSetor,
+    porCategoria,
+    tendencia,
+  };
 }

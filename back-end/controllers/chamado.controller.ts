@@ -9,6 +9,7 @@ import {
   alterarStatus,
   adicionarComentario,
   resumoChamados,
+  dashboardTI,
 } from '../services/chamado.service';
 
 /** POST /api/chamados — abre um chamado (multipart, anexo opcional). */
@@ -66,6 +67,18 @@ export async function getTodos(req: Request, res: Response) {
     if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
     console.error('[chamado.controller] getTodos:', err);
     return res.status(500).json({ message: 'Erro interno ao listar os chamados.' });
+  }
+}
+
+/** GET /api/chamados/admin/dashboard — métricas globais (T.I.). */
+export async function getDashboard(_req: Request, res: Response) {
+  try {
+    const dados = await dashboardTI();
+    return res.status(200).json(dados);
+  } catch (err) {
+    if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
+    console.error('[chamado.controller] getDashboard:', err);
+    return res.status(500).json({ message: 'Erro interno ao carregar o painel.' });
   }
 }
 

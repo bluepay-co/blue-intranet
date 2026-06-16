@@ -27,6 +27,7 @@ import {
  *   vazio?: React.ReactNode,               // conteúdo exibido quando não há linhas
  *   getRowId?: (row: object) => string|number,  // default: row.id
  *   rowClassName?: (row: object) => string,
+ *   onRowClick?: (row: object) => void,          // clique na linha (opcional)
  * }} props
  */
 export default function DataTable({
@@ -36,6 +37,7 @@ export default function DataTable({
   vazio,
   getRowId,
   rowClassName,
+  onRowClick,
 }) {
   if (carregando) {
     return (
@@ -66,7 +68,11 @@ export default function DataTable({
       </TableHeader>
       <TableBody>
         {data.map((row) => (
-          <TableRow key={getRowId ? getRowId(row) : row.id} className={rowClassName?.(row)}>
+          <TableRow
+            key={getRowId ? getRowId(row) : row.id}
+            className={rowClassName?.(row)}
+            onClick={onRowClick ? () => onRowClick(row) : undefined}
+          >
             {columns.map((col) => (
               <TableCell key={col.key} className={col.className}>
                 {col.cell ? col.cell(row) : row[col.key]}

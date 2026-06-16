@@ -40,6 +40,7 @@ export interface Chamado {
   anexo_mime: string | null;
   usuario_id: number;
   atendente_id: number | null;
+  fechado_em: Date | null;
   criado_em: Date;
   atualizado_em: Date;
 }
@@ -65,6 +66,7 @@ export interface ChamadoLista {
   tem_anexo: boolean;
   autor_id: number;
   autor_nome: string;
+  atendente_nome: string | null;
   criado_em: Date;
   atualizado_em: Date;
 }
@@ -97,6 +99,33 @@ export interface ChamadoDetalhe {
   criado_em: Date;
   atualizado_em: Date;
   comentarios: ComentarioPublico[];
+}
+
+/** Contagem genérica (rótulo + total) para os gráficos do painel. */
+export interface ContagemRotulo {
+  rotulo: string;
+  total: number;
+}
+
+/** Ponto da linha de tendência (abertos × finalizados por dia). */
+export interface TendenciaDia {
+  dia: string;
+  abertos: number;
+  finalizados: number;
+}
+
+/** Métricas globais do painel da T.I. */
+export interface DashboardTI {
+  kpis: {
+    ativos: number;
+    criticos: number;
+    tempoMedioHoras: number | null;
+    totalMes: number;
+  };
+  porStatus: ContagemRotulo[];
+  porSetor: ContagemRotulo[];
+  porCategoria: ContagemRotulo[];
+  tendencia: TendenciaDia[];
 }
 
 /** Resumo leve para o polling de notificações. */

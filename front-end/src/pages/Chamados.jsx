@@ -1,17 +1,21 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LifeBuoy, Plus, Eye, Pencil, Search, AlertCircle, Clock, Loader2, CheckCircle2 } from 'lucide-react'
+import { LifeBuoy, Plus, Pencil, Search, AlertCircle, Clock, Loader2, CheckCircle2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import DataTable from '@/components/ui/data-table'
 import PageHeader from '@/components/layout/PageHeader'
 import { listarMeus, rotuloCategoria } from '@/api/modules/chamados'
 import { StatusBadge, CriticidadeBadge } from '@/components/chamados/badges'
+import { tempoDecorrido } from '@/components/chamados/tempo'
 import ChamadoFormDialog from '@/components/chamados/ChamadoFormDialog'
 
-function formatarData(iso) {
-  return iso ? new Date(iso).toLocaleDateString('pt-BR') : '—'
+/** Cor da borda esquerda do card por criticidade. */
+const BORDA = {
+  CRITICO: 'border-l-destructive',
+  ALTO: 'border-l-amber-500',
+  MEDIO: 'border-l-blue-500',
+  BAIXO: 'border-l-muted-foreground/40',
 }
 
 export default function Chamados() {
@@ -70,46 +74,11 @@ export default function Chamados() {
     setFormAberto(true)
   }
 
-  function abrirEdicao(c) {
+  function abrirEdicao(e, c) {
+    e.stopPropagation()
     setEditando(c)
     setFormAberto(true)
   }
-
-  function abrirDetalhe(c) {
-    navigate(`/chamados/${c.id}`)
-  }
-
-  const colunas = [
-    { key: 'titulo', header: 'Chamado', cell: (c) => (
-      <div className="min-w-0">
-        <p className="truncate font-medium text-foreground">{c.titulo}</p>
-        <p className="text-xs text-muted-foreground">{rotuloCategoria(c.categoria)}</p>
-      </div>
-    ) },
-    { key: 'criticidade', header: 'Criticidade', cell: (c) => <CriticidadeBadge criticidade={c.criticidade} /> },
-    { key: 'status', header: 'Status', cell: (c) => <StatusBadge status={c.status} /> },
-    { key: 'criado_em', header: 'Abertura', className: 'whitespace-nowrap text-muted-foreground', cell: (c) => formatarData(c.criado_em) },
-    {
-      key: 'acoes',
-      header: '',
-      headerClassName: 'text-right',
-      className: 'text-right',
-      cell: (c) => (
-        <div className="flex justify-end gap-1.5">
-          {c.status === 'ABERTO' && (
-            <Button variant="ghost" size="sm" className="h-8 gap-1.5" onClick={() => abrirEdicao(c)}>
-              <Pencil className="size-3.5" />
-              Editar
-            </Button>
-          )}
-          <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => abrirDetalhe(c)}>
-            <Eye className="size-3.5" />
-            Detalhes
-          </Button>
-        </div>
-      ),
-    },
-  ]
 
   return (
     <div className="space-y-6">
@@ -164,54 +133,90 @@ export default function Chamados() {
         </Card>
       </div>
 
-      <Card className="overflow-hidden">
-        <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3">
-          <div className="relative w-full max-w-xs">
-            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar pelo título…"
-              className="h-9 pl-8"
-            />
-          </div>
+      {/* Filtros */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative w-full max-w-xs">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            type="date"
-            value={dataFiltro}
-            onChange={(e) => setDataFiltro(e.target.value)}
-            className="h-9 w-auto"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar pelo título…"
+            className="h-9 pl-8"
           />
-          {(busca || dataFiltro) && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-9 text-muted-foreground"
-              onClick={() => {
-                setBusca('')
-                setDataFiltro('')
-              }}
-            >
-              Limpar
-            </Button>
-          )}
         </div>
+        <Input
+          type="date"
+          value={dataFiltro}
+          onChange={(e) => setDataFiltro(e.target.value)}
+          className="h-9 w-auto"
+        />
+        {(busca || dataFiltro) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 text-muted-foreground"
+            onClick={() => {
+              setBusca('')
+              setDataFiltro('')
+            }}
+          >
+            Limpar
+          </Button>
+        )}
+      </div>
 
-        <CardContent className="p-0">
-          <DataTable
-            columns={colunas}
-            data={filtrados}
-            carregando={carregando}
-            vazio={
-              <>
-                <LifeBuoy className="size-6" />
-                <p className="text-sm">
-                  {chamados.length === 0 ? 'Você ainda não abriu chamados.' : 'Nenhum chamado encontrado.'}
-                </p>
-              </>
-            }
-          />
-        </CardContent>
-      </Card>
+      {/* Lista em cards */}
+      {carregando ? (
+        <div className="grid place-items-center py-20">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : filtrados.length === 0 ? (
+        <div className="grid place-items-center gap-2 py-20 text-center text-muted-foreground">
+          <LifeBuoy className="size-6" />
+          <p className="text-sm">
+            {chamados.length === 0 ? 'Você ainda não abriu chamados.' : 'Nenhum chamado encontrado.'}
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filtrados.map((c) => (
+            <div
+              key={c.id}
+              onClick={() => navigate(`/chamados/${c.id}`)}
+              className={`flex cursor-pointer flex-col rounded-xl border border-l-4 bg-card p-4 shadow-sm transition-colors hover:bg-muted/40 ${BORDA[c.criticidade] ?? ''}`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-muted-foreground">#{c.id}</span>
+                <StatusBadge status={c.status} />
+              </div>
+              <p className="mt-2 line-clamp-2 font-medium">{c.titulo}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{rotuloCategoria(c.categoria)}</p>
+
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <CriticidadeBadge criticidade={c.criticidade} />
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <Clock className="size-3" />
+                  {tempoDecorrido(c.criado_em)}
+                </span>
+              </div>
+
+              {c.status === 'ABERTO' && (
+                <div className="mt-3 border-t pt-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-full gap-1.5"
+                    onClick={(e) => abrirEdicao(e, c)}
+                  >
+                    <Pencil className="size-3.5" />
+                    Editar
+                  </Button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       <ChamadoFormDialog
         key={editando?.id ?? 'novo'}
