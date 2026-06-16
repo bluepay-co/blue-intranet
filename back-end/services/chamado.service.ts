@@ -17,6 +17,7 @@ import type {
 import type { AuthPayload } from '../middleware/auth.middleware';
 import { AppError } from '../utils/app-error';
 import { criptografar, descriptografar } from '../utils/crypto-chamados';
+import { notificarNovoChamado } from '../utils/slack';
 
 const STATUS_VALIDOS = new Set<string>(Object.values(StatusChamado));
 const CATEGORIAS_VALIDAS = new Set<string>(Object.values(CategoriaChamado));
@@ -66,6 +67,21 @@ export async function criarChamado(usuarioId: number, dados: NovoChamado): Promi
   );
 
   if (!rows[0]) throw new AppError('Falha ao persistir o chamado.', 500);
+
+  // Notificação Slack em background — não bloqueia nem quebra o fluxo.
+  pool
+    .query<{ nome: string }>('SELECT nome FROM usuarios WHERE id = $1', [usuarioId])
+    .then(({ rows: u }) => {
+      notificarNovoChamado({
+        id: rows[0].id,
+        titulo,
+        categoria: dados.categoria,
+        criticidade: dados.criticidade,
+        autorNome: u[0]?.nome ?? 'Colaborador',
+      });
+    })
+    .catch(() => undefined);
+
   return rows[0];
 }
 
