@@ -49,7 +49,7 @@ function buildPayloadNovoChamado(c: DadosChamadoSlack, frontendUrl: string): obj
   const criticidade = LABEL_CRITICIDADE[c.criticidade] ?? c.criticidade;
   const status      = LABEL_STATUS[c.status]            ?? c.status;
   const categoria   = LABEL_CATEGORIA[c.categoria]      ?? c.categoria;
-  const linkChamado = `${frontendUrl}/chamados/${c.id}`;
+  const linkChamado = frontendUrl ? `${frontendUrl}/chamados/${c.id}` : null;
 
   const preview = c.descricao.length > 140
     ? c.descricao.slice(0, 140).trimEnd() + '…'
@@ -90,8 +90,8 @@ function buildPayloadNovoChamado(c: DadosChamadoSlack, frontendUrl: string): obj
               { type: 'mrkdwn', text: `*Solicitante*\n${c.autorNome}` },
             ],
           },
-          // Botão de acesso direto
-          {
+          // Botão de acesso direto (apenas se FRONTEND_URL estiver configurado)
+          ...(linkChamado ? [{
             type: 'actions',
             elements: [
               {
@@ -101,7 +101,7 @@ function buildPayloadNovoChamado(c: DadosChamadoSlack, frontendUrl: string): obj
                 style: 'primary',
               },
             ],
-          },
+          }] : []),
           { type: 'divider' },
           // Rodapé
           {
@@ -125,7 +125,7 @@ export function notificarNovoChamado(chamado: DadosChamadoSlack): void {
   const webhookUrl  = process.env.SLACK_WEBHOOK_URL;
   const frontendUrl = (process.env.FRONTEND_URL ?? '').replace(/\/$/, '');
 
-  if (!webhookUrl || !frontendUrl) return;
+  if (!webhookUrl) return;
 
   axios
     .post(webhookUrl, buildPayloadNovoChamado(chamado, frontendUrl))
