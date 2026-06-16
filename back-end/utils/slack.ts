@@ -129,7 +129,11 @@ export function notificarNovoChamado(chamado: DadosChamadoSlack, webhookEnvVar =
   const webhookUrl  = process.env[webhookEnvVar];
   const frontendUrl = (process.env.FRONTEND_URL ?? '').replace(/\/$/, '');
 
-  if (!webhookUrl) return;
+  if (!webhookUrl) {
+    console.warn(`[Slack] Variável ${webhookEnvVar} não encontrada no .env — notificação ignorada.`);
+    return;
+  }
+  console.log(`[Slack] Enviando notificação via ${webhookEnvVar} para chamado #${chamado.id}`);
 
   axios
     .post(webhookUrl, buildPayloadNovoChamado(chamado, frontendUrl))
