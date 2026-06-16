@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-// ─── Tipos ───────────────────────────────────────────────────────────────────
+// ─── Tipos ────────────────────────────────────────────────────────────────────
 
 export interface DadosChamadoSlack {
   id: number;
@@ -12,60 +12,63 @@ export interface DadosChamadoSlack {
   autorNome: string;
 }
 
-// ─── Mapeamentos visuais ──────────────────────────────────────────────────────
+// ─── Mapeamentos ──────────────────────────────────────────────────────────────
 
 const COR_CRITICIDADE: Record<string, string> = {
-  CRITICO: '#E63946',
-  ALTO:    '#F4511E',
-  MEDIO:   '#F9A825',
-  BAIXO:   '#00897B',
+  CRITICO: '#C0392B',
+  ALTO:    '#E67E22',
+  MEDIO:   '#F1C40F',
+  BAIXO:   '#27AE60',
 };
 
-const EMOJI_CRITICIDADE: Record<string, string> = {
-  CRITICO: ':rotating_light:',
-  ALTO:    ':red_circle:',
-  MEDIO:   ':large_yellow_circle:',
-  BAIXO:   ':large_green_circle:',
+const LABEL_CRITICIDADE: Record<string, string> = {
+  CRITICO: 'Crítico',
+  ALTO:    'Alto',
+  MEDIO:   'Médio',
+  BAIXO:   'Baixo',
 };
 
-const EMOJI_STATUS: Record<string, string> = {
-  ABERTO:       ':white_circle:',
-  EM_ANDAMENTO: ':large_blue_circle:',
-  FECHADO:      ':white_check_mark:',
+const LABEL_STATUS: Record<string, string> = {
+  ABERTO:       'Em aberto',
+  EM_ANDAMENTO: 'Em andamento',
+  FECHADO:      'Encerrado',
 };
 
-const EMOJI_CATEGORIA: Record<string, string> = {
-  IMPRESSORA:  ':printer:',
-  COMPUTADOR:  ':computer:',
-  REDE:        ':globe_with_meridians:',
-  ACESSOS:     ':key:',
-  OUTROS:      ':wrench:',
+const LABEL_CATEGORIA: Record<string, string> = {
+  IMPRESSORA: 'Impressora',
+  COMPUTADOR: 'Computador',
+  REDE:       'Rede',
+  ACESSOS:    'Acessos',
+  OUTROS:     'Outros',
 };
 
-// ─── Builder de payload ───────────────────────────────────────────────────────
+// ─── Builder ──────────────────────────────────────────────────────────────────
 
-function buildPayloadNovoChamado(c: DadosChamadoSlack): object {
+function buildPayloadNovoChamado(c: DadosChamadoSlack, frontendUrl: string): object {
   const cor        = COR_CRITICIDADE[c.criticidade]  ?? '#95A5A6';
-  const emojiCrit  = EMOJI_CRITICIDADE[c.criticidade] ?? ':white_circle:';
-  const emojiStat  = EMOJI_STATUS[c.status]            ?? ':white_circle:';
-  const emojiCat   = EMOJI_CATEGORIA[c.categoria]      ?? ':wrench:';
+  const criticidade = LABEL_CRITICIDADE[c.criticidade] ?? c.criticidade;
+  const status      = LABEL_STATUS[c.status]            ?? c.status;
+  const categoria   = LABEL_CATEGORIA[c.categoria]      ?? c.categoria;
+  const linkChamado = `${frontendUrl}/chamados/${c.id}`;
 
-  const preview = c.descricao.length > 120
-    ? c.descricao.slice(0, 120).trimEnd() + '…'
+  const preview = c.descricao.length > 140
+    ? c.descricao.slice(0, 140).trimEnd() + '…'
     : c.descricao;
 
+  const ts = Math.floor(Date.now() / 1000);
+
   return {
-    text: `Novo chamado #${c.id}: ${c.titulo}`,
+    text: `Chamado #${c.id}: ${c.titulo}`,
     attachments: [
       {
         color: cor,
         blocks: [
-          // Cabeçalho
+          // Título do card
           {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `:ticket: *Novo Chamado Aberto — #${c.id}*`,
+              text: `*Novo chamado aberto — #${c.id}*`,
             },
           },
           { type: 'divider' },
@@ -77,25 +80,25 @@ function buildPayloadNovoChamado(c: DadosChamadoSlack): object {
               text: `*${c.titulo}*\n${preview}`,
             },
           },
-          // Grade de metadados
+          // Metadados em grade
           {
             type: 'section',
             fields: [
+              { type: 'mrkdwn', text: `*Categoria*\n${categoria}` },
+              { type: 'mrkdwn', text: `*Criticidade*\n${criticidade}` },
+              { type: 'mrkdwn', text: `*Status*\n${status}` },
+              { type: 'mrkdwn', text: `*Solicitante*\n${c.autorNome}` },
+            ],
+          },
+          // Botão de acesso direto
+          {
+            type: 'actions',
+            elements: [
               {
-                type: 'mrkdwn',
-                text: `*Categoria*\n${emojiCat}  ${c.categoria}`,
-              },
-              {
-                type: 'mrkdwn',
-                text: `*Criticidade*\n${emojiCrit}  ${c.criticidade}`,
-              },
-              {
-                type: 'mrkdwn',
-                text: `*Status*\n${emojiStat}  ${c.status.replace('_', ' ')}`,
-              },
-              {
-                type: 'mrkdwn',
-                text: `*Aberto por*\n:bust_in_silhouette:  ${c.autorNome}`,
+                type: 'button',
+                text: { type: 'plain_text', text: 'Ver chamado', emoji: false },
+                url: linkChamado,
+                style: 'primary',
               },
             ],
           },
@@ -106,7 +109,7 @@ function buildPayloadNovoChamado(c: DadosChamadoSlack): object {
             elements: [
               {
                 type: 'mrkdwn',
-                text: `:blue_intranet: *Blue Intranet* · Sistema de Help Desk · <!date^${Math.floor(Date.now() / 1000)}^{date_short_pretty} às {time}|agora>`,
+                text: `Blue Intranet  ·  <!date^${ts}^{date_short_pretty} às {time}|agora>`,
               },
             ],
           },
@@ -119,11 +122,13 @@ function buildPayloadNovoChamado(c: DadosChamadoSlack): object {
 // ─── Função pública ───────────────────────────────────────────────────────────
 
 export function notificarNovoChamado(chamado: DadosChamadoSlack): void {
-  const webhookUrl = process.env.SLACK_WEBHOOK_URL;
-  if (!webhookUrl) return;
+  const webhookUrl  = process.env.SLACK_WEBHOOK_URL;
+  const frontendUrl = (process.env.FRONTEND_URL ?? '').replace(/\/$/, '');
+
+  if (!webhookUrl || !frontendUrl) return;
 
   axios
-    .post(webhookUrl, buildPayloadNovoChamado(chamado))
+    .post(webhookUrl, buildPayloadNovoChamado(chamado, frontendUrl))
     .catch((err: unknown) => {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[Slack] Falha ao notificar novo chamado:', msg);
