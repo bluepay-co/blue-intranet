@@ -122,7 +122,7 @@ function buildPayloadNovoChamado(c: DadosChamadoSlack, frontendUrl: string): obj
 // ─── Função pública ───────────────────────────────────────────────────────────
 
 export function notificarNovoChamado(chamado: DadosChamadoSlack): void {
-  const webhookUrl  = process.env.SLACK_WEBHOOK_URL;
+  const webhookUrl  = process.env.SLACK_WEBHOOK_CHAMADOS;
   const frontendUrl = (process.env.FRONTEND_URL ?? '').replace(/\/$/, '');
 
   if (!webhookUrl) return;
