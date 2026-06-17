@@ -5,6 +5,7 @@ import { tarefasRouter } from './tarefas.routes';
 import { blogRouter } from './blog.routes';
 import { usuarioRouter } from './usuario.routes';
 import { chamadosRouter } from './chamado.routes';
+import { chatRouter } from './chat.routes';
 
 const router = Router();
 
@@ -26,5 +27,8 @@ router.use('/api/usuarios', usuarioRouter);
 
 // Domínio: Chamados (help desk de T.I. — abertura por todos, gestão pela T.I.)
 router.use('/api/chamados', chamadosRouter);
+
+// Domínio: Chat Interno (mensagens em tempo real — todos os colaboradores)
+router.use('/api/chat', chatRouter);
 
 export { router };
