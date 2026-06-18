@@ -29,23 +29,20 @@ export default function Sidebar({ className, onNavigate }) {
   return (
     <aside
       className={cn(
-        'relative flex h-svh flex-col overflow-hidden bg-brand text-brand-foreground',
+        'flex h-svh flex-col bg-brand text-brand-foreground',
         className,
       )}
     >
-      {/* Brilho decorativo na cor secundária */}
-      <div className="pointer-events-none absolute -top-24 -left-16 h-56 w-56 rounded-full bg-brand-accent/15 blur-3xl" />
-
       {/* Marca */}
-      <div className="relative flex h-16 items-center border-b border-white/10 px-5">
+      <div className="flex h-16 items-center border-b border-white/10 px-5">
         <img src="/logo-branca.svg" alt="Blue Pay Solutions" className="h-7 w-auto" />
       </div>
 
       {/* Navegação — agrupada por seção/setor */}
-      <nav className="relative flex-1 space-y-5 px-3 py-4">
+      <nav className="flex-1 space-y-2 overflow-y-auto px-3 py-3">
         {secoes.map((secao) => (
-          <div key={secao.label} className="space-y-1">
-            <p className="px-3 pb-1 text-[0.7rem] font-semibold tracking-wider text-brand-foreground/40 uppercase">
+          <div key={secao.label} className="space-y-0.5">
+            <p className="px-2 pb-0.5 pt-1 text-[0.6rem] font-semibold tracking-widest text-brand-foreground/30 uppercase">
               {secao.label}
             </p>
             {secao.items.map((item) =>
@@ -71,26 +68,27 @@ export default function Sidebar({ className, onNavigate }) {
       </nav>
 
       {/* Usuário + sair */}
-      <div className="relative border-t border-white/10 p-3">
-        <div className="flex items-center gap-3 rounded-lg bg-white/5 p-2.5">
-          <div className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-accent text-sm font-semibold text-brand-accent-foreground ring-2 ring-white/10">
+      <div className="relative shrink-0 border-t border-white/10 p-3">
+        <div className="flex items-center gap-2.5 rounded-lg bg-white/5 px-2.5 py-2">
+          <div className="grid size-7 shrink-0 place-items-center rounded-full bg-brand-accent text-xs font-semibold text-brand-accent-foreground ring-1 ring-white/10">
             {inicial(usuario?.nome)}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-white">{usuario?.nome}</p>
-            <span className="mt-0.5 inline-block rounded-full bg-brand-accent/15 px-2 py-0.5 text-[0.65rem] font-semibold tracking-wide text-brand-accent uppercase">
+            <p className="truncate text-xs font-medium text-white">{usuario?.nome}</p>
+            <span className="text-[0.6rem] font-semibold tracking-wide text-brand-accent uppercase">
               {usuario?.role}
             </span>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={logout}
+            className="size-7 shrink-0 text-brand-foreground/50 hover:bg-white/5 hover:text-white"
+            title="Sair"
+          >
+            <LogOut className="size-3.5" />
+          </Button>
         </div>
-        <Button
-          variant="ghost"
-          onClick={logout}
-          className="mt-2 w-full justify-start gap-3 text-brand-foreground/60 hover:bg-white/5 hover:text-white"
-        >
-          <LogOut className="size-4" />
-          Sair
-        </Button>
       </div>
     </aside>
   )

@@ -15,8 +15,8 @@ export default function NavItemLink({ to, label, icon: Icon, end, onNavigate, ne
       {({ isActive }) => (
         <span
           className={cn(
-            'relative flex items-center gap-3 rounded-lg py-2 text-sm font-medium transition-all',
-            nested ? 'pr-3 pl-9' : 'px-3',
+            'relative flex items-center gap-2.5 rounded-md px-2 py-1.5 text-xs font-medium transition-all',
+            nested ? 'pr-2 pl-7' : 'px-2',
             isActive
               ? 'bg-white/10 text-white'
               : 'text-brand-foreground/65 hover:bg-white/5 hover:text-white',
@@ -28,7 +28,7 @@ export default function NavItemLink({ to, label, icon: Icon, end, onNavigate, ne
           {Icon && (
             <Icon
               className={cn(
-                'size-4 shrink-0 transition-colors',
+                'size-3.5 shrink-0 transition-colors',
                 isActive ? 'text-brand-accent' : 'text-brand-foreground/50 group-hover:text-white',
               )}
             />
