@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { getMeuResumo, getTopClientes } from '@/api/modules/metricas'
 import { useAuth } from '@/auth/auth-context'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -60,14 +60,16 @@ export default function DashboardPessoal() {
   const [clientes, setClientes] = useState([])
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState(null)
-  const [testEmail, setTestEmail] = useState('andrecamargo@bluepaysolutions.com.br')
   const [testEmailInput, setTestEmailInput] = useState('andrecamargo@bluepaysolutions.com.br')
+  const [triggerKey, setTriggerKey] = useState(0)
+  // ref sempre atualizada sem depender de closure stale
+  const testEmailRef = React.useRef(testEmailInput)
 
   const carregar = useCallback(async () => {
     setLoading(true)
     setErro(null)
     try {
-      const email = isDesenvolvedor ? testEmail : undefined
+      const email = isDesenvolvedor ? testEmailRef.current : undefined
       const [resumo, tops] = await Promise.all([
         getMeuResumo(mes, ano, email),
         getTopClientes(mes, ano, 10, email),
@@ -85,7 +87,7 @@ export default function DashboardPessoal() {
     } finally {
       setLoading(false)
     }
-  }, [mes, ano, testEmail, isDesenvolvedor])
+  }, [mes, ano, triggerKey, isDesenvolvedor])
 
   useEffect(() => { carregar() }, [carregar])
 
@@ -138,11 +140,20 @@ export default function DashboardPessoal() {
                 type="email"
                 value={testEmailInput}
                 onChange={e => setTestEmailInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    testEmailRef.current = testEmailInput
+                    setTriggerKey(k => k + 1)
+                  }
+                }}
                 placeholder="email@bluepaysolutions.com.br"
                 className="flex-1 min-w-[260px] text-sm border border-amber-300 rounded px-2 py-1 bg-white dark:bg-background"
               />
               <button
-                onClick={() => setTestEmail(testEmailInput)}
+                onClick={() => {
+                  testEmailRef.current = testEmailInput
+                  setTriggerKey(k => k + 1)
+                }}
                 className="text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white px-3 py-1 rounded transition-colors"
               >
                 Simular
