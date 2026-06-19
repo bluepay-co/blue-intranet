@@ -6,10 +6,11 @@ import api from '@/api/api'
  * @param {number} [ano] - Ano. Padrão: ano atual.
  * @returns {Promise<MetricasVendedor>}
  */
-export async function getMeuResumo(mes, ano) {
+export async function getMeuResumo(mes, ano, testEmail) {
   const params = {}
   if (mes) params.mes = mes
   if (ano) params.ano = ano
+  if (testEmail) params.testEmail = testEmail
   const { data } = await api.get('/api/metricas/meu-resumo', { params })
   return data
 }
@@ -19,12 +20,14 @@ export async function getMeuResumo(mes, ano) {
  * @param {number} [mes]
  * @param {number} [ano]
  * @param {number} [limite=10]
+ * @param {string} [testEmail]
  * @returns {Promise<TopCliente[]>}
  */
-export async function getTopClientes(mes, ano, limite = 10) {
+export async function getTopClientes(mes, ano, limite = 10, testEmail) {
   const params = { limite }
   if (mes) params.mes = mes
   if (ano) params.ano = ano
+  if (testEmail) params.testEmail = testEmail
   const { data } = await api.get('/api/metricas/top-clientes', { params })
   return data
 }

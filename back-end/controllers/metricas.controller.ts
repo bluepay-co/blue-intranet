@@ -9,8 +9,14 @@ import { AppError } from '../utils/app-error';
 
 export async function meuResumo(req: Request, res: Response) {
   try {
-    const email = req.usuario?.email;
-    if (!email) throw new AppError('Usuário não autenticado.', 401);
+    const role = req.usuario?.role;
+    const emailJwt = req.usuario?.email;
+    if (!emailJwt) throw new AppError('Usuário não autenticado.', 401);
+
+    // DESENVOLVEDOR pode simular qualquer vendedor via ?testEmail=
+    const email = (role === 'DESENVOLVEDOR' && typeof req.query.testEmail === 'string')
+      ? req.query.testEmail
+      : emailJwt;
 
     const mes = req.query.mes ? Number(req.query.mes) : undefined;
     const ano = req.query.ano ? Number(req.query.ano) : undefined;
@@ -32,8 +38,13 @@ export async function meuResumo(req: Request, res: Response) {
 
 export async function topClientes(req: Request, res: Response) {
   try {
-    const email = req.usuario?.email;
-    if (!email) throw new AppError('Usuário não autenticado.', 401);
+    const role = req.usuario?.role;
+    const emailJwt = req.usuario?.email;
+    if (!emailJwt) throw new AppError('Usuário não autenticado.', 401);
+
+    const email = (role === 'DESENVOLVEDOR' && typeof req.query.testEmail === 'string')
+      ? req.query.testEmail
+      : emailJwt;
 
     const agora = new Date();
     const mes    = req.query.mes    ? Number(req.query.mes)    : agora.getMonth() + 1;
