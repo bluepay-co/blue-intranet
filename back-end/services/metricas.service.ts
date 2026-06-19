@@ -206,7 +206,7 @@ export async function buscarMetricasEquipe(
 ): Promise<MetricasEquipe | null> {
   // 1. Busca emails de todos os membros ativos desse cargo no banco da intranet
   const { rows: usuariosIntranet } = await pool.query(
-    `SELECT email FROM blue_intranet.usuarios WHERE role = $1 AND ativo = true`,
+    `SELECT email FROM blue_intranet.usuarios WHERE role = $1 AND bloqueado = false`,
     [role]
   );
 
