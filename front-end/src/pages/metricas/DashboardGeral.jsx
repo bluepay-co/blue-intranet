@@ -1,16 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { getMetricasGerais } from '@/api/modules/metricas'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { ChartContainer, CORES_GRAFICO } from '@/components/ui/chart'
+import PageHeader from '@/components/layout/PageHeader'
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
 } from 'recharts'
 import {
-  TrendingUp, TrendingDown, Wallet, Users, BarChart3,
-  ChevronLeft, ChevronRight, AlertCircle, Activity,
+  Wallet, Users, BarChart3, TrendingUp, TrendingDown,
   UserPlus, UserMinus, RefreshCw,
+  AlertCircle, Loader2, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
@@ -21,60 +22,55 @@ const LABEL_PRODUTO = {
   virtual_deposit: 'Depósito Virtual',
 }
 
-function fmt(v) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v)
-}
-function fmtK(v) {
-  if (v >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(1)}M`
-  if (v >= 1_000)     return `R$ ${(v / 1_000).toFixed(0)}K`
-  return fmt(v)
-}
-function fmtPct(v) {
-  if (v === null || v === undefined) return '—'
-  const sign = v > 0 ? '+' : ''
-  return `${sign}${v.toFixed(1)}%`
+function moeda(v) {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency', currency: 'BRL', maximumFractionDigits: 0,
+  }).format(v ?? 0)
 }
 
-function KpiCard({ icon: Icon, label, value, sub, color = 'text-foreground' }) {
+function pct(v) {
+  if (v === null || v === undefined) return '—'
+  return `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`
+}
+
+/** KPI card no padrão TI: ícone colorido + valor + rótulo */
+function KpiCard({ icon: Icon, cor, valor, rotulo }) {
   return (
     <Card>
-      <CardContent className="pt-5 pb-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">{label}</p>
-            <p className={`text-2xl font-bold ${color}`}>{value}</p>
-            {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
-          </div>
-          <div className="p-2 rounded-lg bg-muted">
-            <Icon className="h-5 w-5 text-muted-foreground" />
-          </div>
+      <CardContent className="flex items-center gap-3 py-4">
+        <div className={`grid size-10 place-items-center rounded-lg ${cor}`}>
+          <Icon className="size-5" />
+        </div>
+        <div>
+          <p className="text-2xl font-semibold leading-tight">{valor}</p>
+          <p className="text-xs text-muted-foreground">{rotulo}</p>
         </div>
       </CardContent>
     </Card>
   )
 }
 
-function DeltaBadge({ value }) {
+function DeltaTag({ value }) {
   if (value === null || value === undefined) return <span className="text-xs text-muted-foreground">—</span>
   const up = value >= 0
   return (
     <span className={`inline-flex items-center gap-0.5 text-xs font-semibold ${up ? 'text-emerald-600' : 'text-red-500'}`}>
-      {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-      {fmtPct(value)}
+      {up ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
+      {pct(value)}
     </span>
   )
 }
 
-function TooltipEvolucao({ active, payload, label }) {
+function TooltipReceita({ active, payload }) {
   if (!active || !payload?.length) return null
   const d = payload[0]?.payload
   return (
-    <div className="bg-background border rounded-lg shadow-md px-3 py-2 text-sm space-y-1">
-      <p className="font-semibold">{MESES[(Number(label) - 1)]} / {d?.ano}</p>
-      <p className="text-primary">{fmt(payload[0].value)}</p>
-      {d?.crescimentoReceita !== null && (
-        <p className={d?.crescimentoReceita >= 0 ? 'text-emerald-600' : 'text-red-500'}>
-          MoM: {fmtPct(d?.crescimentoReceita)}
+    <div className="rounded-lg border bg-background px-3 py-2 text-sm shadow-md space-y-0.5">
+      <p className="font-semibold">{MESES[(d.mes ?? 1) - 1]} / {d.ano}</p>
+      <p className="text-primary">{moeda(d.receita)}</p>
+      {d.crescimentoReceita !== null && (
+        <p className={d.crescimentoReceita >= 0 ? 'text-emerald-600' : 'text-red-500'}>
+          MoM: {pct(d.crescimentoReceita)}
         </p>
       )}
     </div>
@@ -86,80 +82,73 @@ export default function DashboardGeral() {
   const [mes, setMes] = useState(agora.getMonth() + 1)
   const [ano, setAno] = useState(agora.getFullYear())
   const [dados, setDados] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [erro, setErro] = useState(null)
+  const [carregando, setCarregando] = useState(true)
+  const [erro, setErro] = useState('')
 
   const carregar = useCallback(async () => {
-    setLoading(true)
-    setErro(null)
+    setErro('')
+    setCarregando(true)
     try {
-      const d = await getMetricasGerais(mes, ano)
-      setDados(d)
+      setDados(await getMetricasGerais(mes, ano))
     } catch {
-      setErro('Erro ao carregar métricas gerais. Tente novamente.')
+      setErro('Falha ao carregar métricas gerais.')
     } finally {
-      setLoading(false)
+      setCarregando(false)
     }
   }, [mes, ano])
 
   useEffect(() => { carregar() }, [carregar])
 
   function mudarMes(delta) {
-    let m = mes + delta
-    let a = ano
-    if (m > 12) { m = 1;  a++ }
+    let m = mes + delta, a = ano
+    if (m > 12) { m = 1; a++ }
     if (m < 1)  { m = 12; a-- }
-    setMes(m)
-    setAno(a)
+    setMes(m); setAno(a)
+  }
+
+  if (carregando && !dados) {
+    return (
+      <div className="grid place-items-center py-24">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    )
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Métricas Gerais</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Visão consolidada da empresa</p>
+    <div className="space-y-6">
+      <PageHeader
+        title="Dashboard Geral"
+        subtitle="Visão Consolidada da Empresa"
+      >
+        <div className="flex items-center gap-2">
+          {/* Botão de atualização */}
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={carregar} disabled={carregando} title="Atualizar">
+            <RefreshCw className={`size-4 ${carregando ? 'animate-spin' : ''}`} />
+          </Button>
+          {/* Seletor de período */}
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => mudarMes(-1)} disabled={carregando}>
+              <ChevronLeft className="size-4" />
+            </Button>
+            <span className="min-w-[100px] text-center text-sm font-medium">
+              {MESES[mes - 1]} / {ano}
+            </span>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => mudarMes(1)} disabled={carregando}>
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2">
-          <button onClick={() => mudarMes(-1)} className="hover:text-primary transition-colors">
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <span className="text-sm font-semibold min-w-[90px] text-center">
-            {MESES[mes - 1]} / {ano}
-          </span>
-          <button onClick={() => mudarMes(1)} className="hover:text-primary transition-colors">
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
+      </PageHeader>
 
-      {/* Loading */}
-      {loading && (
-        <div className="space-y-4">
-          <Skeleton className="h-16 w-full" />
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-28" />)}
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Skeleton className="h-64" />
-            <Skeleton className="h-64" />
-          </div>
+      {erro && (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="size-4 shrink-0" />
+          {erro}
         </div>
       )}
 
-      {/* Erro */}
-      {!loading && erro && (
-        <div className="flex flex-col items-center justify-center min-h-[40vh] gap-3 text-muted-foreground">
-          <AlertCircle className="h-10 w-10" />
-          <p className="text-sm font-medium">{erro}</p>
-        </div>
-      )}
-
-      {/* Dados */}
-      {!loading && !erro && dados && (() => {
+      {dados && (() => {
         const { resumo, hoje, retencao, mixProduto, evolucaoMensal, topClientes, faixasTaxa, ytd, novosClientesMes } = dados
-
         const ytdAtual    = ytd.find(y => y.ano === ano)
         const ytdAnterior = ytd.find(y => y.ano === ano - 1)
 
@@ -168,156 +157,161 @@ export default function DashboardGeral() {
             {/* Strip Hoje */}
             <Card className="border-l-4 border-l-primary">
               <CardContent className="py-3 px-5">
-                <div className="flex flex-wrap gap-6 items-center">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Hoje</p>
-                  <div className="flex gap-6 flex-wrap">
+                <div className="flex flex-wrap items-center gap-6">
+                  <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Hoje</span>
+                  <div className="flex flex-wrap gap-6">
                     <div>
                       <p className="text-xs text-muted-foreground">Receita</p>
-                      <p className="font-bold text-primary">{fmt(hoje.receita)}</p>
+                      <p className="font-bold text-primary">{moeda(hoje.receita)}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">TPV</p>
-                      <p className="font-bold">{fmtK(hoje.tpv)}</p>
+                      <p className="font-bold">{moeda(hoje.tpv)}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Tickets</p>
                       <p className="font-bold">{hoje.qtdTickets}</p>
                     </div>
-                    <div className="border-l pl-6 ml-2">
-                      <p className="text-xs text-muted-foreground">Média diária / mês</p>
-                      <p className="font-bold">{fmt(hoje.mediaDiariaReceita)} · {Math.round(hoje.mediaDiariaTickets)} tickets</p>
+                    <div className="border-l pl-6">
+                      <p className="text-xs text-muted-foreground">Média diária do mês</p>
+                      <p className="font-bold">{moeda(hoje.mediaDiariaReceita)} · {Math.round(hoje.mediaDiariaTickets)} tickets</p>
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* KPI Cards linha 1 */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <KpiCard icon={Wallet}   label="Receita no Mês"    value={fmtK(resumo.receita)}   color="text-primary" />
-              <KpiCard icon={TrendingUp} label="TPV"             value={fmtK(resumo.tpv)}        sub="Volume processado" />
-              <KpiCard icon={BarChart3}  label="Tickets"         value={resumo.qtdTickets}       />
-              <KpiCard icon={Users}      label="Clientes Ativos" value={resumo.clientesAtivos}   />
+            {/* KPIs linha 1 */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <KpiCard icon={Wallet}    cor="bg-blue-500/10 text-blue-600"    valor={moeda(resumo.receita)}       rotulo="Receita no mês" />
+              <KpiCard icon={TrendingUp} cor="bg-sky-500/10 text-sky-600"     valor={moeda(resumo.tpv)}            rotulo="TPV — volume processado" />
+              <KpiCard icon={BarChart3}  cor="bg-amber-500/10 text-amber-600" valor={resumo.qtdTickets}            rotulo="Tickets processados" />
+              <KpiCard icon={Users}      cor="bg-violet-500/10 text-violet-600" valor={resumo.clientesAtivos}     rotulo="Clientes ativos" />
             </div>
 
-            {/* KPI Cards linha 2 */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <KpiCard icon={Activity} label="Vendedores Ativos" value={resumo.vendedoresAtivos} />
-              <KpiCard icon={BarChart3} label="Taxa Média"       value={`${resumo.taxaMedia.toFixed(2)}%`} />
-              <KpiCard icon={Wallet}   label="Ticket Médio"      value={fmtK(resumo.ticketMedio)} />
-              <KpiCard icon={RefreshCw} label="Retenção"         value={`${retencao.taxaRetencao}%`} sub={`${retencao.recorrentes} recorrentes`} color="text-emerald-600" />
+            {/* KPIs linha 2 */}
+            <div className="grid gap-4 sm:grid-cols-3">
+              <KpiCard icon={BarChart3}  cor="bg-orange-500/10 text-orange-600"   valor={`${resumo.taxaMedia.toFixed(3)}%`}  rotulo="Taxa média" />
+              <KpiCard icon={Wallet}     cor="bg-pink-500/10 text-pink-600"        valor={moeda(resumo.ticketMedio)}          rotulo="Ticket médio" />
+              <KpiCard icon={RefreshCw}  cor="bg-teal-500/10 text-teal-600"       valor={`${retencao.taxaRetencao}%`}        rotulo={`Retenção · ${retencao.recorrentes} recorrentes`} />
             </div>
 
             {/* Evolução Mensal + YTD */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid gap-4 lg:grid-cols-3">
               <Card className="lg:col-span-2">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold">Evolução Mensal — Receita</CardTitle>
+                <CardHeader>
+                  <CardTitle>Evolução Mensal — Receita</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={220}>
+                  <ChartContainer className="h-64">
                     <BarChart data={evolucaoMensal} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="mes" tickFormatter={m => MESES[m - 1]} tick={{ fontSize: 11 }} />
-                      <YAxis tickFormatter={v => fmtK(v)} tick={{ fontSize: 11 }} width={64} />
-                      <Tooltip content={<TooltipEvolucao />} />
+                      <XAxis dataKey="mes" tickFormatter={m => MESES[m - 1]} className="text-xs" />
+                      <YAxis tickFormatter={v => moeda(v)} className="text-xs" width={110} />
+                      <Tooltip content={<TooltipReceita />} />
                       <Bar dataKey="receita" radius={[4, 4, 0, 0]}>
                         {evolucaoMensal.map((entry, i) => (
-                          <Cell key={i} fill={entry.mes === mes && entry.ano === ano ? 'hsl(var(--primary))' : 'hsl(var(--primary)/0.4)'} />
+                          <Cell
+                            key={i}
+                            fill={entry.mes === mes && entry.ano === ano
+                              ? CORES_GRAFICO[0]
+                              : `${CORES_GRAFICO[0]}66`}
+                          />
                         ))}
                       </Bar>
                     </BarChart>
-                  </ResponsiveContainer>
+                  </ChartContainer>
                 </CardContent>
               </Card>
 
               {/* YTD */}
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold">YTD — Jan → {MESES[mes - 1]}</CardTitle>
+                <CardHeader>
+                  <CardTitle>YTD — Jan → {MESES[mes - 1]}</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 pt-2">
                   {[
-                    { label: 'Receita', curr: ytdAtual?.receita, prev: ytdAnterior?.receita, fmt: fmtK },
-                    { label: 'TPV',     curr: ytdAtual?.tpv,     prev: ytdAnterior?.tpv,     fmt: fmtK },
-                    { label: 'Clientes', curr: ytdAtual?.clientesUnicos, prev: ytdAnterior?.clientesUnicos, fmt: v => v },
-                  ].map(({ label, curr, prev, fmt: f }) => {
-                    const pct = prev && curr ? ((curr - prev) / prev) * 100 : null
+                    { label: 'Receita',  curr: ytdAtual?.receita,       prev: ytdAnterior?.receita,       f: moeda },
+                    { label: 'TPV',      curr: ytdAtual?.tpv,            prev: ytdAnterior?.tpv,            f: moeda },
+                    { label: 'Clientes', curr: ytdAtual?.clientesUnicos, prev: ytdAnterior?.clientesUnicos, f: v => v },
+                  ].map(({ label, curr, prev, f }) => {
+                    const delta = prev && curr ? Math.round(((curr - prev) / prev) * 1000) / 10 : null
                     return (
-                      <div key={label} className="flex items-center justify-between text-sm">
+                      <div key={label} className="flex items-center justify-between text-sm border-b pb-3 last:border-0 last:pb-0">
                         <span className="text-muted-foreground">{label}</span>
                         <div className="text-right">
                           <p className="font-semibold">{curr != null ? f(curr) : '—'}</p>
-                          <DeltaBadge value={pct !== null ? Math.round(pct * 10) / 10 : null} />
+                          <DeltaTag value={delta} />
                         </div>
                       </div>
                     )
                   })}
                   {ytdAnterior && (
-                    <p className="text-xs text-muted-foreground pt-1 border-t">vs {ano - 1}: {fmtK(ytdAnterior.receita)}</p>
+                    <p className="text-xs text-muted-foreground border-t pt-2">
+                      {ano - 1}: {moeda(ytdAnterior.receita)}
+                    </p>
                   )}
                 </CardContent>
               </Card>
             </div>
 
             {/* Retenção + Mix de Produto */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Retenção */}
+            <div className="grid gap-4 lg:grid-cols-2">
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold">Retenção de Clientes</CardTitle>
+                <CardHeader>
+                  <CardTitle>Retenção de Clientes</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-3 gap-3 text-center">
-                    <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/20 p-3">
-                      <UserPlus className="h-5 w-5 text-emerald-600 mx-auto mb-1" />
+                    <div className="rounded-lg bg-emerald-500/10 p-4">
+                      <UserPlus className="size-5 text-emerald-600 mx-auto mb-2" />
                       <p className="text-2xl font-bold text-emerald-600">{retencao.novos}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Novos</p>
+                      <p className="text-xs text-muted-foreground mt-1">Novos</p>
                     </div>
-                    <div className="rounded-lg bg-blue-50 dark:bg-blue-950/20 p-3">
-                      <RefreshCw className="h-5 w-5 text-blue-600 mx-auto mb-1" />
+                    <div className="rounded-lg bg-blue-500/10 p-4">
+                      <RefreshCw className="size-5 text-blue-600 mx-auto mb-2" />
                       <p className="text-2xl font-bold text-blue-600">{retencao.recorrentes}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Recorrentes</p>
+                      <p className="text-xs text-muted-foreground mt-1">Recorrentes</p>
                     </div>
-                    <div className="rounded-lg bg-red-50 dark:bg-red-950/20 p-3">
-                      <UserMinus className="h-5 w-5 text-red-500 mx-auto mb-1" />
+                    <div className="rounded-lg bg-red-500/10 p-4">
+                      <UserMinus className="size-5 text-red-500 mx-auto mb-2" />
                       <p className="text-2xl font-bold text-red-500">{retencao.perdidos}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Perdidos</p>
+                      <p className="text-xs text-muted-foreground mt-1">Perdidos</p>
                     </div>
                   </div>
-                  <p className="text-center text-sm text-muted-foreground mt-4">
-                    Taxa de retenção: <span className="font-semibold text-emerald-600">{retencao.taxaRetencao}%</span>
+                  <p className="mt-4 text-center text-sm text-muted-foreground">
+                    Taxa de retenção:{' '}
+                    <span className="font-semibold text-emerald-600">{retencao.taxaRetencao}%</span>
                   </p>
                 </CardContent>
               </Card>
 
-              {/* Mix de Produto */}
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold">Mix de Produto</CardTitle>
+                <CardHeader>
+                  <CardTitle>Mix de Produto</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={160}>
+                  <ChartContainer className="h-44">
                     <BarChart
                       layout="vertical"
                       data={mixProduto.map(p => ({ ...p, nome: LABEL_PRODUTO[p.produto] ?? p.produto }))}
                       margin={{ top: 0, right: 8, left: 0, bottom: 0 }}
                     >
-                      <XAxis type="number" tickFormatter={v => fmtK(v)} tick={{ fontSize: 10 }} />
-                      <YAxis type="category" dataKey="nome" tick={{ fontSize: 10 }} width={110} />
-                      <Tooltip formatter={v => [fmt(v), 'Receita']} />
-                      <Bar dataKey="receita" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]}>
+                      <XAxis type="number" tickFormatter={v => moeda(v)} className="text-xs" />
+                      <YAxis type="category" dataKey="nome" className="text-xs" width={130} />
+                      <Tooltip formatter={v => [moeda(v), 'Receita']} />
+                      <Bar dataKey="receita" radius={[0, 4, 4, 0]}>
                         {mixProduto.map((_, i) => (
-                          <Cell key={i} fill={`hsl(var(--primary)/${1 - i * 0.25})`} />
+                          <Cell key={i} fill={CORES_GRAFICO[i % CORES_GRAFICO.length]} />
                         ))}
                       </Bar>
                     </BarChart>
-                  </ResponsiveContainer>
-                  <div className="space-y-1 mt-2">
+                  </ChartContainer>
+                  <div className="mt-2 space-y-1">
                     {mixProduto.map(p => (
                       <div key={p.produto} className="flex items-center justify-between text-xs text-muted-foreground">
                         <span>{LABEL_PRODUTO[p.produto] ?? p.produto}</span>
-                        <span className="font-medium">{p.percentualReceita?.toFixed(1)}%</span>
+                        <span className="font-medium">{p.percentualReceita?.toFixed(1)}% · {moeda(p.receita)}</span>
                       </div>
                     ))}
                   </div>
@@ -326,53 +320,66 @@ export default function DashboardGeral() {
             </div>
 
             {/* Top Clientes + Faixas de Taxa */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold">Top Clientes do Mês</CardTitle>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card className="overflow-hidden">
+                <CardHeader className="border-b bg-muted/30">
+                  <CardTitle>Top Clientes do Mês</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {topClientes.slice(0, 8).map((c, i) => (
-                      <div key={c.nome} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs w-6 h-6 flex items-center justify-center p-0 shrink-0">
-                            {i + 1}
-                          </Badge>
-                          <span className="truncate max-w-[180px]">{c.nome}</span>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="font-semibold text-primary">{fmt(c.receita)}</p>
-                          <p className="text-xs text-muted-foreground">{c.qtdTickets} tickets · {c.taxa.toFixed(2)}%</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                <CardContent className="p-0">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-xs text-muted-foreground">
+                        <th className="px-4 py-2 text-left font-medium">#</th>
+                        <th className="px-4 py-2 text-left font-medium">Cliente</th>
+                        <th className="px-4 py-2 text-right font-medium">Receita</th>
+                        <th className="px-4 py-2 text-right font-medium">TPV</th>
+                        <th className="px-4 py-2 text-right font-medium">Taxa</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {topClientes.map((c, i) => (
+                        <tr key={c.nome} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                          <td className="px-4 py-2.5">
+                            <Badge variant="outline" className="w-6 h-6 flex items-center justify-center p-0 text-xs">
+                              {i + 1}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-2.5 max-w-[180px] truncate font-medium">{c.nome}</td>
+                          <td className="px-4 py-2.5 text-right text-primary font-semibold">{moeda(c.receita)}</td>
+                          <td className="px-4 py-2.5 text-right text-muted-foreground">{moeda(c.tpv)}</td>
+                          <td className="px-4 py-2.5 text-right">{c.taxa.toFixed(2)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold">Distribuição por Faixa de Taxa</CardTitle>
+              <Card className="overflow-hidden">
+                <CardHeader className="border-b bg-muted/30">
+                  <CardTitle>Distribuição por Faixa de Taxa</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {faixasTaxa.map(f => (
-                      <div key={f.faixa} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
-                        <span className="text-muted-foreground min-w-[130px]">{f.faixa}</span>
-                        <div className="flex gap-4 text-right">
-                          <div>
-                            <p className="font-semibold">{f.clientes}</p>
-                            <p className="text-xs text-muted-foreground">clientes</p>
-                          </div>
-                          <div>
-                            <p className="font-semibold text-primary">{fmt(f.receita)}</p>
-                            <p className="text-xs text-muted-foreground">{f.tickets} tickets</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                <CardContent className="p-0">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-xs text-muted-foreground">
+                        <th className="px-4 py-2 text-left font-medium">Faixa</th>
+                        <th className="px-4 py-2 text-right font-medium">Clientes</th>
+                        <th className="px-4 py-2 text-right font-medium">Tickets</th>
+                        <th className="px-4 py-2 text-right font-medium">Receita</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {faixasTaxa.map(f => (
+                        <tr key={f.faixa} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                          <td className="px-4 py-2.5 text-muted-foreground">{f.faixa}</td>
+                          <td className="px-4 py-2.5 text-right font-medium">{f.clientes}</td>
+                          <td className="px-4 py-2.5 text-right text-muted-foreground">{f.tickets}</td>
+                          <td className="px-4 py-2.5 text-right text-primary font-semibold">{moeda(f.receita)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </CardContent>
               </Card>
             </div>
@@ -380,19 +387,19 @@ export default function DashboardGeral() {
             {/* Novos Clientes no Ano */}
             {novosClientesMes.length > 0 && (
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold">Novos Clientes por Mês — {ano}</CardTitle>
+                <CardHeader>
+                  <CardTitle>Novos Clientes por Mês — {ano}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={160}>
+                  <ChartContainer className="h-48">
                     <BarChart data={novosClientesMes} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="mes" tickFormatter={m => MESES[m - 1]} tick={{ fontSize: 11 }} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                      <XAxis dataKey="mes" tickFormatter={m => MESES[m - 1]} className="text-xs" />
+                      <YAxis allowDecimals={false} className="text-xs" />
                       <Tooltip formatter={v => [v, 'Novos clientes']} labelFormatter={m => MESES[m - 1]} />
-                      <Bar dataKey="quantidade" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="quantidade" fill={CORES_GRAFICO[3]} radius={[4, 4, 0, 0]} />
                     </BarChart>
-                  </ResponsiveContainer>
+                  </ChartContainer>
                 </CardContent>
               </Card>
             )}

@@ -2,7 +2,6 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Login from '@/components/Login'
 import AppLayout from '@/components/layout/AppLayout'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import Dashboard from '@/pages/Dashboard'
 import Agenda from '@/pages/Agenda'
 import Tarefas from '@/pages/Tarefas'
 import Usuarios from '@/pages/Usuarios'
@@ -32,7 +31,7 @@ function App() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Dashboard />} />
+        <Route index element={<Navigate to="/metricas/geral" replace />} />
         <Route path="agenda" element={<Agenda />} />
         <Route path="tarefas" element={<Tarefas />} />
         <Route path="blog" element={<Blog />} />
