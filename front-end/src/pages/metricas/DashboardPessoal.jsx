@@ -98,24 +98,10 @@ export default function DashboardPessoal() {
     setAno(a)
   }
 
-  if (loading) return (
-    <div className="p-6 space-y-6">
-      <Skeleton className="h-8 w-64" />
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28" />)}
-      </div>
-      <Skeleton className="h-64" />
-    </div>
-  )
-
-  if (erro) return (
-    <div className="p-6 flex flex-col items-center justify-center min-h-[40vh] gap-3 text-muted-foreground">
-      <AlertCircle className="h-10 w-10" />
-      <p className="text-sm font-medium">{erro}</p>
-    </div>
-  )
-
-  const { nome, mesAtual, hoje, historico } = dados
+  const dadosCarregados = !loading && !erro && dados
+  const { nome, mesAtual, hoje, historico } = dadosCarregados
+    ? dados
+    : { nome: null, mesAtual: null, hoje: null, historico: [] }
   const chartData = historico.map(h => ({ mes: h.mes, receita: h.receita }))
 
   return (
@@ -124,7 +110,7 @@ export default function DashboardPessoal() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Dashboard Pessoal</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Olá, {nome} 👋</p>
+          {nome && <p className="text-sm text-muted-foreground mt-0.5">Olá, {nome} 👋</p>}
         </div>
 
         {/* Seletor de período */}
@@ -166,111 +152,130 @@ export default function DashboardPessoal() {
         </Card>
       )}
 
-      {/* Strip Hoje */}
-      <Card className="border-l-4 border-l-primary">
-        <CardContent className="py-3 px-5">
-          <div className="flex flex-wrap gap-6 items-center">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Hoje</p>
-            <div className="flex gap-6">
-              <div>
-                <p className="text-xs text-muted-foreground">Receita</p>
-                <p className="font-bold text-primary">{fmt(hoje.receita)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">TPV</p>
-                <p className="font-bold">{fmtK(hoje.tpv)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Tickets</p>
-                <p className="font-bold">{hoje.qtdTickets}</p>
-              </div>
-            </div>
+      {/* Loading */}
+      {loading && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28" />)}
           </div>
-        </CardContent>
-      </Card>
+          <Skeleton className="h-64" />
+        </div>
+      )}
 
-      {/* KPI Cards principais */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard icon={Wallet} label="Receita no Mês" value={fmtK(mesAtual.receita)} color="text-primary" />
-        <KpiCard icon={TrendingUp} label="TPV" value={fmtK(mesAtual.tpv)} sub="Volume processado" />
-        <KpiCard icon={Users} label="Clientes Ativos" value={mesAtual.clientesAtivos} sub={`${mesAtual.clientesNovos} novos este mês`} />
-        <KpiCard icon={BarChart3} label="Tickets" value={mesAtual.qtdTickets} />
-      </div>
+      {/* Erro */}
+      {!loading && erro && (
+        <div className="flex flex-col items-center justify-center min-h-[30vh] gap-3 text-muted-foreground">
+          <AlertCircle className="h-10 w-10" />
+          <p className="text-sm font-medium">{erro}</p>
+        </div>
+      )}
 
-      {/* KPI Cards secundários */}
-      <div className="grid grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-4 pb-3 text-center">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Taxa Média</p>
-            <p className="text-xl font-bold">{mesAtual.taxaMedia.toFixed(2)}%</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3 text-center">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Ticket Médio</p>
-            <p className="text-xl font-bold">{fmtK(mesAtual.ticketMedio)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3 text-center">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Clientes Novos</p>
-            <p className="text-xl font-bold">{mesAtual.clientesNovos}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Gráfico histórico */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Receita — Últimos 6 Meses</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis
-                  dataKey="mes"
-                  tickFormatter={m => MESES[m - 1]}
-                  tick={{ fontSize: 11 }}
-                />
-                <YAxis tickFormatter={v => fmtK(v)} tick={{ fontSize: 11 }} width={60} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="receita" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Top clientes */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Top Clientes do Mês</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {clientes.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">Nenhum cliente neste período.</p>
-            ) : (
-              <div className="space-y-2">
-                {clientes.slice(0, 8).map((c, i) => (
-                  <div key={c.nome} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs w-6 h-6 flex items-center justify-center p-0 shrink-0">
-                        {i + 1}
-                      </Badge>
-                      <span className="truncate max-w-[160px]">{c.nome}</span>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="font-semibold text-primary">{fmt(c.receita)}</p>
-                      <p className="text-xs text-muted-foreground">{c.qtdTickets} tickets</p>
-                    </div>
+      {/* Dados carregados */}
+      {dadosCarregados && (
+        <>
+          {/* Strip Hoje */}
+          <Card className="border-l-4 border-l-primary">
+            <CardContent className="py-3 px-5">
+              <div className="flex flex-wrap gap-6 items-center">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Hoje</p>
+                <div className="flex gap-6">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Receita</p>
+                    <p className="font-bold text-primary">{fmt(hoje.receita)}</p>
                   </div>
-                ))}
+                  <div>
+                    <p className="text-xs text-muted-foreground">TPV</p>
+                    <p className="font-bold">{fmtK(hoje.tpv)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Tickets</p>
+                    <p className="font-bold">{hoje.qtdTickets}</p>
+                  </div>
+                </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+
+          {/* KPI Cards principais */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard icon={Wallet} label="Receita no Mês" value={fmtK(mesAtual.receita)} color="text-primary" />
+            <KpiCard icon={TrendingUp} label="TPV" value={fmtK(mesAtual.tpv)} sub="Volume processado" />
+            <KpiCard icon={Users} label="Clientes Ativos" value={mesAtual.clientesAtivos} sub={`${mesAtual.clientesNovos} novos este mês`} />
+            <KpiCard icon={BarChart3} label="Tickets" value={mesAtual.qtdTickets} />
+          </div>
+
+          {/* KPI Cards secundários */}
+          <div className="grid grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="pt-4 pb-3 text-center">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Taxa Média</p>
+                <p className="text-xl font-bold">{mesAtual.taxaMedia.toFixed(2)}%</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-3 text-center">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Ticket Médio</p>
+                <p className="text-xl font-bold">{fmtK(mesAtual.ticketMedio)}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-3 text-center">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Clientes Novos</p>
+                <p className="text-xl font-bold">{mesAtual.clientesNovos}</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Gráfico histórico */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Receita — Últimos 6 Meses</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="mes" tickFormatter={m => MESES[m - 1]} tick={{ fontSize: 11 }} />
+                    <YAxis tickFormatter={v => fmtK(v)} tick={{ fontSize: 11 }} width={60} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar dataKey="receita" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Top clientes */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Top Clientes do Mês</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {clientes.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">Nenhum cliente neste período.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {clientes.slice(0, 8).map((c, i) => (
+                      <div key={c.nome} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs w-6 h-6 flex items-center justify-center p-0 shrink-0">
+                            {i + 1}
+                          </Badge>
+                          <span className="truncate max-w-[160px]">{c.nome}</span>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="font-semibold text-primary">{fmt(c.receita)}</p>
+                          <p className="text-xs text-muted-foreground">{c.qtdTickets} tickets</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
     </div>
   )
 }

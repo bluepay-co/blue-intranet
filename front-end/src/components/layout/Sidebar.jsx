@@ -42,7 +42,7 @@ export default function Sidebar({ className, onNavigate }) {
       </div>
 
       {/* Navegação — agrupada por seção/setor */}
-      <nav className="relative flex-1 overflow-y-auto space-y-5 px-3 py-4">
+      <nav className="relative flex-1 space-y-5 px-3 py-4">
         {secoes.map((secao) => (
           <div key={secao.label} className="space-y-1">
             <p className="px-3 pb-1 text-[0.7rem] font-semibold tracking-wider text-brand-foreground/40 uppercase">
