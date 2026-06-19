@@ -10,10 +10,11 @@ export default function ChatFAB() {
   const { totalNaoLidos, abrirPainel } = useChat()
 
   return (
-    <div className="fixed bottom-6 left-4 z-30 md:left-[17rem]">
+    <div className="fixed right-6 top-4 z-30">
       <Button
         size="icon"
-        className="relative h-12 w-12 rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-700"
+        className="relative h-11 w-11 rounded-full text-white shadow-lg"
+        style={{ backgroundColor: '#33b4e4' }}
         onClick={abrirPainel}
         aria-label="Abrir chat"
       >
