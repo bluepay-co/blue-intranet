@@ -62,7 +62,7 @@ export const NAV_SECTIONS = [
   },
   {
     label: 'KAM',
-    roles: ['KAM', 'DESENVOLVEDOR'],
+    roles: ['KAM'],
     items: [
       { to: '/metricas/pessoal', label: 'Dashboard Pessoal', icon: TrendingUp },
       { to: '/metricas/equipe',  label: 'Dashboard Equipe',  icon: Users },
@@ -70,7 +70,7 @@ export const NAV_SECTIONS = [
   },
   {
     label: 'Insight Sales',
-    roles: ['INSIGHT_SALES', 'DESENVOLVEDOR'],
+    roles: ['INSIGHT_SALES'],
     items: [
       { to: '/metricas/pessoal', label: 'Dashboard Pessoal', icon: TrendingUp },
       { to: '/metricas/equipe',  label: 'Dashboard Equipe',  icon: Users },
@@ -78,7 +78,15 @@ export const NAV_SECTIONS = [
   },
   {
     label: 'Vendas',
-    roles: ['VENDAS', 'DESENVOLVEDOR'],
+    roles: ['VENDAS'],
+    items: [
+      { to: '/metricas/pessoal', label: 'Dashboard Pessoal', icon: TrendingUp },
+      { to: '/metricas/equipe',  label: 'Dashboard Equipe',  icon: Users },
+    ],
+  },
+  {
+    label: 'Comercial',
+    roles: ['DESENVOLVEDOR'],
     items: [
       { to: '/metricas/pessoal', label: 'Dashboard Pessoal', icon: TrendingUp },
       { to: '/metricas/equipe',  label: 'Dashboard Equipe',  icon: Users },

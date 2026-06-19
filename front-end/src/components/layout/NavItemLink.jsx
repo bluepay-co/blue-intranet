@@ -15,7 +15,7 @@ export default function NavItemLink({ to, label, icon: Icon, end, onNavigate, ne
       {({ isActive }) => (
         <span
           className={cn(
-            'relative flex items-center gap-3 rounded-lg py-2 text-sm font-medium transition-all',
+            'relative flex items-center gap-3 rounded-lg py-1.5 text-sm font-medium transition-all',
             nested ? 'pr-3 pl-9' : 'px-3',
             isActive
               ? 'bg-white/10 text-white'

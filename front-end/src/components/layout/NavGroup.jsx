@@ -26,7 +26,7 @@ export default function NavGroup({ item, onNavigate }) {
         onClick={() => setOverride(!aberto)}
         aria-expanded={aberto}
         className={cn(
-          'group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all',
+          'group flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-all',
           algumAtivo ? 'text-white' : 'text-brand-foreground/65 hover:bg-white/5 hover:text-white',
         )}
       >
