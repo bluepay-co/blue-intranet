@@ -4,6 +4,7 @@ import {
   buscarTopClientes,
   buscarVendedorPorEmail,
   buscarMetricasEquipe,
+  buscarMetricasGerais,
 } from '../services/metricas.service';
 import { AppError } from '../utils/app-error';
 
@@ -86,5 +87,19 @@ export async function minhaEquipe(req: Request, res: Response) {
     if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
     console.error('[metricas.controller] minhaEquipe:', err);
     return res.status(500).json({ message: 'Erro ao buscar métricas da equipe.' });
+  }
+}
+
+export async function metricasGerais(req: Request, res: Response) {
+  try {
+    const mes = req.query.mes ? Number(req.query.mes) : undefined;
+    const ano = req.query.ano ? Number(req.query.ano) : undefined;
+
+    const metricas = await buscarMetricasGerais(mes, ano);
+    return res.status(200).json(metricas);
+  } catch (err) {
+    if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
+    console.error('[metricas.controller] metricasGerais:', err);
+    return res.status(500).json({ message: 'Erro ao buscar métricas gerais.' });
   }
 }

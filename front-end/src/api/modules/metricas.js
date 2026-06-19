@@ -45,3 +45,11 @@ export async function getEquipe(mes, ano) {
   const { data } = await api.get('/api/metricas/equipe', { params })
   return data
 }
+
+export async function getMetricasGerais(mes, ano) {
+  const params = {}
+  if (mes) params.mes = mes
+  if (ano) params.ano = ano
+  const { data } = await api.get('/api/metricas/geral', { params })
+  return data
+}

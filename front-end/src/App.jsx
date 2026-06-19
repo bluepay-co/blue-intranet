@@ -16,6 +16,7 @@ import ChamadosCX from '@/pages/cx/ChamadosCX'
 import ChamadosProdutos from '@/pages/produtos/ChamadosProdutos'
 import DashboardPessoal from '@/pages/metricas/DashboardPessoal'
 import DashboardEquipe from '@/pages/metricas/DashboardEquipe'
+import DashboardGeral from '@/pages/metricas/DashboardGeral'
 
 function App() {
   return (
@@ -82,6 +83,14 @@ function App() {
           element={
             <ProtectedRoute roles={['TI', 'DESENVOLVEDOR']}>
               <Usuarios />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="metricas/geral"
+          element={
+            <ProtectedRoute>
+              <DashboardGeral />
             </ProtectedRoute>
           }
         />

@@ -10,6 +10,21 @@ dist/
 build/
 *.tsbuildinfo
 
+# Output do tsc em-lugar (back-end sem outDir configurado)
+back-end/**/*.js
+back-end/**/*.js.map
+back-end/**/*.d.ts
+back-end/**/*.d.ts.map
+
+# Diretórios de runtime que não vão para o repo
+back-end/uploads/
+Fullstack-dashboard/
+
+# Documentos de planejamento local
+plano-metricas-gerais.md
+"Implementação de Métricas.md"
+Implementação\ de\ Métricas.md
+
 # Variáveis de Ambiente e Arquivos de Configuração Sensíveis (Segurança!)
 .env
 .env.local

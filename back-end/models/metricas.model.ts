@@ -65,3 +65,92 @@ export interface MetricasEquipe {
   };
   membros: MetricasEquipeMembro[];
 }
+
+// ── Métricas Gerais da Empresa ──────────────────────────────────────────
+
+export interface ResumoGeral {
+  mes: number;
+  ano: number;
+  receita: number;
+  tpv: number;
+  qtdTickets: number;
+  clientesAtivos: number;
+  vendedoresAtivos: number;
+  taxaMedia: number;
+  ticketMedio: number;
+}
+
+export interface MetricasHojeGeral {
+  qtdTickets: number;
+  receita: number;
+  tpv: number;
+  mediaDiariaTickets: number;
+  mediaDiariaReceita: number;
+}
+
+export interface RetencaoClientes {
+  novos: number;
+  recorrentes: number;
+  perdidos: number;
+  taxaRetencao: number;
+}
+
+export interface MixProduto {
+  produto: string;
+  qtdTickets: number;
+  receita: number;
+  percentualReceita: number;
+}
+
+export interface CrescimentoMoM {
+  mes: number;
+  ano: number;
+  receita: number;
+  tpv: number;
+  qtdTickets: number;
+  clientesAtivos: number;
+  crescimentoReceita: number | null;
+  crescimentoTpv: number | null;
+  crescimentoClientes: number | null;
+  taxaMedia: number;
+}
+
+export interface TopClienteGeral {
+  nome: string;
+  qtdTickets: number;
+  tpv: number;
+  receita: number;
+  taxa: number;
+}
+
+export interface FaixaTaxa {
+  faixa: string;
+  clientes: number;
+  tickets: number;
+  receita: number;
+}
+
+export interface ComparativoYTD {
+  ano: number;
+  receita: number;
+  tpv: number;
+  clientesUnicos: number;
+}
+
+export interface NovosClientesMes {
+  mes: number;
+  ano: number;
+  quantidade: number;
+}
+
+export interface MetricasGerais {
+  resumo: ResumoGeral;
+  hoje: MetricasHojeGeral;
+  retencao: RetencaoClientes;
+  mixProduto: MixProduto[];
+  evolucaoMensal: CrescimentoMoM[];
+  topClientes: TopClienteGeral[];
+  faixasTaxa: FaixaTaxa[];
+  ytd: ComparativoYTD[];
+  novosClientesMes: NovosClientesMes[];
+}
