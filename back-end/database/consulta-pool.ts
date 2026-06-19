@@ -13,5 +13,6 @@ export const consultaPool = new Pool({
   user:     process.env.CONSULTA_DB_USER,
   password: process.env.CONSULTA_DB_PASSWORD,
   options:  `-c search_path=${process.env.CONSULTA_DB_SCHEMA ?? 'public'},public`,
+  ssl:      { rejectUnauthorized: false },
   max: 5,
 });
