@@ -10,19 +10,13 @@ import { AppError } from '../utils/app-error';
 
 export async function meuResumo(req: Request, res: Response) {
   try {
-    const role = req.usuario?.role;
     const emailJwt = req.usuario?.email;
     if (!emailJwt) throw new AppError('Usuário não autenticado.', 401);
-
-    // DESENVOLVEDOR pode simular qualquer vendedor via ?testEmail=
-    const email = (role === 'DESENVOLVEDOR' && typeof req.query.testEmail === 'string')
-      ? req.query.testEmail
-      : emailJwt;
 
     const mes = req.query.mes ? Number(req.query.mes) : undefined;
     const ano = req.query.ano ? Number(req.query.ano) : undefined;
 
-    const metricas = await buscarMetricasCompletas(email, mes, ano);
+    const metricas = await buscarMetricasCompletas(emailJwt, mes, ano);
     if (!metricas) {
       return res.status(404).json({
         message: 'Nenhuma métrica encontrada para este usuário no banco de produção.',
@@ -39,20 +33,15 @@ export async function meuResumo(req: Request, res: Response) {
 
 export async function topClientes(req: Request, res: Response) {
   try {
-    const role = req.usuario?.role;
     const emailJwt = req.usuario?.email;
     if (!emailJwt) throw new AppError('Usuário não autenticado.', 401);
-
-    const email = (role === 'DESENVOLVEDOR' && typeof req.query.testEmail === 'string')
-      ? req.query.testEmail
-      : emailJwt;
 
     const agora = new Date();
     const mes    = req.query.mes    ? Number(req.query.mes)    : agora.getMonth() + 1;
     const ano    = req.query.ano    ? Number(req.query.ano)    : agora.getFullYear();
     const limite = req.query.limite ? Number(req.query.limite) : 10;
 
-    const vendedor = await buscarVendedorPorEmail(email);
+    const vendedor = await buscarVendedorPorEmail(emailJwt);
     if (!vendedor) {
       return res.status(404).json({ message: 'Vendedor não encontrado no banco de produção.' });
     }
@@ -75,7 +64,12 @@ export async function minhaEquipe(req: Request, res: Response) {
     const mes = req.query.mes ? Number(req.query.mes) : agora.getMonth() + 1;
     const ano = req.query.ano ? Number(req.query.ano) : agora.getFullYear();
 
-    const equipe = await buscarMetricasEquipe(role, mes, ano);
+    // DESENVOLVEDOR vê a equipe de vendas consolidada (todas as roles comerciais)
+    const roles = role === 'DESENVOLVEDOR'
+      ? ['VENDAS', 'KAM', 'INSIGHT_SALES']
+      : [role];
+
+    const equipe = await buscarMetricasEquipe(roles, mes, ano);
     if (!equipe) {
       return res.status(404).json({
         message: 'Nenhum dado de equipe encontrado para este cargo.',

@@ -203,14 +203,14 @@ export async function buscarMetricasCompletas(
 }
 
 export async function buscarMetricasEquipe(
-  role: string,
+  roles: string[],
   mes: number,
   ano: number
 ): Promise<MetricasEquipe | null> {
-  // 1. Busca emails de todos os membros ativos desse cargo no banco da intranet
+  // 1. Busca emails de todos os membros ativos dos cargos informados no banco da intranet
   const { rows: usuariosIntranet } = await pool.query(
-    `SELECT email FROM blue_intranet.usuarios WHERE role = $1 AND bloqueado = false`,
-    [role]
+    `SELECT email FROM blue_intranet.usuarios WHERE role = ANY($1::text[]) AND bloqueado = false`,
+    [roles]
   );
 
   if (usuariosIntranet.length === 0) return null;
@@ -295,7 +295,7 @@ export async function buscarMetricasEquipe(
   const a = anterior[0];
 
   return {
-    equipe:              role,
+    equipe:              roles.length > 1 ? 'GERAL' : roles[0],
     mes,
     ano,
     totalReceita:        t.totalReceita,
@@ -320,11 +320,13 @@ async function buscarResumoGeral(mes: number, ano: number): Promise<ResumoGeral>
     SELECT
       COUNT(*)::int                              AS "qtdTickets",
       COUNT(DISTINCT t.client_id)::int           AS "clientesAtivos",
-      COUNT(DISTINCT c.manager_id)::int          AS "vendedoresAtivos",
-      COALESCE(SUM(t.excel_total_bonus), 0)::float  AS tpv,
-      COALESCE(SUM(t.excel_total_rate), 0)::float   AS receita,
-      COALESCE(AVG(t.excel_rate) * 100, 0)::float   AS "taxaMedia",
-      COALESCE(AVG(t.excel_total_bonus), 0)::float  AS "ticketMedio"
+      COUNT(DISTINCT (${MANAGER_ID_REMAPPED}))::int  AS "vendedoresAtivos",
+      COALESCE(SUM(t.excel_total_bonus), 0)::float   AS tpv,
+      COALESCE(SUM(t.excel_total_rate), 0)::float    AS receita,
+      COALESCE(AVG(t.excel_rate) * 100, 0)::float    AS "taxaMedia",
+      CASE WHEN COUNT(*) = 0 THEN 0
+           ELSE (COALESCE(SUM(t.excel_total_rate), 0) / COUNT(*))::float
+      END AS "ticketMedio"
     FROM tickets t
     LEFT JOIN clients c ON c.id = t.client_id
     WHERE ${FILTROS_BASE}
@@ -389,6 +391,7 @@ async function buscarRetencao(mes: number, ano: number): Promise<RetencaoCliente
     WITH atual AS (
       SELECT DISTINCT client_id FROM tickets
       WHERE status='done' AND invoice_status='received' AND excel_total_value > 0
+        AND kind <> 'virtual_batch_payment'
         AND client_id NOT IN (43,44,333)
         AND EXTRACT(MONTH FROM invoice_payment_date) = $1
         AND EXTRACT(YEAR  FROM invoice_payment_date) = $2
@@ -396,6 +399,7 @@ async function buscarRetencao(mes: number, ano: number): Promise<RetencaoCliente
     anterior AS (
       SELECT DISTINCT client_id FROM tickets
       WHERE status='done' AND invoice_status='received' AND excel_total_value > 0
+        AND kind <> 'virtual_batch_payment'
         AND client_id NOT IN (43,44,333)
         AND EXTRACT(MONTH FROM invoice_payment_date) = $3
         AND EXTRACT(YEAR  FROM invoice_payment_date) = $4
@@ -443,7 +447,7 @@ async function buscarMixProduto(mes: number, ano: number): Promise<MixProduto[]>
   }));
 }
 
-async function buscarEvolucaoMensal(meses: number = 6): Promise<CrescimentoMoM[]> {
+async function buscarEvolucaoMensal(mes: number, ano: number, meses: number = 6): Promise<CrescimentoMoM[]> {
   const { rows } = await consultaPool.query(`
     SELECT
       EXTRACT(YEAR  FROM t.invoice_payment_date)::int AS ano,
@@ -457,10 +461,11 @@ async function buscarEvolucaoMensal(meses: number = 6): Promise<CrescimentoMoM[]
     WHERE t.status='done' AND t.invoice_status='received'
       AND t.excel_total_value > 0 AND t.kind <> 'virtual_batch_payment'
       AND t.client_id NOT IN (43,44,333)
-      AND t.invoice_payment_date >= DATE_TRUNC('month', NOW()) - INTERVAL '1 month' * $1
+      AND t.invoice_payment_date >= DATE_TRUNC('month', MAKE_DATE($2::int, $1::int, 1)) - INTERVAL '1 month' * ($3 - 1)
+      AND t.invoice_payment_date <  DATE_TRUNC('month', MAKE_DATE($2::int, $1::int, 1)) + INTERVAL '1 month'
     GROUP BY ano, mes
     ORDER BY ano ASC, mes ASC
-  `, [meses]);
+  `, [mes, ano, meses]);
 
   return rows.map((r, i) => {
     const prev = rows[i - 1];
@@ -512,11 +517,11 @@ async function buscarFaixasTaxa(mes: number, ano: number): Promise<FaixaTaxa[]> 
   const { rows } = await consultaPool.query(`
     SELECT
       CASE
-        WHEN t.excel_rate < 0.005                THEN 'Abaixo de 0.5%'
-        WHEN t.excel_rate BETWEEN 0.005 AND 0.01 THEN '0.5% a 1.0%'
-        WHEN t.excel_rate BETWEEN 0.01  AND 0.02 THEN '1.0% a 2.0%'
-        WHEN t.excel_rate BETWEEN 0.02  AND 0.03 THEN '2.0% a 3.0%'
-        WHEN t.excel_rate BETWEEN 0.03  AND 0.04 THEN '3.0% a 4.0%'
+        WHEN t.excel_rate < 0.005                             THEN 'Abaixo de 0.5%'
+        WHEN t.excel_rate >= 0.005 AND t.excel_rate < 0.01   THEN '0.5% a 1.0%'
+        WHEN t.excel_rate >= 0.01  AND t.excel_rate < 0.02   THEN '1.0% a 2.0%'
+        WHEN t.excel_rate >= 0.02  AND t.excel_rate < 0.03   THEN '2.0% a 3.0%'
+        WHEN t.excel_rate >= 0.03  AND t.excel_rate < 0.04   THEN '3.0% a 4.0%'
         ELSE 'Acima de 4.0%'
       END AS faixa,
       COUNT(DISTINCT t.client_id)::int            AS clientes,
@@ -575,7 +580,8 @@ async function buscarNovosClientesMes(ano: number): Promise<NovosClientesMes[]> 
       SELECT client_id, MIN(invoice_payment_date) AS primeiro_ticket
       FROM tickets
       WHERE status='done' AND invoice_status='received'
-        AND excel_total_value > 0 AND client_id NOT IN (43,44,333)
+        AND excel_total_value > 0 AND kind <> 'virtual_batch_payment'
+        AND client_id NOT IN (43,44,333)
       GROUP BY client_id
     ) primeiros
     WHERE EXTRACT(YEAR FROM primeiro_ticket) = $1
@@ -613,7 +619,7 @@ export async function buscarMetricasGerais(
     buscarHojeGeral(mesRef, anoRef),
     buscarRetencao(mesRef, anoRef),
     buscarMixProduto(mesRef, anoRef),
-    buscarEvolucaoMensal(6),
+    buscarEvolucaoMensal(mesRef, anoRef, 6),
     buscarTopClientesGeral(mesRef, anoRef, 10),
     buscarFaixasTaxa(mesRef, anoRef),
     buscarYTD(mesRef, anoRef),

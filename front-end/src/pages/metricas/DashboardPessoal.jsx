@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { getMeuResumo, getTopClientes } from '@/api/modules/metricas'
 import { useAuth } from '@/auth/auth-context'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
-import { TrendingUp, Users, Wallet, BarChart3, ChevronLeft, ChevronRight, AlertCircle, FlaskConical } from 'lucide-react'
+import { TrendingUp, Users, Wallet, BarChart3, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react'
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 
@@ -51,7 +51,6 @@ function CustomTooltip({ active, payload, label }) {
 
 export default function DashboardPessoal() {
   const { usuario } = useAuth()
-  const isDesenvolvedor = usuario?.role === 'DESENVOLVEDOR'
 
   const agora = new Date()
   const [mes, setMes] = useState(agora.getMonth() + 1)
@@ -60,34 +59,26 @@ export default function DashboardPessoal() {
   const [clientes, setClientes] = useState([])
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState(null)
-  const [testEmailInput, setTestEmailInput] = useState('andrecamargo@bluepaysolutions.com.br')
-  const [triggerKey, setTriggerKey] = useState(0)
-  // ref sempre atualizada sem depender de closure stale
-  const testEmailRef = React.useRef(testEmailInput)
 
   const carregar = useCallback(async () => {
     setLoading(true)
     setErro(null)
     try {
-      const email = isDesenvolvedor ? testEmailRef.current : undefined
       const [resumo, tops] = await Promise.all([
-        getMeuResumo(mes, ano, email),
-        getTopClientes(mes, ano, 10, email),
+        getMeuResumo(mes, ano),
+        getTopClientes(mes, ano, 10),
       ])
       setDados(resumo)
       setClientes(tops)
     } catch (e) {
-      if (e.response?.status === 404) {
-        setErro(isDesenvolvedor
-          ? 'Email de teste não encontrado no banco de produção. Use um email válido de vendedor.'
-          : 'Você não possui métricas cadastradas no banco de produção.')
-      } else {
+      if (e.response?.status === 404)
+        setErro('Você não possui métricas cadastradas no banco de produção.')
+      else
         setErro('Erro ao carregar métricas. Tente novamente.')
-      }
     } finally {
       setLoading(false)
     }
-  }, [mes, ano, triggerKey, isDesenvolvedor])
+  }, [mes, ano])
 
   useEffect(() => { carregar() }, [carregar])
 
@@ -112,7 +103,7 @@ export default function DashboardPessoal() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Dashboard Pessoal</h1>
-          {nome && <p className="text-sm text-muted-foreground mt-0.5">Olá, {nome} 👋</p>}
+          {nome && <p className="text-sm text-muted-foreground mt-0.5">Olá, {nome}</p>}
         </div>
 
         {/* Seletor de período */}
@@ -128,40 +119,6 @@ export default function DashboardPessoal() {
           </button>
         </div>
       </div>
-
-      {/* Painel de simulação — visível só para DESENVOLVEDOR */}
-      {isDesenvolvedor && (
-        <Card className="border border-amber-300 bg-amber-50 dark:bg-amber-950/20">
-          <CardContent className="py-3 px-5">
-            <div className="flex items-center gap-3 flex-wrap">
-              <FlaskConical className="h-4 w-4 text-amber-600 shrink-0" />
-              <span className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide">Modo Dev</span>
-              <input
-                type="email"
-                value={testEmailInput}
-                onChange={e => setTestEmailInput(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    testEmailRef.current = testEmailInput
-                    setTriggerKey(k => k + 1)
-                  }
-                }}
-                placeholder="email@bluepaysolutions.com.br"
-                className="flex-1 min-w-[260px] text-sm border border-amber-300 rounded px-2 py-1 bg-white dark:bg-background"
-              />
-              <button
-                onClick={() => {
-                  testEmailRef.current = testEmailInput
-                  setTriggerKey(k => k + 1)
-                }}
-                className="text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white px-3 py-1 rounded transition-colors"
-              >
-                Simular
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Loading */}
       {loading && (

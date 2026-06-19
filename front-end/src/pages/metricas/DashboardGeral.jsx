@@ -151,11 +151,13 @@ export default function DashboardGeral() {
         const { resumo, hoje, retencao, mixProduto, evolucaoMensal, topClientes, faixasTaxa, ytd, novosClientesMes } = dados
         const ytdAtual    = ytd.find(y => y.ano === ano)
         const ytdAnterior = ytd.find(y => y.ano === ano - 1)
+        const agora_ref   = new Date()
+        const ehMesAtual  = mes === agora_ref.getMonth() + 1 && ano === agora_ref.getFullYear()
 
         return (
           <>
-            {/* Strip Hoje */}
-            <Card className="border-l-4 border-l-primary">
+            {/* Strip Hoje — só exibida quando o período selecionado é o mês corrente */}
+            {ehMesAtual && <Card className="border-l-4 border-l-primary">
               <CardContent className="py-3 px-5">
                 <div className="flex flex-wrap items-center gap-6">
                   <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Hoje</span>
@@ -179,7 +181,7 @@ export default function DashboardGeral() {
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </Card>}
 
             {/* KPIs linha 1 */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
