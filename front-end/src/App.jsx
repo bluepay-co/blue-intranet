@@ -14,6 +14,8 @@ import ChamadosTI from '@/pages/ti/ChamadosTI'
 import DashboardTI from '@/pages/ti/DashboardTI'
 import ChamadosCX from '@/pages/cx/ChamadosCX'
 import ChamadosProdutos from '@/pages/produtos/ChamadosProdutos'
+import DashboardPessoal from '@/pages/metricas/DashboardPessoal'
+import DashboardEquipe from '@/pages/metricas/DashboardEquipe'
 
 function App() {
   return (
@@ -80,6 +82,22 @@ function App() {
           element={
             <ProtectedRoute roles={['TI', 'DESENVOLVEDOR']}>
               <Usuarios />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="metricas/pessoal"
+          element={
+            <ProtectedRoute roles={['VENDAS', 'KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
+              <DashboardPessoal />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="metricas/equipe"
+          element={
+            <ProtectedRoute roles={['VENDAS', 'KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
+              <DashboardEquipe />
             </ProtectedRoute>
           }
         />

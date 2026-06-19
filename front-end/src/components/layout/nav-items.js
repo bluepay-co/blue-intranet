@@ -1,4 +1,4 @@
-import { LayoutDashboard, Calendar, CalendarDays, ListTodo, Users, Newspaper, LayoutList, LifeBuoy, Headset, BarChart3, PackageSearch } from 'lucide-react'
+import { LayoutDashboard, Calendar, CalendarDays, ListTodo, Users, Newspaper, LayoutList, LifeBuoy, Headset, BarChart3, PackageSearch, TrendingUp } from 'lucide-react'
 
 /**
  * Navegação principal da sidebar, organizada em SEÇÕES por setor.
@@ -58,6 +58,30 @@ export const NAV_SECTIONS = [
     roles: ['PRODUTOS', 'DESENVOLVEDOR'],
     items: [
       { to: '/produtos/chamados', label: 'Chamados (Produtos)', icon: PackageSearch },
+    ],
+  },
+  {
+    label: 'KAM',
+    roles: ['KAM', 'DESENVOLVEDOR'],
+    items: [
+      { to: '/metricas/pessoal', label: 'Dashboard Pessoal', icon: TrendingUp },
+      { to: '/metricas/equipe',  label: 'Dashboard Equipe',  icon: Users },
+    ],
+  },
+  {
+    label: 'Insight Sales',
+    roles: ['INSIGHT_SALES', 'DESENVOLVEDOR'],
+    items: [
+      { to: '/metricas/pessoal', label: 'Dashboard Pessoal', icon: TrendingUp },
+      { to: '/metricas/equipe',  label: 'Dashboard Equipe',  icon: Users },
+    ],
+  },
+  {
+    label: 'Vendas',
+    roles: ['VENDAS', 'DESENVOLVEDOR'],
+    items: [
+      { to: '/metricas/pessoal', label: 'Dashboard Pessoal', icon: TrendingUp },
+      { to: '/metricas/equipe',  label: 'Dashboard Equipe',  icon: Users },
     ],
   },
 ]
