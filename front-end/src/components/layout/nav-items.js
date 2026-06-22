@@ -65,7 +65,6 @@ export const NAV_SECTIONS = [
     roles: ['KAM'],
     items: [
       { to: '/metricas/pessoal', label: 'Dashboard Pessoal', icon: TrendingUp },
-      { to: '/metricas/equipe',  label: 'Dashboard Equipe',  icon: Users },
     ],
   },
   {
@@ -81,7 +80,6 @@ export const NAV_SECTIONS = [
     roles: ['VENDAS'],
     items: [
       { to: '/metricas/pessoal', label: 'Dashboard Pessoal', icon: TrendingUp },
-      { to: '/metricas/equipe',  label: 'Dashboard Equipe',  icon: Users },
     ],
   },
   {
