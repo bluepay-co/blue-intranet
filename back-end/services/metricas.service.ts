@@ -3,7 +3,7 @@ import { consultaPool } from '../database/consulta-pool';
 import type {
   MetricasMes, MetricasHoje, MetricasHistorico,
   MetricasVendedor, TopCliente,
-  MetricasEquipe, MetricasEquipeMembro,
+  MetricasEquipe, MetricasEquipeMembro, MetricasEquipeHoje,
   ResumoGeral, MetricasHojeGeral, RetencaoClientes, MixProduto,
   CrescimentoMoM, TopClienteGeral, FaixaTaxa, ComparativoYTD,
   NovosClientesMes, MetricasGerais,
@@ -151,17 +151,17 @@ export async function buscarTopClientes(
 ): Promise<TopCliente[]> {
   const { rows } = await consultaPool.query(`
     SELECT
-      cl.name                                       AS nome,
+      c.name                                        AS nome,
       COUNT(*)::int                                 AS "qtdTickets",
       COALESCE(SUM(t.excel_total_bonus), 0)::float  AS tpv,
       COALESCE(SUM(t.excel_total_rate), 0)::float   AS receita
     FROM tickets t
-    LEFT JOIN clients cl ON cl.id = t.client_id
+    LEFT JOIN clients c ON c.id = t.client_id
     WHERE ${FILTROS_BASE}
       AND ${MANAGER_ID_REMAPPED} = $1
       AND EXTRACT(MONTH FROM t.invoice_payment_date) = $2
       AND EXTRACT(YEAR  FROM t.invoice_payment_date) = $3
-    GROUP BY cl.name
+    GROUP BY c.name
     ORDER BY receita DESC
     LIMIT $4
   `, [managerId, mes, ano, limite]);
@@ -202,69 +202,12 @@ export async function buscarMetricasCompletas(
   };
 }
 
-export async function buscarMetricasEquipe(
-  roles: string[],
-  mes: number,
-  ano: number
-): Promise<MetricasEquipe | null> {
-  // 1. Busca emails de todos os membros ativos dos cargos informados no banco da intranet
-  const { rows: usuariosIntranet } = await pool.query(
-    `SELECT email FROM blue_intranet.usuarios WHERE role = ANY($1::text[]) AND bloqueado = false`,
-    [roles]
-  );
+// ── Sub-funções privadas da equipe ──────────────────────────────────────────
 
-  if (usuariosIntranet.length === 0) return null;
-
-  const emails = usuariosIntranet.map((u: { email: string }) => u.email);
-
-  // 2. Busca os IDs de vendedor no banco de produção para esses emails
-  const { rows: vendedoresProd } = await consultaPool.query(
-    `SELECT id, name AS nome FROM users WHERE email = ANY($1::text[])`,
-    [emails]
-  );
-
-  if (vendedoresProd.length === 0) return null;
-
-  const managerIds = vendedoresProd.map((v: { id: number }) => v.id);
-
-  // 3. Agrega métricas totais da equipe no mês atual
-  const { rows: totais } = await consultaPool.query(`
-    SELECT
-      COUNT(*)::int                               AS "totalTickets",
-      COUNT(DISTINCT t.client_id)::int            AS "totalClientesAtivos",
-      COALESCE(SUM(t.excel_total_rate), 0)::float  AS "totalReceita",
-      COALESCE(SUM(t.excel_total_bonus), 0)::float AS "totalTpv"
-    FROM tickets t
-    LEFT JOIN clients c ON c.id = t.client_id
-    WHERE ${FILTROS_BASE}
-      AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
-      AND EXTRACT(MONTH FROM t.invoice_payment_date) = $2
-      AND EXTRACT(YEAR  FROM t.invoice_payment_date) = $3
-  `, [managerIds, mes, ano]);
-
-  // 4. Breakdown por membro (ranking da equipe)
-  const { rows: membrosRows } = await consultaPool.query(`
-    SELECT
-      ${MANAGER_ID_REMAPPED}                        AS "managerId",
-      COUNT(*)::int                                  AS "qtdTickets",
-      COUNT(DISTINCT t.client_id)::int               AS "clientesAtivos",
-      COALESCE(SUM(t.excel_total_rate), 0)::float    AS receita,
-      COALESCE(SUM(t.excel_total_bonus), 0)::float   AS tpv
-    FROM tickets t
-    LEFT JOIN clients c ON c.id = t.client_id
-    WHERE ${FILTROS_BASE}
-      AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
-      AND EXTRACT(MONTH FROM t.invoice_payment_date) = $2
-      AND EXTRACT(YEAR  FROM t.invoice_payment_date) = $3
-    GROUP BY ${MANAGER_ID_REMAPPED}
-    ORDER BY receita DESC
-  `, [managerIds, mes, ano]);
-
-  // 5. Mês anterior para comparativo
-  const mesAnteriorNum = mes === 1 ? 12 : mes - 1;
-  const anoAnteriorNum = mes === 1 ? ano - 1 : ano;
-
-  const { rows: anterior } = await consultaPool.query(`
+async function buscarHojeEquipe(
+  managerIds: number[]
+): Promise<MetricasEquipeHoje> {
+  const { rows } = await consultaPool.query(`
     SELECT
       COUNT(*)::int                               AS "qtdTickets",
       COALESCE(SUM(t.excel_total_rate), 0)::float  AS receita,
@@ -273,26 +216,298 @@ export async function buscarMetricasEquipe(
     LEFT JOIN clients c ON c.id = t.client_id
     WHERE ${FILTROS_BASE}
       AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+      AND DATE(t.invoice_payment_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') = CURRENT_DATE
+  `, [managerIds]);
+  const r = rows[0];
+  return { qtdTickets: r.qtdTickets, receita: r.receita, tpv: r.tpv };
+}
+
+async function buscarRetencaoEquipe(
+  managerIds: number[],
+  mes: number,
+  ano: number
+): Promise<RetencaoClientes> {
+  const mesAnt = mes === 1 ? 12 : mes - 1;
+  const anoAnt = mes === 1 ? ano - 1 : ano;
+
+  const { rows } = await consultaPool.query(`
+    WITH atual AS (
+      SELECT DISTINCT t.client_id
+      FROM tickets t
+      LEFT JOIN clients c ON c.id = t.client_id
+      WHERE ${FILTROS_BASE}
+        AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+        AND EXTRACT(MONTH FROM t.invoice_payment_date) = $2
+        AND EXTRACT(YEAR  FROM t.invoice_payment_date) = $3
+    ),
+    anterior AS (
+      SELECT DISTINCT t.client_id
+      FROM tickets t
+      LEFT JOIN clients c ON c.id = t.client_id
+      WHERE ${FILTROS_BASE}
+        AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+        AND EXTRACT(MONTH FROM t.invoice_payment_date) = $4
+        AND EXTRACT(YEAR  FROM t.invoice_payment_date) = $5
+    )
+    SELECT
+      COUNT(DISTINCT atual.client_id) FILTER (WHERE anterior.client_id IS NULL)    AS novos,
+      COUNT(DISTINCT atual.client_id) FILTER (WHERE anterior.client_id IS NOT NULL) AS recorrentes,
+      COUNT(DISTINCT anterior.client_id) FILTER (WHERE atual.client_id IS NULL)     AS perdidos
+    FROM atual FULL OUTER JOIN anterior ON atual.client_id = anterior.client_id
+  `, [managerIds, mes, ano, mesAnt, anoAnt]);
+
+  const r = rows[0];
+  const total = Number(r.novos ?? 0) + Number(r.recorrentes ?? 0);
+  return {
+    novos:        Number(r.novos ?? 0),
+    recorrentes:  Number(r.recorrentes ?? 0),
+    perdidos:     Number(r.perdidos ?? 0),
+    taxaRetencao: total > 0 ? Math.round((Number(r.recorrentes) / total) * 1000) / 10 : 0,
+  };
+}
+
+async function buscarMixProdutoEquipe(
+  managerIds: number[],
+  mes: number,
+  ano: number
+): Promise<MixProduto[]> {
+  const { rows } = await consultaPool.query(`
+    SELECT
+      t.kind AS produto,
+      COUNT(*)::int                              AS "qtdTickets",
+      COALESCE(SUM(t.excel_total_rate), 0)::float AS receita,
+      ROUND((SUM(t.excel_total_rate) /
+        NULLIF(SUM(SUM(t.excel_total_rate)) OVER (), 0) * 100)::numeric, 2)::float AS "percentualReceita"
+    FROM tickets t
+    LEFT JOIN clients c ON c.id = t.client_id
+    WHERE ${FILTROS_BASE}
+      AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
       AND EXTRACT(MONTH FROM t.invoice_payment_date) = $2
       AND EXTRACT(YEAR  FROM t.invoice_payment_date) = $3
-  `, [managerIds, mesAnteriorNum, anoAnteriorNum]);
+    GROUP BY t.kind
+    ORDER BY receita DESC
+  `, [managerIds, mes, ano]);
 
-  // Mapeia manager ID → nome do vendedor
+  return rows.map(r => ({
+    produto:           r.produto,
+    qtdTickets:        r.qtdTickets,
+    receita:           r.receita,
+    percentualReceita: r.percentualReceita,
+  }));
+}
+
+async function buscarHistoricoEquipe(
+  managerIds: number[],
+  mes: number,
+  ano: number,
+  meses: number = 6
+): Promise<CrescimentoMoM[]> {
+  const { rows } = await consultaPool.query(`
+    SELECT
+      EXTRACT(YEAR  FROM t.invoice_payment_date)::int AS ano,
+      EXTRACT(MONTH FROM t.invoice_payment_date)::int AS mes,
+      COUNT(*)::int                                   AS "qtdTickets",
+      COUNT(DISTINCT t.client_id)::int                AS "clientesAtivos",
+      COALESCE(SUM(t.excel_total_rate), 0)::float     AS receita,
+      COALESCE(SUM(t.excel_total_bonus), 0)::float    AS tpv,
+      COALESCE(AVG(t.excel_rate) * 100, 0)::float     AS "taxaMedia"
+    FROM tickets t
+    LEFT JOIN clients c ON c.id = t.client_id
+    WHERE ${FILTROS_BASE}
+      AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+      AND t.invoice_payment_date >= DATE_TRUNC('month', MAKE_DATE($3::int, $2::int, 1)) - INTERVAL '1 month' * ($4 - 1)
+      AND t.invoice_payment_date <  DATE_TRUNC('month', MAKE_DATE($3::int, $2::int, 1)) + INTERVAL '1 month'
+    GROUP BY ano, mes
+    ORDER BY ano ASC, mes ASC
+  `, [managerIds, mes, ano, meses]);
+
+  return rows.map((r, i) => {
+    const prev = rows[i - 1];
+    return {
+      ano:                 r.ano,
+      mes:                 r.mes,
+      receita:             r.receita,
+      tpv:                 r.tpv,
+      qtdTickets:          r.qtdTickets,
+      clientesAtivos:      r.clientesAtivos,
+      taxaMedia:           r.taxaMedia,
+      crescimentoReceita:  prev && prev.receita ? Math.round(((r.receita - prev.receita) / prev.receita) * 1000) / 10 : null,
+      crescimentoTpv:      prev && prev.tpv     ? Math.round(((r.tpv - prev.tpv) / prev.tpv) * 1000) / 10 : null,
+      crescimentoClientes: prev && prev.clientesAtivos ? Math.round(((r.clientesAtivos - prev.clientesAtivos) / prev.clientesAtivos) * 1000) / 10 : null,
+    };
+  });
+}
+
+async function buscarTopClientesEquipe(
+  managerIds: number[],
+  mes: number,
+  ano: number,
+  limite: number = 10
+): Promise<TopClienteGeral[]> {
+  const { rows } = await consultaPool.query(`
+    SELECT
+      c.name                                        AS nome,
+      COUNT(*)::int                                 AS "qtdTickets",
+      COALESCE(SUM(t.excel_total_bonus), 0)::float  AS tpv,
+      COALESCE(SUM(t.excel_total_rate), 0)::float   AS receita,
+      COALESCE(AVG(t.excel_rate) * 100, 0)::float   AS taxa
+    FROM tickets t
+    LEFT JOIN clients c ON c.id = t.client_id
+    WHERE ${FILTROS_BASE}
+      AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+      AND EXTRACT(MONTH FROM t.invoice_payment_date) = $2
+      AND EXTRACT(YEAR  FROM t.invoice_payment_date) = $3
+    GROUP BY c.name
+    ORDER BY receita DESC
+    LIMIT $4
+  `, [managerIds, mes, ano, limite]);
+
+  return rows.map(r => ({
+    nome:       r.nome,
+    qtdTickets: r.qtdTickets,
+    tpv:        r.tpv,
+    receita:    r.receita,
+    taxa:       r.taxa,
+  }));
+}
+
+export async function buscarMetricasEquipe(
+  roles: string[],
+  mes: number,
+  ano: number
+): Promise<MetricasEquipe | null> {
+  // 1. Emails dos membros ativos no banco da intranet
+  const { rows: usuariosIntranet } = await pool.query(
+    `SELECT email FROM blue_intranet.usuarios WHERE role = ANY($1::text[]) AND bloqueado = false`,
+    [roles]
+  );
+  if (usuariosIntranet.length === 0) return null;
+
+  const emails = usuariosIntranet.map((u: { email: string }) => u.email);
+
+  // 2. IDs dos vendedores no banco de produção
+  const { rows: vendedoresProd } = await consultaPool.query(
+    `SELECT id, name AS nome FROM users WHERE email = ANY($1::text[])`,
+    [emails]
+  );
+  if (vendedoresProd.length === 0) return null;
+
+  const managerIds = vendedoresProd.map((v: { id: number }) => v.id);
   const nomeMap = new Map<number, string>(
     vendedoresProd.map((v: { id: number; nome: string }) => [v.id, v.nome])
   );
 
-  const membros: MetricasEquipeMembro[] = membrosRows.map(r => ({
-    vendedorId:     r.managerId,
-    nome:           nomeMap.get(r.managerId) ?? 'Desconhecido',
-    receita:        r.receita,
-    tpv:            r.tpv,
-    qtdTickets:     r.qtdTickets,
-    clientesAtivos: r.clientesAtivos,
-  }));
+  const mesAnteriorNum = mes === 1 ? 12 : mes - 1;
+  const anoAnteriorNum = mes === 1 ? ano - 1 : ano;
 
-  const t = totais[0];
-  const a = anterior[0];
+  // 3. Todas as queries em paralelo
+  const [
+    totaisRows,
+    membrosRows,
+    anteriorRows,
+    hojeMembroRows,
+    hoje,
+    retencao,
+    mixProduto,
+    historicoMensal,
+    topClientes,
+  ] = await Promise.all([
+    consultaPool.query(`
+      SELECT
+        COUNT(*)::int                                AS "totalTickets",
+        COUNT(DISTINCT t.client_id)::int             AS "totalClientesAtivos",
+        COALESCE(SUM(t.excel_total_rate), 0)::float   AS "totalReceita",
+        COALESCE(SUM(t.excel_total_bonus), 0)::float  AS "totalTpv",
+        COALESCE(AVG(t.excel_rate) * 100, 0)::float   AS "taxaMedia",
+        CASE WHEN COUNT(*) = 0 THEN 0
+             ELSE (COALESCE(SUM(t.excel_total_rate), 0) / COUNT(*))::float
+        END AS "ticketMedio"
+      FROM tickets t
+      LEFT JOIN clients c ON c.id = t.client_id
+      WHERE ${FILTROS_BASE}
+        AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+        AND EXTRACT(MONTH FROM t.invoice_payment_date) = $2
+        AND EXTRACT(YEAR  FROM t.invoice_payment_date) = $3
+    `, [managerIds, mes, ano]),
+
+    consultaPool.query(`
+      SELECT
+        ${MANAGER_ID_REMAPPED}                         AS "managerId",
+        COUNT(*)::int                                  AS "qtdTickets",
+        COUNT(DISTINCT t.client_id)::int               AS "clientesAtivos",
+        COALESCE(SUM(t.excel_total_rate), 0)::float    AS receita,
+        COALESCE(SUM(t.excel_total_bonus), 0)::float   AS tpv,
+        COALESCE(AVG(t.excel_rate) * 100, 0)::float    AS "taxaMedia",
+        CASE WHEN COUNT(*) = 0 THEN 0
+             ELSE (COALESCE(SUM(t.excel_total_rate), 0) / COUNT(*))::float
+        END AS "ticketMedio"
+      FROM tickets t
+      LEFT JOIN clients c ON c.id = t.client_id
+      WHERE ${FILTROS_BASE}
+        AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+        AND EXTRACT(MONTH FROM t.invoice_payment_date) = $2
+        AND EXTRACT(YEAR  FROM t.invoice_payment_date) = $3
+      GROUP BY ${MANAGER_ID_REMAPPED}
+      ORDER BY receita DESC
+    `, [managerIds, mes, ano]),
+
+    consultaPool.query(`
+      SELECT
+        COUNT(*)::int                               AS "qtdTickets",
+        COALESCE(SUM(t.excel_total_rate), 0)::float  AS receita,
+        COALESCE(SUM(t.excel_total_bonus), 0)::float AS tpv
+      FROM tickets t
+      LEFT JOIN clients c ON c.id = t.client_id
+      WHERE ${FILTROS_BASE}
+        AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+        AND EXTRACT(MONTH FROM t.invoice_payment_date) = $2
+        AND EXTRACT(YEAR  FROM t.invoice_payment_date) = $3
+    `, [managerIds, mesAnteriorNum, anoAnteriorNum]),
+
+    consultaPool.query(`
+      SELECT
+        ${MANAGER_ID_REMAPPED}                         AS "managerId",
+        COUNT(*)::int                                  AS "ticketsHoje",
+        COALESCE(SUM(t.excel_total_rate), 0)::float    AS "receitaHoje"
+      FROM tickets t
+      LEFT JOIN clients c ON c.id = t.client_id
+      WHERE ${FILTROS_BASE}
+        AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+        AND DATE(t.invoice_payment_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') = CURRENT_DATE
+      GROUP BY ${MANAGER_ID_REMAPPED}
+    `, [managerIds]),
+
+    buscarHojeEquipe(managerIds),
+    buscarRetencaoEquipe(managerIds, mes, ano),
+    buscarMixProdutoEquipe(managerIds, mes, ano),
+    buscarHistoricoEquipe(managerIds, mes, ano, 6),
+    buscarTopClientesEquipe(managerIds, mes, ano, 10),
+  ]);
+
+  const hojeMembroMap = new Map<number, { receitaHoje: number; ticketsHoje: number }>(
+    hojeMembroRows.rows.map((r: { managerId: number; receitaHoje: number; ticketsHoje: number }) => [
+      r.managerId,
+      { receitaHoje: r.receitaHoje, ticketsHoje: r.ticketsHoje },
+    ])
+  );
+
+  const membros: MetricasEquipeMembro[] = membrosRows.rows.map(
+    (r: { managerId: number; qtdTickets: number; clientesAtivos: number; receita: number; tpv: number; taxaMedia: number; ticketMedio: number }) => ({
+      vendedorId:     r.managerId,
+      nome:           nomeMap.get(r.managerId) ?? 'Desconhecido',
+      receita:        r.receita,
+      tpv:            r.tpv,
+      qtdTickets:     r.qtdTickets,
+      clientesAtivos: r.clientesAtivos,
+      taxaMedia:      r.taxaMedia,
+      ticketMedio:    r.ticketMedio,
+      receitaHoje:    hojeMembroMap.get(r.managerId)?.receitaHoje ?? 0,
+      ticketsHoje:    hojeMembroMap.get(r.managerId)?.ticketsHoje ?? 0,
+    })
+  );
+
+  const t = totaisRows.rows[0];
+  const a = anteriorRows.rows[0];
 
   return {
     equipe:              roles.length > 1 ? 'GERAL' : roles[0],
@@ -302,11 +517,18 @@ export async function buscarMetricasEquipe(
     totalTpv:            t.totalTpv,
     totalTickets:        t.totalTickets,
     totalClientesAtivos: t.totalClientesAtivos,
+    taxaMedia:           t.taxaMedia,
+    ticketMedio:         t.ticketMedio,
     mesAnterior: {
       receita:    a.receita,
       tpv:        a.tpv,
       qtdTickets: a.qtdTickets,
     },
+    hoje,
+    retencao,
+    mixProduto,
+    historicoMensal,
+    topClientes,
     membros,
   };
 }

@@ -48,6 +48,16 @@ export interface MetricasEquipeMembro {
   tpv: number;
   qtdTickets: number;
   clientesAtivos: number;
+  taxaMedia: number;
+  ticketMedio: number;
+  receitaHoje: number;
+  ticketsHoje: number;
+}
+
+export interface MetricasEquipeHoje {
+  receita: number;
+  tpv: number;
+  qtdTickets: number;
 }
 
 export interface MetricasEquipe {
@@ -58,11 +68,18 @@ export interface MetricasEquipe {
   totalTpv: number;
   totalTickets: number;
   totalClientesAtivos: number;
+  taxaMedia: number;
+  ticketMedio: number;
   mesAnterior: {
     receita: number;
     tpv: number;
     qtdTickets: number;
   };
+  hoje: MetricasEquipeHoje;
+  retencao: RetencaoClientes;
+  mixProduto: MixProduto[];
+  historicoMensal: CrescimentoMoM[];
+  topClientes: TopClienteGeral[];
   membros: MetricasEquipeMembro[];
 }
 
