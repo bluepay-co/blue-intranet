@@ -7,6 +7,7 @@ import {
   buscarMetricasGerais,
 } from '../services/metricas.service';
 import { AppError } from '../utils/app-error';
+import { pool } from '../database/pool';
 
 export async function meuResumo(req: Request, res: Response) {
   try {
@@ -57,8 +58,16 @@ export async function topClientes(req: Request, res: Response) {
 
 export async function minhaEquipe(req: Request, res: Response) {
   try {
-    const role = req.usuario?.role;
-    if (!role) throw new AppError('Usuário não autenticado.', 401);
+    const userId = req.usuario?.id;
+    if (!userId) throw new AppError('Usuário não autenticado.', 401);
+
+    // Busca role sempre do banco — ignora o JWT para não depender de token desatualizado
+    const { rows } = await pool.query(
+      `SELECT role FROM blue_intranet.usuarios WHERE id = $1 AND bloqueado = false`,
+      [userId]
+    );
+    if (!rows[0]) throw new AppError('Usuário não encontrado ou bloqueado.', 403);
+    const role: string = rows[0].role;
 
     const agora = new Date();
     const mes = req.query.mes ? Number(req.query.mes) : agora.getMonth() + 1;
@@ -69,9 +78,7 @@ export async function minhaEquipe(req: Request, res: Response) {
       ? ['VENDAS', 'KAM', 'INSIGHT_SALES']
       : [role];
 
-    console.log('[DEBUG minhaEquipe] role do JWT:', role, '| roles passados:', roles);
     const equipe = await buscarMetricasEquipe(roles, mes, ano);
-    console.log('[DEBUG minhaEquipe] equipe retornada:', equipe ? 'OK' : 'null');
     if (!equipe) {
       return res.status(404).json({
         message: 'Nenhum dado de equipe encontrado para este cargo.',

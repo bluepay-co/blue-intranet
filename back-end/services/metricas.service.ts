@@ -510,7 +510,7 @@ export async function buscarMetricasEquipe(
   const a = anteriorRows.rows[0];
 
   return {
-    equipe:              roles.length > 1 ? 'GERAL' : roles[0],
+    equipe:              roles.length > 1 ? 'GERAL' : (roles[0] ?? 'GERAL'),
     mes,
     ano,
     totalReceita:        t.totalReceita,
