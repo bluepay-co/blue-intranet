@@ -1,68 +1,82 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getMeuResumo, getTopClientes } from '@/api/modules/metricas'
-import { useAuth } from '@/auth/auth-context'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { ChartContainer, CORES_GRAFICO } from '@/components/ui/chart'
+import PageHeader from '@/components/layout/PageHeader'
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
 } from 'recharts'
-import { TrendingUp, Users, Wallet, BarChart3, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react'
+import {
+  Wallet, Users, BarChart3, TrendingUp, TrendingDown,
+  UserPlus, RefreshCw, AlertCircle, Loader2,
+  ChevronLeft, ChevronRight,
+} from 'lucide-react'
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 
-function fmt(valor) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(valor)
-}
-function fmtK(valor) {
-  if (valor >= 1_000_000) return `R$ ${(valor / 1_000_000).toFixed(1)}M`
-  if (valor >= 1_000) return `R$ ${(valor / 1_000).toFixed(0)}K`
-  return fmt(valor)
+function moeda(v) {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency', currency: 'BRL', maximumFractionDigits: 0,
+  }).format(v ?? 0)
 }
 
-function KpiCard({ icon: Icon, label, value, sub, color = 'text-foreground' }) {
+function pct(v) {
+  if (v === null || v === undefined) return '—'
+  return `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`
+}
+
+function KpiCard({ icon: Icon, cor, valor, rotulo }) {
   return (
     <Card>
-      <CardContent className="pt-5 pb-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">{label}</p>
-            <p className={`text-2xl font-bold ${color}`}>{value}</p>
-            {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
-          </div>
-          <div className="p-2 rounded-lg bg-muted">
-            <Icon className="h-5 w-5 text-muted-foreground" />
-          </div>
+      <CardContent className="flex items-center gap-3 py-4">
+        <div className={`grid size-10 place-items-center rounded-lg ${cor}`}>
+          <Icon className="size-5" />
+        </div>
+        <div>
+          <p className="text-2xl font-semibold leading-tight">{valor}</p>
+          <p className="text-xs text-muted-foreground">{rotulo}</p>
         </div>
       </CardContent>
     </Card>
   )
 }
 
-function CustomTooltip({ active, payload, label }) {
-  if (!active || !payload?.length) return null
+function DeltaTag({ value }) {
+  if (value === null || value === undefined) return <span className="text-xs text-muted-foreground">—</span>
+  const up = value >= 0
   return (
-    <div className="bg-background border rounded-lg shadow-md px-3 py-2 text-sm">
-      <p className="font-semibold mb-1">{MESES[Number(label) - 1]}</p>
-      <p className="text-primary">{fmt(payload[0].value)}</p>
+    <span className={`inline-flex items-center gap-0.5 text-xs font-semibold ${up ? 'text-emerald-600' : 'text-red-500'}`}>
+      {up ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
+      {pct(value)}
+    </span>
+  )
+}
+
+function TooltipReceita({ active, payload }) {
+  if (!active || !payload?.length) return null
+  const d = payload[0]?.payload
+  return (
+    <div className="rounded-lg border bg-background px-3 py-2 text-sm shadow-md space-y-0.5">
+      <p className="font-semibold">{MESES[(d.mes ?? 1) - 1]} / {d.ano}</p>
+      <p className="text-primary">{moeda(d.receita)}</p>
     </div>
   )
 }
 
 export default function DashboardPessoal() {
-  const { usuario } = useAuth()
-
   const agora = new Date()
   const [mes, setMes] = useState(agora.getMonth() + 1)
   const [ano, setAno] = useState(agora.getFullYear())
   const [dados, setDados] = useState(null)
   const [clientes, setClientes] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [erro, setErro] = useState(null)
+  const [carregando, setCarregando] = useState(true)
+  const [erro, setErro] = useState('')
 
   const carregar = useCallback(async () => {
-    setLoading(true)
-    setErro(null)
+    setErro('')
+    setCarregando(true)
     try {
       const [resumo, tops] = await Promise.all([
         getMeuResumo(mes, ano),
@@ -76,174 +90,213 @@ export default function DashboardPessoal() {
       else
         setErro('Erro ao carregar métricas. Tente novamente.')
     } finally {
-      setLoading(false)
+      setCarregando(false)
     }
   }, [mes, ano])
 
   useEffect(() => { carregar() }, [carregar])
 
   function mudarMes(delta) {
-    let m = mes + delta
-    let a = ano
+    let m = mes + delta, a = ano
     if (m > 12) { m = 1; a++ }
     if (m < 1)  { m = 12; a-- }
-    setMes(m)
-    setAno(a)
+    setMes(m); setAno(a)
   }
 
-  const dadosCarregados = !loading && !erro && dados
-  const { nome, mesAtual, hoje, historico } = dadosCarregados
-    ? dados
-    : { nome: null, mesAtual: null, hoje: null, historico: [] }
-  const chartData = historico.map(h => ({ mes: h.mes, receita: h.receita }))
+  if (carregando && !dados) {
+    return (
+      <div className="grid place-items-center py-24">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
 
   return (
-    <div className="p-6 space-y-6 max-w-6xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Dashboard Pessoal</h1>
-          {nome && <p className="text-sm text-muted-foreground mt-0.5">Olá, {nome}</p>}
-        </div>
-
-        {/* Seletor de período */}
-        <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2">
-          <button onClick={() => mudarMes(-1)} className="hover:text-primary transition-colors">
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <span className="text-sm font-semibold min-w-[90px] text-center">
-            {MESES[mes - 1]} / {ano}
-          </span>
-          <button onClick={() => mudarMes(1)} className="hover:text-primary transition-colors">
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Loading */}
-      {loading && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28" />)}
+    <div className="space-y-6">
+      <PageHeader
+        title="Dashboard Pessoal"
+        subtitle={dados ? dados.nome : 'Carregando...'}
+      >
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={carregar} disabled={carregando} title="Atualizar">
+            <RefreshCw className={`size-4 ${carregando ? 'animate-spin' : ''}`} />
+          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => mudarMes(-1)} disabled={carregando}>
+              <ChevronLeft className="size-4" />
+            </Button>
+            <span className="min-w-[100px] text-center text-sm font-medium">
+              {MESES[mes - 1]} / {ano}
+            </span>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => mudarMes(1)} disabled={carregando}>
+              <ChevronRight className="size-4" />
+            </Button>
           </div>
-          <Skeleton className="h-64" />
+        </div>
+      </PageHeader>
+
+      {erro && (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="size-4 shrink-0" />
+          {erro}
         </div>
       )}
 
-      {/* Erro */}
-      {!loading && erro && (
-        <div className="flex flex-col items-center justify-center min-h-[30vh] gap-3 text-muted-foreground">
-          <AlertCircle className="h-10 w-10" />
-          <p className="text-sm font-medium">{erro}</p>
-        </div>
-      )}
+      {dados && (() => {
+        const { mesAtual, hoje, historico } = dados
+        const agora_ref  = new Date()
+        const ehMesAtual = mes === agora_ref.getMonth() + 1 && ano === agora_ref.getFullYear()
 
-      {/* Dados carregados */}
-      {dadosCarregados && (
-        <>
-          {/* Strip Hoje */}
-          <Card className="border-l-4 border-l-primary">
-            <CardContent className="py-3 px-5">
-              <div className="flex flex-wrap gap-6 items-center">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Hoje</p>
-                <div className="flex gap-6">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Receita</p>
-                    <p className="font-bold text-primary">{fmt(hoje.receita)}</p>
+        const mesAnterior = historico.length >= 2
+          ? historico[historico.length - 2]
+          : null
+        const deltaReceita = mesAnterior?.receita
+          ? Math.round(((mesAtual.receita - mesAnterior.receita) / mesAnterior.receita) * 1000) / 10
+          : null
+
+        return (
+          <>
+            {/* Strip Hoje — só no mês corrente */}
+            {ehMesAtual && hoje && (
+              <Card className="border-l-4 border-l-primary">
+                <CardContent className="py-3 px-5">
+                  <div className="flex flex-wrap items-center gap-6">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Hoje</span>
+                    <div className="flex flex-wrap gap-6">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Receita</p>
+                        <p className="font-bold text-primary">{moeda(hoje.receita)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">TPV</p>
+                        <p className="font-bold">{moeda(hoje.tpv)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Tickets</p>
+                        <p className="font-bold">{hoje.qtdTickets}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">TPV</p>
-                    <p className="font-bold">{fmtK(hoje.tpv)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Tickets</p>
-                    <p className="font-bold">{hoje.qtdTickets}</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            )}
 
-          {/* KPI Cards principais */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <KpiCard icon={Wallet} label="Receita no Mês" value={fmtK(mesAtual.receita)} color="text-primary" />
-            <KpiCard icon={TrendingUp} label="TPV" value={fmtK(mesAtual.tpv)} sub="Volume processado" />
-            <KpiCard icon={Users} label="Clientes Ativos" value={mesAtual.clientesAtivos} sub={`${mesAtual.clientesNovos} novos este mês`} />
-            <KpiCard icon={BarChart3} label="Tickets" value={mesAtual.qtdTickets} />
-          </div>
+            {/* KPIs linha 1 */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <KpiCard icon={Wallet}     cor="bg-blue-500/10 text-blue-600"      valor={moeda(mesAtual.receita)}       rotulo="Receita no mês" />
+              <KpiCard icon={TrendingUp} cor="bg-sky-500/10 text-sky-600"        valor={moeda(mesAtual.tpv)}           rotulo="TPV — volume processado" />
+              <KpiCard icon={BarChart3}  cor="bg-amber-500/10 text-amber-600"    valor={mesAtual.qtdTickets}           rotulo="Tickets processados" />
+              <KpiCard icon={Users}      cor="bg-violet-500/10 text-violet-600"  valor={mesAtual.clientesAtivos}       rotulo="Clientes ativos" />
+            </div>
 
-          {/* KPI Cards secundários */}
-          <div className="grid grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="pt-4 pb-3 text-center">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Taxa Média</p>
-                <p className="text-xl font-bold">{mesAtual.taxaMedia.toFixed(2)}%</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-4 pb-3 text-center">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Ticket Médio</p>
-                <p className="text-xl font-bold">{fmtK(mesAtual.ticketMedio)}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-4 pb-3 text-center">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Clientes Novos</p>
-                <p className="text-xl font-bold">{mesAtual.clientesNovos}</p>
-              </CardContent>
-            </Card>
-          </div>
+            {/* KPIs linha 2 */}
+            <div className="grid gap-4 sm:grid-cols-3">
+              <KpiCard icon={BarChart3}  cor="bg-orange-500/10 text-orange-600"  valor={`${(mesAtual.taxaMedia ?? 0).toFixed(3)}%`} rotulo="Taxa média" />
+              <KpiCard icon={Wallet}     cor="bg-pink-500/10 text-pink-600"       valor={moeda(mesAtual.ticketMedio)}                rotulo="Ticket médio" />
+              <KpiCard icon={UserPlus}   cor="bg-emerald-500/10 text-emerald-600" valor={mesAtual.clientesNovos}                     rotulo="Clientes novos no mês" />
+            </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Gráfico histórico */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold">Receita — Últimos 6 Meses</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis dataKey="mes" tickFormatter={m => MESES[m - 1]} tick={{ fontSize: 11 }} />
-                    <YAxis tickFormatter={v => fmtK(v)} tick={{ fontSize: 11 }} width={60} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="receita" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+            {/* Evolução + vs Mês Anterior */}
+            <div className="grid gap-4 lg:grid-cols-3">
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Evolução Mensal — Receita</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer className="h-64">
+                    <BarChart data={historico} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <XAxis dataKey="mes" tickFormatter={m => MESES[m - 1]} className="text-xs" />
+                      <YAxis tickFormatter={v => moeda(v)} className="text-xs" width={110} />
+                      <Tooltip content={<TooltipReceita />} />
+                      <Bar dataKey="receita" radius={[4, 4, 0, 0]}>
+                        {historico.map((entry, i) => (
+                          <Cell
+                            key={i}
+                            fill={entry.mes === mes && entry.ano === ano
+                              ? CORES_GRAFICO[0]
+                              : `${CORES_GRAFICO[0]}66`}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
 
-            {/* Top clientes */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold">Top Clientes do Mês</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {clientes.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">Nenhum cliente neste período.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {clientes.slice(0, 8).map((c, i) => (
-                      <div key={c.nome} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs w-6 h-6 flex items-center justify-center p-0 shrink-0">
-                            {i + 1}
-                          </Badge>
-                          <span className="truncate max-w-[160px]">{c.nome}</span>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="font-semibold text-primary">{fmt(c.receita)}</p>
-                          <p className="text-xs text-muted-foreground">{c.qtdTickets} tickets</p>
+              {/* vs Mês Anterior */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>vs Mês Anterior</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-2">
+                  {[
+                    { label: 'Receita',        curr: mesAtual.receita,        prev: mesAnterior?.receita,        f: moeda },
+                    { label: 'TPV',            curr: mesAtual.tpv,            prev: mesAnterior?.tpv,            f: moeda },
+                    { label: 'Tickets',        curr: mesAtual.qtdTickets,     prev: mesAnterior?.qtdTickets,     f: v => v },
+                    { label: 'Clientes Ativos', curr: mesAtual.clientesAtivos, prev: mesAnterior?.clientesAtivos, f: v => v },
+                  ].map(({ label, curr, prev, f }) => {
+                    const delta = prev && curr ? Math.round(((curr - prev) / prev) * 1000) / 10 : null
+                    return (
+                      <div key={label} className="flex items-center justify-between text-sm border-b pb-3 last:border-0 last:pb-0">
+                        <span className="text-muted-foreground">{label}</span>
+                        <div className="text-right">
+                          <p className="font-semibold">{curr != null ? f(curr) : '—'}</p>
+                          <DeltaTag value={delta} />
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    )
+                  })}
+                  {deltaReceita !== null && (
+                    <p className="text-xs text-muted-foreground border-t pt-2">
+                      Receita: <span className={`font-semibold ${deltaReceita >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{pct(deltaReceita)}</span> vs mês anterior
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Top Clientes */}
+            <Card className="overflow-hidden">
+              <CardHeader className="border-b bg-muted/30">
+                <CardTitle>Top Clientes do Mês</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {clientes.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">Nenhum cliente neste período.</p>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-xs text-muted-foreground">
+                        <th className="px-4 py-2 text-left font-medium">#</th>
+                        <th className="px-4 py-2 text-left font-medium">Cliente</th>
+                        <th className="px-4 py-2 text-right font-medium">Receita</th>
+                        <th className="px-4 py-2 text-right font-medium">TPV</th>
+                        <th className="px-4 py-2 text-right font-medium">Tickets</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {clientes.map((c, i) => (
+                        <tr key={c.nome} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                          <td className="px-4 py-2.5">
+                            <Badge variant={i === 0 ? 'default' : 'outline'} className="w-6 h-6 flex items-center justify-center p-0 text-xs">
+                              {i + 1}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-2.5 max-w-[200px] truncate font-medium">{c.nome}</td>
+                          <td className="px-4 py-2.5 text-right text-primary font-semibold">{moeda(c.receita)}</td>
+                          <td className="px-4 py-2.5 text-right text-muted-foreground">{moeda(c.tpv)}</td>
+                          <td className="px-4 py-2.5 text-right">{c.qtdTickets}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 )}
               </CardContent>
             </Card>
-          </div>
-        </>
-      )}
+          </>
+        )
+      })()}
     </div>
   )
 }

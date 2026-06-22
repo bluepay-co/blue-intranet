@@ -69,7 +69,9 @@ export async function minhaEquipe(req: Request, res: Response) {
       ? ['VENDAS', 'KAM', 'INSIGHT_SALES']
       : [role];
 
+    console.log('[DEBUG minhaEquipe] role do JWT:', role, '| roles passados:', roles);
     const equipe = await buscarMetricasEquipe(roles, mes, ano);
+    console.log('[DEBUG minhaEquipe] equipe retornada:', equipe ? 'OK' : 'null');
     if (!equipe) {
       return res.status(404).json({
         message: 'Nenhum dado de equipe encontrado para este cargo.',
