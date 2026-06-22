@@ -53,3 +53,19 @@ export async function getMetricasGerais(mes, ano) {
   const { data } = await api.get('/api/metricas/geral', { params })
   return data
 }
+
+export async function getResumoCX(mes, ano) {
+  const params = {}
+  if (mes) params.mes = mes
+  if (ano) params.ano = ano
+  const { data } = await api.get('/api/metricas/meu-resumo-cx', { params })
+  return data
+}
+
+export async function getEquipeCX(mes, ano) {
+  const params = {}
+  if (mes) params.mes = mes
+  if (ano) params.ano = ano
+  const { data } = await api.get('/api/metricas/equipe-cx', { params })
+  return data
+}
