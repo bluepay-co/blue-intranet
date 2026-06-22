@@ -82,6 +82,7 @@ export async function criarChamado(payload) {
   form.append('descricao', payload.descricao)
   form.append('categoria', payload.categoria)
   form.append('criticidade', payload.criticidade)
+  form.append('setor', payload.setor ?? 'TI')
   if (payload.anexo) form.append('anexo', payload.anexo)
   if (payload.identificadorUrl) form.append('identificadorUrl', payload.identificadorUrl)
   const { data } = await api.post('/api/chamados', form, {

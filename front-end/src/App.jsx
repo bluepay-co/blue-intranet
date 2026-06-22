@@ -14,6 +14,7 @@ import ChamadosTI from '@/pages/ti/ChamadosTI'
 import DashboardTI from '@/pages/ti/DashboardTI'
 import ChamadosCX from '@/pages/cx/ChamadosCX'
 import ChamadosProdutos from '@/pages/produtos/ChamadosProdutos'
+import CalculadoraProspeccao from '@/pages/calculadora/CalculadoraProspeccao'
 
 function App() {
   return (
@@ -80,6 +81,14 @@ function App() {
           element={
             <ProtectedRoute roles={['TI', 'DESENVOLVEDOR']}>
               <Usuarios />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="calculadora"
+          element={
+            <ProtectedRoute roles={['CX', 'KAM', 'INSIGHT_SALES', 'PRODUTOS', 'DESENVOLVEDOR']}>
+              <CalculadoraProspeccao />
             </ProtectedRoute>
           }
         />
