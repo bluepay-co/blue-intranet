@@ -62,6 +62,7 @@ export default function ChamadoFormDialogCX({ aberto, onFechar, chamadoEditando,
           descricao,
           categoria,
           criticidade,
+          setor: 'CX',
           anexo: anexo || undefined,
           identificadorUrl: identificadorUrl.trim() || undefined,
         })

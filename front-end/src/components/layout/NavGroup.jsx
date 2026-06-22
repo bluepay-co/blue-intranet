@@ -2,15 +2,16 @@ import { useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import NavItemLink from './NavItemLink'
+import {
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
+} from '@/components/ui/sidebar'
+import { NavLink } from 'react-router-dom'
 
-/**
- * Grupo de navegação expansível na sidebar (ex.: Agenda → Calendário, Tarefas).
- * Abre automaticamente quando uma rota filha está ativa; o usuário pode alternar.
- *
- * @param {{ item: { label: string, icon?: React.ComponentType, children: object[] }, onNavigate?: () => void }} props
- */
-export default function NavGroup({ item, onNavigate }) {
+export default function NavGroup({ item }) {
   const { pathname } = useLocation()
   const Icon = item.icon
 
@@ -21,8 +22,8 @@ export default function NavGroup({ item, onNavigate }) {
   const aberto = override ?? algumAtivo
 
   return (
-    <div>
-      <button
+    <SidebarMenuItem>
+      <SidebarMenuButton
         onClick={() => setOverride(!aberto)}
         aria-expanded={aberto}
         className={cn(
@@ -30,27 +31,29 @@ export default function NavGroup({ item, onNavigate }) {
           algumAtivo ? 'text-white' : 'text-brand-foreground/65 hover:bg-white/5 hover:text-white',
         )}
       >
-        {Icon && (
-          <Icon
-            className={cn(
-              'size-4 shrink-0 transition-colors',
-              algumAtivo
-                ? 'text-brand-accent'
-                : 'text-brand-foreground/50 group-hover:text-white',
-            )}
-          />
-        )}
+        {Icon && <Icon className="size-3.5 shrink-0" />}
         <span className="flex-1 text-left">{item.label}</span>
         <ChevronDown className={cn('size-4 shrink-0 transition-transform', aberto && 'rotate-180')} />
-      </button>
+      </SidebarMenuButton>
 
       {aberto && (
-        <div className="mt-1 space-y-1">
-          {item.children.map((filho) => (
-            <NavItemLink key={filho.to} {...filho} nested onNavigate={onNavigate} />
-          ))}
-        </div>
+        <SidebarMenuSub>
+          {item.children.map((filho) => {
+            const isActive = pathname === filho.to || pathname.startsWith(`${filho.to}/`)
+            const ChildIcon = filho.icon
+            return (
+              <SidebarMenuSubItem key={filho.to}>
+                <SidebarMenuSubButton asChild isActive={isActive}>
+                  <NavLink to={filho.to} end={filho.end}>
+                    {ChildIcon && <ChildIcon className="size-3.5 shrink-0" />}
+                    <span>{filho.label}</span>
+                  </NavLink>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            )
+          })}
+        </SidebarMenuSub>
       )}
-    </div>
+    </SidebarMenuItem>
   )
 }

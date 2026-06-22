@@ -42,6 +42,7 @@ interface NovoChamado {
   descricao: string;
   categoria: string;
   criticidade: string;
+  setor: string;
   anexoUrl: string | null;
   anexoNome: string | null;
   anexoMime: string | null;
@@ -59,21 +60,23 @@ export async function criarChamado(usuarioId: number, dados: NovoChamado): Promi
   if (!CATEGORIAS_VALIDAS.has(dados.categoria)) throw new AppError('Categoria inválida.', 400);
   if (!CRITICIDADES_VALIDAS.has(dados.criticidade)) throw new AppError('Criticidade inválida.', 400);
 
+  const setor = dados.setor?.trim().toUpperCase() || 'TI';
+
   const { rows } = await pool.query<{ id: number }>(
     `INSERT INTO chamados
-       (titulo, descricao, categoria, criticidade, status, anexo_url, anexo_nome, anexo_mime, identificador_url, usuario_id)
-     VALUES ($1, $2, $3, $4, 'ABERTO', $5, $6, $7, $8, $9)
+       (titulo, descricao, categoria, criticidade, status, setor, anexo_url, anexo_nome, anexo_mime, identificador_url, usuario_id)
+     VALUES ($1, $2, $3, $4, 'ABERTO', $5, $6, $7, $8, $9, $10)
      RETURNING id`,
-    [titulo, descricao, dados.categoria, dados.criticidade, dados.anexoUrl, dados.anexoNome, dados.anexoMime, dados.identificadorUrl, usuarioId],
+    [titulo, descricao, dados.categoria, dados.criticidade, setor, dados.anexoUrl, dados.anexoNome, dados.anexoMime, dados.identificadorUrl, usuarioId],
   );
 
   if (!rows[0]) throw new AppError('Falha ao persistir o chamado.', 500);
 
   // Notificação Slack em background — não bloqueia nem quebra o fluxo.
   pool
-    .query<{ nome: string; role: string }>('SELECT nome, role FROM usuarios WHERE id = $1', [usuarioId])
+    .query<{ nome: string }>('SELECT nome FROM usuarios WHERE id = $1', [usuarioId])
     .then(({ rows: u }) => {
-      const webhook = u[0]?.role === Role.CX
+      const webhook = setor === 'CX'
         ? 'SLACK_WEBHOOK_PRODUTOS'
         : 'SLACK_WEBHOOK_CHAMADOS';
 
@@ -87,7 +90,9 @@ export async function criarChamado(usuarioId: number, dados: NovoChamado): Promi
         autorNome: u[0]?.nome ?? 'Colaborador',
       }, webhook);
     })
-    .catch(() => undefined);
+    .catch((err: unknown) => {
+      console.error('[Slack] Erro ao notificar chamado:', err instanceof Error ? err.message : err);
+    });
 
   return rows[0];
 }
@@ -155,11 +160,10 @@ export async function listarTodos(filtros: FiltrosChamado = {}): Promise<Chamado
   return rows;
 }
 
-/** Lista todos os chamados abertos por membros de um role específico, com busca opcional por colaborador. */
-async function listarChamadosPorRole(role: Role, filtros: { busca?: string } = {}): Promise<ChamadoLista[]> {
-  const params: unknown[] = [];
-  const condicoes: string[] = [`u.role = $1`];
-  params.push(role);
+/** Lista chamados de um setor específico, com busca opcional por nome do colaborador. */
+async function listarChamadosPorSetor(setor: string, filtros: { busca?: string } = {}): Promise<ChamadoLista[]> {
+  const params: unknown[] = [setor];
+  const condicoes: string[] = [`c.setor = $1`];
 
   if (filtros.busca?.trim()) {
     params.push(`%${filtros.busca.trim().toLowerCase()}%`);
@@ -183,12 +187,12 @@ async function listarChamadosPorRole(role: Role, filtros: { busca?: string } = {
 }
 
 export async function listarChamadosCX(filtros: { busca?: string } = {}): Promise<ChamadoLista[]> {
-  return listarChamadosPorRole(Role.CX, filtros);
+  return listarChamadosPorSetor('CX', filtros);
 }
 
 /** Lista chamados do CX para o time de Produtos (mesma fonte de dados). */
 export async function listarChamadosProdutos(filtros: { busca?: string } = {}): Promise<ChamadoLista[]> {
-  return listarChamadosPorRole(Role.CX, filtros);
+  return listarChamadosPorSetor('CX', filtros);
 }
 
 /** Busca a ficha completa + chat, aplicando o isolamento (dono ou T.I.). */
@@ -202,21 +206,21 @@ export async function buscarChamado(idBruto: unknown, usuario: AuthPayload): Pro
     categoria: CategoriaChamado;
     criticidade: CriticidadeChamado;
     status: StatusChamado;
+    setor: string;
     anexo_url: string | null;
     anexo_nome: string | null;
     anexo_mime: string | null;
     autor_id: number;
     autor_nome: string;
     autor_email: string;
-    autor_role: Role;
     atendente_id: number | null;
     criado_em: Date;
     atualizado_em: Date;
   }>(
-    `SELECT c.id, c.titulo, c.descricao, c.categoria, c.criticidade, c.status,
+    `SELECT c.id, c.titulo, c.descricao, c.categoria, c.criticidade, c.status, c.setor,
             c.anexo_url, c.anexo_nome, c.anexo_mime, c.identificador_url,
             c.usuario_id AS autor_id, u.nome AS autor_nome, u.email AS autor_email,
-            u.role AS autor_role, c.atendente_id, c.criado_em, c.atualizado_em
+            c.atendente_id, c.criado_em, c.atualizado_em
        FROM chamados c
        JOIN usuarios u ON u.id = c.usuario_id
       WHERE c.id = $1`,
@@ -227,8 +231,9 @@ export async function buscarChamado(idBruto: unknown, usuario: AuthPayload): Pro
   if (!chamado) throw new AppError('Chamado não encontrado.', 404);
 
   const ehDono = chamado.autor_id === usuario.id;
-  const ehCXVendoCX = usuario.role === Role.CX && chamado.autor_role === Role.CX;
-  const ehProdutosVendoCX = usuario.role === Role.PRODUTOS && chamado.autor_role === Role.CX;
+  const ehChamadoCX = chamado.setor === 'CX';
+  const ehCXVendoCX = usuario.role === Role.CX && ehChamadoCX;
+  const ehProdutosVendoCX = usuario.role === Role.PRODUTOS && ehChamadoCX;
 
   if (!ehDono && !ehEquipeTI(usuario.role) && !ehCXVendoCX && !ehProdutosVendoCX) {
     throw new AppError('Você não tem acesso a este chamado.', 403);
