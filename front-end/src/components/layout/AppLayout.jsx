@@ -4,19 +4,35 @@ import { NotificacoesChamadosProvider } from '@/notificacoes/NotificacoesChamado
 import ChatProvider from '@/chat/ChatProvider'
 import ChatFAB from '@/components/chat/ChatFAB'
 import ChatPainel from '@/components/chat/ChatPainel'
-import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
-import { TooltipProvider } from '@/components/ui/tooltip'
-import AppSidebar from './Sidebar'
+import Sidebar from './Sidebar'
 
 export default function AppLayout() {
   return (
     <NotificacoesBlogProvider>
     <NotificacoesChamadosProvider>
     <ChatProvider>
-    <TooltipProvider>
-    <SidebarProvider>
-      <AppSidebar />
-      <div className="flex min-w-0 flex-1 flex-col h-svh overflow-hidden">
+    <div className="flex h-svh overflow-hidden bg-background text-foreground">
+      {/* Sidebar fixa (desktop) */}
+      <Sidebar className="hidden w-64 shrink-0 border-r border-white/5 md:flex" />
+
+      {/* Sidebar em gaveta (mobile) */}
+      <div
+        className={cn(
+          'fixed inset-0 z-40 bg-black/50 transition-opacity md:hidden',
+          menuAberto ? 'opacity-100' : 'pointer-events-none opacity-0',
+        )}
+        onClick={() => setMenuAberto(false)}
+      />
+      <Sidebar
+        onNavigate={() => setMenuAberto(false)}
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 w-64 transition-transform md:hidden',
+          menuAberto ? 'translate-x-0' : '-translate-x-full',
+        )}
+      />
+
+      {/* Conteúdo */}
+      <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-3 border-b px-4 py-3 md:hidden">
           <SidebarTrigger />
           <img src="/logo-azul.svg" alt="Blue Pay Solutions" className="h-6 w-auto" />
@@ -25,8 +41,7 @@ export default function AppLayout() {
           <Outlet />
         </main>
       </div>
-    </SidebarProvider>
-    </TooltipProvider>
+    </div>
     <ChatFAB />
     <ChatPainel />
     </ChatProvider>

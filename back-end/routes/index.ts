@@ -5,7 +5,7 @@ import { tarefasRouter } from './tarefas.routes';
 import { blogRouter } from './blog.routes';
 import { usuarioRouter } from './usuario.routes';
 import { chamadosRouter } from './chamado.routes';
-import { chatRouter } from './chat.routes';
+import { metricasRouter } from './metricas.routes';
 
 const router = Router();
 
@@ -28,6 +28,8 @@ router.use('/api/usuarios', usuarioRouter);
 // Domínio: Chamados (help desk de T.I. — abertura por todos, gestão pela T.I.)
 router.use('/api/chamados', chamadosRouter);
 
+// Domínio: Métricas de Vendas (vendedores — banco bluepay3_production, somente leitura)
+router.use('/api/metricas', metricasRouter);
 // Domínio: Chat Interno (mensagens em tempo real — todos os colaboradores)
 router.use('/api/chat', chatRouter);
 

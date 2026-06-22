@@ -2,7 +2,6 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Login from '@/components/Login'
 import AppLayout from '@/components/layout/AppLayout'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import Dashboard from '@/pages/Dashboard'
 import Agenda from '@/pages/Agenda'
 import Tarefas from '@/pages/Tarefas'
 import Usuarios from '@/pages/Usuarios'
@@ -14,7 +13,9 @@ import ChamadosTI from '@/pages/ti/ChamadosTI'
 import DashboardTI from '@/pages/ti/DashboardTI'
 import ChamadosCX from '@/pages/cx/ChamadosCX'
 import ChamadosProdutos from '@/pages/produtos/ChamadosProdutos'
-import CalculadoraProspeccao from '@/pages/calculadora/CalculadoraProspeccao'
+import DashboardPessoal from '@/pages/metricas/DashboardPessoal'
+import DashboardEquipe from '@/pages/metricas/DashboardEquipe'
+import DashboardGeral from '@/pages/metricas/DashboardGeral'
 
 function App() {
   return (
@@ -30,7 +31,7 @@ function App() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Dashboard />} />
+        <Route index element={<Navigate to="/metricas/geral" replace />} />
         <Route path="agenda" element={<Agenda />} />
         <Route path="tarefas" element={<Tarefas />} />
         <Route path="blog" element={<Blog />} />
@@ -85,10 +86,26 @@ function App() {
           }
         />
         <Route
-          path="calculadora"
+          path="metricas/geral"
           element={
-            <ProtectedRoute roles={['CX', 'KAM', 'INSIGHT_SALES', 'PRODUTOS', 'DESENVOLVEDOR']}>
-              <CalculadoraProspeccao />
+            <ProtectedRoute>
+              <DashboardGeral />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="metricas/pessoal"
+          element={
+            <ProtectedRoute roles={['VENDAS', 'KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
+              <DashboardPessoal />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="metricas/equipe"
+          element={
+            <ProtectedRoute roles={['INSIGHT_SALES', 'DESENVOLVEDOR']}>
+              <DashboardEquipe />
             </ProtectedRoute>
           }
         />

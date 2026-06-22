@@ -34,37 +34,32 @@ export default function AppSidebar() {
         <img src="/logo-branca.svg" alt="Blue Pay Solutions" className="h-7 w-auto" />
       </SidebarHeader>
 
-      <SidebarContent className="px-3 py-3">
-        {secoes.map((secao, i) => (
-          <span key={secao.label}>
-            {i > 0 && <SidebarSeparator className="my-2 bg-sidebar-border" />}
-            <SidebarGroup className="p-0">
-              <SidebarGroupLabel className="px-2 pb-0.5 text-[0.6rem] font-semibold tracking-widest text-sidebar-foreground/30 uppercase">
-                {secao.label}
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {secao.items.map((item) =>
-                    item.children ? (
-                      <NavGroup key={item.label} item={item} />
-                    ) : (
-                      <NavItemLink
-                        key={item.to}
-                        {...item}
-                        badge={
-                          item.to === '/blog'
-                            ? naoVistos
-                            : item.to === '/chamados' || item.to === '/ti/chamados'
-                              ? chamadosNaoVistos
-                              : 0
-                        }
-                      />
-                    ),
-                  )}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </span>
+      {/* Navegação — agrupada por seção/setor */}
+      <nav className="relative flex-1 space-y-3 px-3 py-3">
+        {secoes.map((secao) => (
+          <div key={secao.label} className="space-y-1">
+            <p className="px-3 pb-1 text-[0.7rem] font-semibold tracking-wider text-brand-foreground/40 uppercase">
+              {secao.label}
+            </p>
+            {secao.items.map((item) =>
+              item.children ? (
+                <NavGroup key={item.label} item={item} onNavigate={onNavigate} />
+              ) : (
+                <NavItemLink
+                  key={item.to}
+                  {...item}
+                  badge={
+                    item.to === '/blog'
+                      ? naoVistos
+                      : item.to === '/chamados' || item.to === '/ti/chamados'
+                        ? chamadosNaoVistos
+                        : 0
+                  }
+                  onNavigate={onNavigate}
+                />
+              ),
+            )}
+          </div>
         ))}
       </SidebarContent>
 

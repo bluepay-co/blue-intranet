@@ -26,7 +26,10 @@ export default function NavGroup({ item }) {
       <SidebarMenuButton
         onClick={() => setOverride(!aberto)}
         aria-expanded={aberto}
-        isActive={algumAtivo}
+        className={cn(
+          'group flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-all',
+          algumAtivo ? 'text-white' : 'text-brand-foreground/65 hover:bg-white/5 hover:text-white',
+        )}
       >
         {Icon && <Icon className="size-3.5 shrink-0" />}
         <span className="flex-1 text-left">{item.label}</span>
