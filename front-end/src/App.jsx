@@ -104,9 +104,17 @@ function App() {
           }
         />
         <Route
-          path="metricas/equipe"
+          path="metricas/is/equipe"
           element={
-            <ProtectedRoute roles={['INSIGHT_SALES', 'KAM', 'DESENVOLVEDOR']}>
+            <ProtectedRoute roles={['INSIGHT_SALES', 'DESENVOLVEDOR']}>
+              <DashboardEquipe />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="metricas/kam/equipe"
+          element={
+            <ProtectedRoute roles={['KAM', 'DESENVOLVEDOR']}>
               <DashboardEquipe />
             </ProtectedRoute>
           }
@@ -120,7 +128,7 @@ function App() {
           }
         />
         <Route
-          path="metricas/cx-equipe"
+          path="metricas/cx/equipe"
           element={
             <ProtectedRoute roles={['CX', 'DESENVOLVEDOR']}>
               <DashboardCXEquipe />
