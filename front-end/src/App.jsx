@@ -104,7 +104,7 @@ function App() {
         <Route
           path="metricas/equipe"
           element={
-            <ProtectedRoute roles={['INSIGHT_SALES', 'DESENVOLVEDOR']}>
+            <ProtectedRoute roles={['INSIGHT_SALES', 'KAM', 'DESENVOLVEDOR']}>
               <DashboardEquipe />
             </ProtectedRoute>
           }
