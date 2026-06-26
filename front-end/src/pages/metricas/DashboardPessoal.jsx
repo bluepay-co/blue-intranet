@@ -22,6 +22,10 @@ function moeda(v) {
   }).format(v ?? 0)
 }
 
+function numero(v) {
+  return new Intl.NumberFormat('pt-BR').format(v ?? 0)
+}
+
 function pct(v) {
   if (v === null || v === undefined) return '—'
   return `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`
@@ -58,9 +62,9 @@ function TooltipReceita({ active, payload }) {
   if (!active || !payload?.length) return null
   const d = payload[0]?.payload
   return (
-    <div className="rounded-lg border bg-background px-3 py-2 text-sm shadow-md space-y-0.5">
-      <p className="font-semibold">{MESES[(d.mes ?? 1) - 1]} / {d.ano}</p>
-      <p className="text-primary">{moeda(d.receita)}</p>
+    <div className="rounded-xl border bg-background px-3.5 py-2.5 text-sm shadow-xl space-y-1">
+      <p className="font-semibold text-foreground">{MESES[(d.mes ?? 1) - 1]} / {d.ano}</p>
+      <p className="text-primary font-medium">{moeda(d.receita)}</p>
     </div>
   )
 }
@@ -218,8 +222,8 @@ export default function DashboardPessoal() {
                         <p className="text-base font-bold">{moeda(hoje.tpv)}</p>
                       </div>
                       <div className="sm:pl-8">
-                        <p className="text-xs text-muted-foreground mb-0.5">Tickets</p>
-                        <p className="text-base font-bold">{hoje.qtdTickets}</p>
+                        <p className="text-xs text-muted-foreground mb-0.5">Transações</p>
+                        <p className="text-base font-bold">{numero(hoje.qtdTickets)}</p>
                       </div>
                     </div>
                   </div>
@@ -231,15 +235,15 @@ export default function DashboardPessoal() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <KpiCard icon={Wallet}     cor="bg-blue-500/10 text-blue-600"      valor={moeda(mesAtual.receita)}       rotulo="Receita no mês" />
               <KpiCard icon={TrendingUp} cor="bg-sky-500/10 text-sky-600"        valor={moeda(mesAtual.tpv)}           rotulo="TPV — volume processado" />
-              <KpiCard icon={BarChart3}  cor="bg-amber-500/10 text-amber-600"    valor={mesAtual.qtdTickets}           rotulo="Tickets processados" />
-              <KpiCard icon={Users}      cor="bg-violet-500/10 text-violet-600"  valor={mesAtual.clientesAtivos}       rotulo="Clientes ativos" />
+              <KpiCard icon={BarChart3}  cor="bg-amber-500/10 text-amber-600"    valor={numero(mesAtual.qtdTickets)}    rotulo="Transações processadas" />
+              <KpiCard icon={Users}      cor="bg-violet-500/10 text-violet-600"  valor={numero(mesAtual.clientesAtivos)} rotulo="Clientes ativos" />
             </div>
 
             {/* KPIs linha 2 */}
             <div className="grid gap-4 sm:grid-cols-3">
               <KpiCard icon={BarChart3}  cor="bg-orange-500/10 text-orange-600"  valor={`${(mesAtual.taxaMedia ?? 0).toFixed(3)}%`} rotulo="Taxa média" />
               <KpiCard icon={Wallet}     cor="bg-pink-500/10 text-pink-600"       valor={moeda(mesAtual.ticketMedio)}                rotulo="Ticket médio" />
-              <KpiCard icon={UserPlus}   cor="bg-emerald-500/10 text-emerald-600" valor={mesAtual.clientesNovos}                     rotulo="Clientes novos no mês" />
+              <KpiCard icon={UserPlus}   cor="bg-emerald-500/10 text-emerald-600" valor={numero(mesAtual.clientesNovos)}             rotulo="Clientes novos no mês" />
             </div>
 
             {/* Evolução + vs Mês Anterior */}
@@ -251,17 +255,23 @@ export default function DashboardPessoal() {
                 <CardContent>
                   <ChartContainer className="h-64">
                     <BarChart data={historico} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="mes" tickFormatter={m => MESES[m - 1]} className="text-xs" />
-                      <YAxis tickFormatter={v => moeda(v)} className="text-xs" width={110} />
-                      <Tooltip content={<TooltipReceita />} />
-                      <Bar dataKey="receita" radius={[4, 4, 0, 0]}>
+                      <defs>
+                        <linearGradient id="gradBarPessoal" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={CORES_GRAFICO[0]} stopOpacity={1} />
+                          <stop offset="100%" stopColor={CORES_GRAFICO[0]} stopOpacity={0.7} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="currentColor" className="stroke-border/30" />
+                      <XAxis dataKey="mes" tickFormatter={m => MESES[m - 1]} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                      <YAxis tickFormatter={v => moeda(v)} tick={{ fontSize: 11 }} width={110} tickLine={false} axisLine={false} />
+                      <Tooltip content={<TooltipReceita />} cursor={{ fill: 'currentColor', className: 'fill-muted/40' }} />
+                      <Bar dataKey="receita" radius={[5, 5, 0, 0]}>
                         {historico.map((entry, i) => (
                           <Cell
                             key={i}
                             fill={entry.mes === mes && entry.ano === ano
-                              ? CORES_GRAFICO[0]
-                              : `${CORES_GRAFICO[0]}66`}
+                              ? 'url(#gradBarPessoal)'
+                              : `${CORES_GRAFICO[0]}44`}
                           />
                         ))}
                       </Bar>
@@ -279,8 +289,8 @@ export default function DashboardPessoal() {
                   {[
                     { label: 'Receita',        curr: mesAtual.receita,        prev: mesAnterior?.receita,        f: moeda },
                     { label: 'TPV',            curr: mesAtual.tpv,            prev: mesAnterior?.tpv,            f: moeda },
-                    { label: 'Tickets',        curr: mesAtual.qtdTickets,     prev: mesAnterior?.qtdTickets,     f: v => v },
-                    { label: 'Clientes Ativos', curr: mesAtual.clientesAtivos, prev: mesAnterior?.clientesAtivos, f: v => v },
+                    { label: 'Transações',      curr: mesAtual.qtdTickets,     prev: mesAnterior?.qtdTickets,     f: numero },
+                    { label: 'Clientes Ativos', curr: mesAtual.clientesAtivos, prev: mesAnterior?.clientesAtivos, f: numero },
                   ].map(({ label, curr, prev, f }) => {
                     const delta = prev && curr ? Math.round(((curr - prev) / prev) * 1000) / 10 : null
                     return (
@@ -318,7 +328,7 @@ export default function DashboardPessoal() {
                         <th className="px-4 py-2 text-left font-medium">Cliente</th>
                         <th className="px-4 py-2 text-right font-medium">Receita</th>
                         <th className="px-4 py-2 text-right font-medium">TPV</th>
-                        <th className="px-4 py-2 text-right font-medium">Tickets</th>
+                        <th className="px-4 py-2 text-right font-medium">Transações</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -332,7 +342,7 @@ export default function DashboardPessoal() {
                           <td className="px-4 py-2.5 max-w-[200px] truncate font-medium">{c.nome}</td>
                           <td className="px-4 py-2.5 text-right text-primary font-semibold">{moeda(c.receita)}</td>
                           <td className="px-4 py-2.5 text-right text-muted-foreground">{moeda(c.tpv)}</td>
-                          <td className="px-4 py-2.5 text-right">{c.qtdTickets}</td>
+                          <td className="px-4 py-2.5 text-right">{numero(c.qtdTickets)}</td>
                         </tr>
                       ))}
                     </tbody>
