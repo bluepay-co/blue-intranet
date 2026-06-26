@@ -214,20 +214,33 @@ export default function DashboardEquipe() {
 
             {/* Hoje — só quando é o mês corrente */}
             {ehMesAtual && hoje && (
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="relative flex size-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
-                    <span className="relative inline-flex size-2 rounded-full bg-primary" />
-                  </span>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Hoje</p>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <KpiCard icon={Wallet}     cor="bg-blue-500/10 text-blue-600"    valor={moeda(hoje.receita)}  rotulo="Receita hoje" />
-                  <KpiCard icon={TrendingUp} cor="bg-sky-500/10 text-sky-600"      valor={moeda(hoje.tpv)}      rotulo="TPV hoje" />
-                  <KpiCard icon={BarChart3}  cor="bg-amber-500/10 text-amber-600"  valor={hoje.qtdTickets}      rotulo="Tickets hoje" />
-                </div>
-              </div>
+              <Card className="border-l-4 border-l-primary bg-primary/[0.03]">
+                <CardContent className="py-4 px-5">
+                  <div className="flex flex-wrap items-center gap-6">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="relative flex size-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-60" />
+                        <span className="relative inline-flex size-2 rounded-full bg-primary" />
+                      </span>
+                      <span className="text-xs font-bold uppercase tracking-widest text-primary">Hoje</span>
+                    </div>
+                    <div className="flex flex-wrap gap-6 sm:gap-8 sm:divide-x sm:divide-border">
+                      <div className="sm:pr-8">
+                        <p className="text-xs text-muted-foreground mb-0.5">Receita</p>
+                        <p className="text-base font-bold text-primary">{moeda(hoje.receita)}</p>
+                      </div>
+                      <div className="sm:pl-8 sm:pr-8">
+                        <p className="text-xs text-muted-foreground mb-0.5">TPV</p>
+                        <p className="text-base font-bold">{moeda(hoje.tpv)}</p>
+                      </div>
+                      <div className="sm:pl-8">
+                        <p className="text-xs text-muted-foreground mb-0.5">Tickets</p>
+                        <p className="text-base font-bold">{hoje.qtdTickets}</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
             {/* Strip vs Mês Anterior */}
