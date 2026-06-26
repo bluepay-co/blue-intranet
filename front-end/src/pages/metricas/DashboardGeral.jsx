@@ -160,8 +160,9 @@ export default function DashboardGeral() {
             {resumo.meta_total > 0 && (() => {
               const falta = Math.max(0, resumo.meta_total - resumo.receita)
               return (
-                <div className="grid gap-4 sm:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <KpiCard icon={Target} cor="bg-indigo-500/10 text-indigo-600" valor={moeda(resumo.meta_total)} rotulo="Meta total da equipe comercial" />
+                  <KpiCard icon={Wallet} cor="bg-blue-500/10 text-blue-600"     valor={moeda(resumo.receita)}    rotulo="Receita Total do Mês" />
                   <Card>
                     <CardContent className="flex items-center gap-3 py-4">
                       <div className={`grid size-10 place-items-center rounded-lg ${resumo.pct_meta_total >= 100 ? 'bg-emerald-500/10 text-emerald-600' : resumo.pct_meta_total >= 70 ? 'bg-amber-500/10 text-amber-600' : 'bg-red-500/10 text-red-500'}`}>
@@ -188,7 +189,7 @@ export default function DashboardGeral() {
                         <p className="text-2xl font-semibold leading-tight">
                           {falta === 0 ? 'Meta batida!' : moeda(falta)}
                         </p>
-                        <p className="text-xs text-muted-foreground">Falta para bater a meta</p>
+                        <p className="text-xs text-muted-foreground">Meta Mensal em Aberto</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -232,11 +233,9 @@ export default function DashboardGeral() {
             )}
 
             {/* KPIs linha 1 */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <KpiCard icon={Wallet}    cor="bg-blue-500/10 text-blue-600"    valor={moeda(resumo.receita)}       rotulo="Receita no mês" />
+            <div className="grid gap-4 sm:grid-cols-2">
               <KpiCard icon={TrendingUp} cor="bg-sky-500/10 text-sky-600"     valor={moeda(resumo.tpv)}            rotulo="TPV — volume processado" />
               <KpiCard icon={BarChart3}  cor="bg-amber-500/10 text-amber-600" valor={resumo.qtdTickets}            rotulo="Tickets processados" />
-              <KpiCard icon={Users}      cor="bg-violet-500/10 text-violet-600" valor={resumo.clientesAtivos}     rotulo="Clientes ativos" />
             </div>
 
             {/* KPIs linha 2 */}

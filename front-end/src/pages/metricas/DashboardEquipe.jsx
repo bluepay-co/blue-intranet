@@ -204,7 +204,7 @@ export default function DashboardEquipe() {
                         <p className="text-2xl font-semibold leading-tight">
                           {falta === 0 ? 'Meta batida!' : moeda(falta)}
                         </p>
-                        <p className="text-xs text-muted-foreground">Falta para bater a meta</p>
+                        <p className="text-xs text-muted-foreground">Meta Mensal em Aberto</p>
                       </div>
                     </CardContent>
                   </Card>
