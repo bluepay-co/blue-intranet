@@ -1,5 +1,6 @@
 import { pool } from '../database/pool';
 import { consultaPool } from '../database/consulta-pool';
+import { getMetaIndividual, getMetaEquipe } from '../data/metas2026';
 import type {
   MetricasMes, MetricasHoje, MetricasHistorico,
   MetricasVendedor, TopCliente,
@@ -102,6 +103,8 @@ export async function buscarMetricasMes(
     receita:        r.receita,
     taxaMedia:      r.taxaMedia,
     ticketMedio:    r.ticketMedio,
+    meta:           0,
+    pct_meta:       0,
   };
 }
 
@@ -203,6 +206,11 @@ export async function buscarMetricasCompletas(
     buscarMetricasHoje(vendedor.id),
     buscarHistorico(vendedor.id, 6),
   ]);
+
+  const primeiroNome = vendedor.nome.split(' ')[0] ?? '';
+  const meta = getMetaIndividual(primeiroNome, mesConsulta, anoConsulta);
+  mesAtual.meta     = meta;
+  mesAtual.pct_meta = meta > 0 ? Math.round((mesAtual.receita / meta) * 1000) / 10 : 0;
 
   return {
     vendedorId: vendedor.id,
@@ -504,33 +512,51 @@ export async function buscarMetricasEquipe(
   );
 
   const membros: MetricasEquipeMembro[] = membrosRows.rows.map(
-    (r: { managerId: number; qtdTickets: number; clientesAtivos: number; receita: number; tpv: number; taxaMedia: number; ticketMedio: number }) => ({
-      vendedorId:     r.managerId,
-      nome:           nomeMap.get(r.managerId) ?? 'Desconhecido',
-      receita:        r.receita,
-      tpv:            r.tpv,
-      qtdTickets:     r.qtdTickets,
-      clientesAtivos: r.clientesAtivos,
-      taxaMedia:      r.taxaMedia,
-      ticketMedio:    r.ticketMedio,
-      receitaHoje:    hojeMembroMap.get(r.managerId)?.receitaHoje ?? 0,
-      ticketsHoje:    hojeMembroMap.get(r.managerId)?.ticketsHoje ?? 0,
-    })
+    (r: { managerId: number; qtdTickets: number; clientesAtivos: number; receita: number; tpv: number; taxaMedia: number; ticketMedio: number }) => {
+      const nome          = nomeMap.get(r.managerId) ?? 'Desconhecido';
+      const primeiroNome  = nome.split(' ')[0] ?? '';
+      const meta          = getMetaIndividual(primeiroNome, mes, ano);
+      return {
+        vendedorId:     r.managerId,
+        nome,
+        receita:        r.receita,
+        tpv:            r.tpv,
+        qtdTickets:     r.qtdTickets,
+        clientesAtivos: r.clientesAtivos,
+        taxaMedia:      r.taxaMedia,
+        ticketMedio:    r.ticketMedio,
+        receitaHoje:    hojeMembroMap.get(r.managerId)?.receitaHoje ?? 0,
+        ticketsHoje:    hojeMembroMap.get(r.managerId)?.ticketsHoje ?? 0,
+        meta,
+        pct_meta:       meta > 0 ? Math.round((r.receita / meta) * 1000) / 10 : 0,
+      };
+    }
   );
 
   const t = totaisRows.rows[0];
   const a = anteriorRows.rows[0];
 
+  let equipeType: 'KAM' | 'IS' | 'GERAL' = 'GERAL';
+  if (roles.length === 1) {
+    const role = roles[0];
+    if (role === 'KAM') equipeType = 'KAM';
+    else if (role === 'INSIGHT_SALES') equipeType = 'IS';
+  }
+  const meta_equipe    = getMetaEquipe(equipeType, mes, ano);
+  const totalReceita   = t.totalReceita as number;
+
   return {
     equipe:              roles.length > 1 ? 'GERAL' : (roles[0] ?? 'GERAL'),
     mes,
     ano,
-    totalReceita:        t.totalReceita,
+    totalReceita,
     totalTpv:            t.totalTpv,
     totalTickets:        t.totalTickets,
     totalClientesAtivos: t.totalClientesAtivos,
     taxaMedia:           t.taxaMedia,
     ticketMedio:         t.ticketMedio,
+    meta_equipe,
+    pct_meta_equipe:     meta_equipe > 0 ? Math.round((totalReceita / meta_equipe) * 1000) / 10 : 0,
     mesAnterior: {
       receita:    a.receita,
       tpv:        a.tpv,
@@ -569,15 +595,19 @@ async function buscarResumoGeral(mes: number, ano: number): Promise<ResumoGeral>
   `, [mes, ano]);
 
   const r = rows[0];
+  const receita       = r.receita as number;
+  const meta_total    = getMetaEquipe('GERAL', mes, ano);
   return {
     mes, ano,
     qtdTickets:       r.qtdTickets,
     clientesAtivos:   r.clientesAtivos,
     vendedoresAtivos: r.vendedoresAtivos,
     tpv:              r.tpv,
-    receita:          r.receita,
+    receita,
     taxaMedia:        r.taxaMedia,
     ticketMedio:      r.ticketMedio,
+    meta_total,
+    pct_meta_total:   meta_total > 0 ? Math.round((receita / meta_total) * 1000) / 10 : 0,
   };
 }
 

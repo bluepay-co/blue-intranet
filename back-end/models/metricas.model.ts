@@ -8,6 +8,8 @@ export interface MetricasMes {
   clientesNovos: number;
   taxaMedia: number;
   ticketMedio: number;
+  meta: number;
+  pct_meta: number;
 }
 
 export interface MetricasHoje {
@@ -52,6 +54,8 @@ export interface MetricasEquipeMembro {
   ticketMedio: number;
   receitaHoje: number;
   ticketsHoje: number;
+  meta: number;
+  pct_meta: number;
 }
 
 export interface MetricasEquipeHoje {
@@ -70,6 +74,8 @@ export interface MetricasEquipe {
   totalClientesAtivos: number;
   taxaMedia: number;
   ticketMedio: number;
+  meta_equipe: number;
+  pct_meta_equipe: number;
   mesAnterior: {
     receita: number;
     tpv: number;
@@ -95,6 +101,8 @@ export interface ResumoGeral {
   vendedoresAtivos: number;
   taxaMedia: number;
   ticketMedio: number;
+  meta_total: number;
+  pct_meta_total: number;
 }
 
 export interface MetricasHojeGeral {

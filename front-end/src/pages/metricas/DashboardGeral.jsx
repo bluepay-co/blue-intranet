@@ -10,7 +10,7 @@ import {
 } from 'recharts'
 import {
   Wallet, Users, BarChart3, TrendingUp, TrendingDown,
-  UserPlus, UserMinus, RefreshCw,
+  UserPlus, UserMinus, RefreshCw, Target,
   AlertCircle, Loader2, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 
@@ -197,6 +197,32 @@ export default function DashboardGeral() {
               <KpiCard icon={Wallet}     cor="bg-pink-500/10 text-pink-600"        valor={moeda(resumo.ticketMedio)}          rotulo="Ticket médio" />
               <KpiCard icon={RefreshCw}  cor="bg-teal-500/10 text-teal-600"       valor={`${retencao.taxaRetencao}%`}        rotulo={`Retenção · ${retencao.recorrentes} recorrentes`} />
             </div>
+
+            {/* KPIs de Meta Geral */}
+            {resumo.meta_total > 0 && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <KpiCard icon={Target} cor="bg-indigo-500/10 text-indigo-600" valor={moeda(resumo.meta_total)} rotulo="Meta total da equipe comercial" />
+                <Card>
+                  <CardContent className="flex items-center gap-3 py-4">
+                    <div className={`grid size-10 place-items-center rounded-lg ${resumo.pct_meta_total >= 100 ? 'bg-emerald-500/10 text-emerald-600' : resumo.pct_meta_total >= 70 ? 'bg-amber-500/10 text-amber-600' : 'bg-red-500/10 text-red-500'}`}>
+                      <Target className="size-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-2xl font-semibold leading-tight">
+                        {(resumo.pct_meta_total ?? 0).toFixed(1)}%
+                      </p>
+                      <p className="text-xs text-muted-foreground">% da meta total atingida</p>
+                      <div className="mt-1.5 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${resumo.pct_meta_total >= 100 ? 'bg-emerald-500' : resumo.pct_meta_total >= 70 ? 'bg-amber-500' : 'bg-red-500'}`}
+                          style={{ width: `${Math.min(resumo.pct_meta_total ?? 0, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             {/* Evolução Mensal + YTD */}
             <div className="grid gap-4 lg:grid-cols-3">

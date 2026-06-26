@@ -11,7 +11,7 @@ import {
 import {
   Wallet, Users, BarChart3, TrendingUp, TrendingDown,
   UserPlus, RefreshCw, AlertCircle, Loader2,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Target,
 } from 'lucide-react'
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
@@ -195,6 +195,32 @@ export default function DashboardPessoal() {
               <KpiCard icon={Wallet}     cor="bg-pink-500/10 text-pink-600"       valor={moeda(mesAtual.ticketMedio)}                rotulo="Ticket médio" />
               <KpiCard icon={UserPlus}   cor="bg-emerald-500/10 text-emerald-600" valor={mesAtual.clientesNovos}                     rotulo="Clientes novos no mês" />
             </div>
+
+            {/* KPIs de Meta — só exibe quando há meta definida */}
+            {mesAtual.meta > 0 && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <KpiCard icon={Target} cor="bg-indigo-500/10 text-indigo-600" valor={moeda(mesAtual.meta)} rotulo="Meta do mês" />
+                <Card>
+                  <CardContent className="flex items-center gap-3 py-4">
+                    <div className={`grid size-10 place-items-center rounded-lg ${mesAtual.pct_meta >= 100 ? 'bg-emerald-500/10 text-emerald-600' : mesAtual.pct_meta >= 70 ? 'bg-amber-500/10 text-amber-600' : 'bg-red-500/10 text-red-500'}`}>
+                      <Target className="size-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-2xl font-semibold leading-tight">
+                        {mesAtual.pct_meta.toFixed(1)}%
+                      </p>
+                      <p className="text-xs text-muted-foreground">% da meta atingida</p>
+                      <div className="mt-1.5 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${mesAtual.pct_meta >= 100 ? 'bg-emerald-500' : mesAtual.pct_meta >= 70 ? 'bg-amber-500' : 'bg-red-500'}`}
+                          style={{ width: `${Math.min(mesAtual.pct_meta, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             {/* Evolução + vs Mês Anterior */}
             <div className="grid gap-4 lg:grid-cols-3">

@@ -11,7 +11,7 @@ import {
 import {
   Wallet, Users, BarChart3, TrendingUp, TrendingDown,
   UserPlus, UserMinus, RefreshCw, AlertCircle, Loader2,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Target,
 } from 'lucide-react'
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
@@ -158,7 +158,8 @@ export default function DashboardEquipe() {
       {dados && (() => {
         const {
           totalReceita, totalTpv, totalTickets, totalClientesAtivos,
-          taxaMedia, ticketMedio, mesAnterior, hoje, retencao,
+          taxaMedia, ticketMedio, meta_equipe, pct_meta_equipe,
+          mesAnterior, hoje, retencao,
           mixProduto, historicoMensal, topClientes, membros,
         } = dados
 
@@ -238,6 +239,32 @@ export default function DashboardEquipe() {
               <KpiCard icon={Wallet}     cor="bg-pink-500/10 text-pink-600"       valor={moeda(ticketMedio)}                  rotulo="Ticket médio" />
               <KpiCard icon={RefreshCw}  cor="bg-teal-500/10 text-teal-600"      valor={`${retencao?.taxaRetencao ?? 0}%`}   rotulo={`Retenção · ${retencao?.recorrentes ?? 0} recorrentes`} />
             </div>
+
+            {/* KPIs de Meta da Equipe */}
+            {meta_equipe > 0 && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <KpiCard icon={Target} cor="bg-indigo-500/10 text-indigo-600" valor={moeda(meta_equipe)} rotulo="Meta da equipe no mês" />
+                <Card>
+                  <CardContent className="flex items-center gap-3 py-4">
+                    <div className={`grid size-10 place-items-center rounded-lg ${pct_meta_equipe >= 100 ? 'bg-emerald-500/10 text-emerald-600' : pct_meta_equipe >= 70 ? 'bg-amber-500/10 text-amber-600' : 'bg-red-500/10 text-red-500'}`}>
+                      <Target className="size-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-2xl font-semibold leading-tight">
+                        {(pct_meta_equipe ?? 0).toFixed(1)}%
+                      </p>
+                      <p className="text-xs text-muted-foreground">% da meta da equipe atingida</p>
+                      <div className="mt-1.5 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${pct_meta_equipe >= 100 ? 'bg-emerald-500' : pct_meta_equipe >= 70 ? 'bg-amber-500' : 'bg-red-500'}`}
+                          style={{ width: `${Math.min(pct_meta_equipe ?? 0, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             {/* Evolução Mensal */}
             {historicoMensal?.length > 0 && (
@@ -389,6 +416,8 @@ export default function DashboardEquipe() {
                           <th className="px-4 py-2 text-left font-medium">#</th>
                           <th className="px-4 py-2 text-left font-medium">Vendedor</th>
                           <th className="px-4 py-2 text-right font-medium">Receita</th>
+                          <th className="px-4 py-2 text-right font-medium">Meta</th>
+                          <th className="px-4 py-2 text-right font-medium">% Meta</th>
                           <th className="px-4 py-2 text-right font-medium">TPV</th>
                           <th className="px-4 py-2 text-right font-medium">Taxa</th>
                           <th className="px-4 py-2 text-right font-medium">Ticket Médio</th>
@@ -410,6 +439,14 @@ export default function DashboardEquipe() {
                             </td>
                             <td className="px-4 py-2.5 font-medium">{m.nome}</td>
                             <td className="px-4 py-2.5 text-right font-semibold text-primary">{moeda(m.receita)}</td>
+                            <td className="px-4 py-2.5 text-right text-muted-foreground">{m.meta > 0 ? moeda(m.meta) : '—'}</td>
+                            <td className="px-4 py-2.5 text-right">
+                              {m.meta > 0 ? (
+                                <span className={`font-semibold text-xs ${m.pct_meta >= 100 ? 'text-emerald-600' : m.pct_meta >= 70 ? 'text-amber-600' : 'text-red-500'}`}>
+                                  {m.pct_meta.toFixed(1)}%
+                                </span>
+                              ) : '—'}
+                            </td>
                             <td className="px-4 py-2.5 text-right text-muted-foreground">{moeda(m.tpv)}</td>
                             <td className="px-4 py-2.5 text-right">{(m.taxaMedia ?? 0).toFixed(2)}%</td>
                             <td className="px-4 py-2.5 text-right">{moeda(m.ticketMedio)}</td>
