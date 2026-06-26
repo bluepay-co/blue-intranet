@@ -196,29 +196,22 @@ export default function DashboardPessoal() {
               )
             })()}
 
-            {/* Strip Hoje — só no mês corrente */}
+            {/* Hoje — só no mês corrente */}
             {ehMesAtual && hoje && (
-              <Card className="border-l-4 border-l-primary">
-                <CardContent className="py-3 px-5">
-                  <div className="flex flex-wrap items-center gap-6">
-                    <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Hoje</span>
-                    <div className="flex flex-wrap gap-6">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Receita</p>
-                        <p className="font-bold text-primary">{moeda(hoje.receita)}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">TPV</p>
-                        <p className="font-bold">{moeda(hoje.tpv)}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Tickets</p>
-                        <p className="font-bold">{hoje.qtdTickets}</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="relative flex size-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                    <span className="relative inline-flex size-2 rounded-full bg-primary" />
+                  </span>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Hoje</p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <KpiCard icon={Wallet}    cor="bg-blue-500/10 text-blue-600"   valor={moeda(hoje.receita)}   rotulo="Receita hoje" />
+                  <KpiCard icon={TrendingUp} cor="bg-sky-500/10 text-sky-600"    valor={moeda(hoje.tpv)}       rotulo="TPV hoje" />
+                  <KpiCard icon={BarChart3}  cor="bg-amber-500/10 text-amber-600" valor={hoje.qtdTickets}      rotulo="Tickets hoje" />
+                </div>
+              </div>
             )}
 
             {/* KPIs linha 1 */}
