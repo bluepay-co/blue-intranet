@@ -17,7 +17,7 @@ export const NAV_SECTIONS = [
   {
     label: 'Geral',
     items: [
-      { to: '/metricas/geral', label: 'Dashboard Geral', icon: Activity },
+      { to: '/metricas/comercial', label: 'Dashboard Comercial', icon: Activity },
       {
         label: 'Agenda',
         icon: Calendar,

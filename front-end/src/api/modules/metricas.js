@@ -38,10 +38,11 @@ export async function getTopClientes(mes, ano, limite = 10, testEmail) {
  * @param {number} [ano]
  * @returns {Promise<MetricasEquipe>}
  */
-export async function getEquipe(mes, ano) {
+export async function getEquipe(mes, ano, equipe) {
   const params = {}
   if (mes) params.mes = mes
   if (ano) params.ano = ano
+  if (equipe) params.equipe = equipe
   const { data } = await api.get('/api/metricas/equipe', { params })
   return data
 }

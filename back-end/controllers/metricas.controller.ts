@@ -75,10 +75,18 @@ export async function minhaEquipe(req: Request, res: Response) {
     const mes = req.query.mes ? Number(req.query.mes) : agora.getMonth() + 1;
     const ano = req.query.ano ? Number(req.query.ano) : agora.getFullYear();
 
-    // DESENVOLVEDOR vê a equipe de vendas consolidada (todas as roles comerciais)
-    const roles = role === 'DESENVOLVEDOR'
-      ? ['VENDAS', 'KAM', 'INSIGHT_SALES']
-      : [role];
+    // Se vier query param ?equipe=IS|KAM, força a equipe independente do role do usuário
+    const equipeParam = req.query.equipe as string | undefined;
+    let roles: string[];
+    if (equipeParam === 'IS') {
+      roles = ['INSIGHT_SALES'];
+    } else if (equipeParam === 'KAM') {
+      roles = ['KAM'];
+    } else if (role === 'DESENVOLVEDOR') {
+      roles = ['VENDAS', 'KAM', 'INSIGHT_SALES'];
+    } else {
+      roles = [role];
+    }
 
     const equipe = await buscarMetricasEquipe(roles, mes, ano);
     if (!equipe) {

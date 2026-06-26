@@ -117,7 +117,7 @@ export default function DashboardGeral() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Dashboard Geral"
+        title="Dashboard Comercial"
         subtitle="Visão Consolidada da Empresa"
       >
         <div className="flex items-center gap-2">

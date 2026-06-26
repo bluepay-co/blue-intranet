@@ -83,7 +83,7 @@ function TooltipReceita({ active, payload }) {
   )
 }
 
-export default function DashboardEquipe() {
+export default function DashboardEquipe({ equipeFixa }) {
   const agora = new Date()
   const [mes, setMes] = useState(agora.getMonth() + 1)
   const [ano, setAno] = useState(agora.getFullYear())
@@ -95,7 +95,7 @@ export default function DashboardEquipe() {
     setErro('')
     setCarregando(true)
     try {
-      setDados(await getEquipe(mes, ano))
+      setDados(await getEquipe(mes, ano, equipeFixa))
     } catch (e) {
       if (e.response?.status === 404) {
         setErro('Nenhum dado de equipe encontrado para este cargo e período.')
@@ -105,7 +105,7 @@ export default function DashboardEquipe() {
     } finally {
       setCarregando(false)
     }
-  }, [mes, ano])
+  }, [mes, ano, equipeFixa])
 
   useEffect(() => { carregar() }, [carregar])
 
