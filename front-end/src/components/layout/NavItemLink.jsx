@@ -1,30 +1,30 @@
 import { NavLink } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 
-/**
- * Link de navegação da sidebar (com indicador de ativo na cor secundária).
- *
- * @param {{
- *   to: string, label: string, icon?: React.ComponentType,
- *   end?: boolean, onNavigate?: () => void, nested?: boolean, badge?: number,
- * }} props
- */
-export default function NavItemLink({ to, label, icon: Icon, end, onNavigate, nested = false, badge = 0 }) {
+export default function NavItemLink({ to, label, icon: Icon, end, onNavigate, nested = false, badge = 0, collapsed = false }) {
   return (
     <NavLink to={to} end={end} onClick={onNavigate} className="group block">
       {({ isActive }) => (
         <span
+          title={collapsed ? label : undefined}
           className={cn(
-            'relative flex items-center gap-3 rounded-lg py-1.5 text-sm font-medium transition-all',
-            nested ? 'pr-3 pl-9' : 'px-3',
+            'relative flex items-center rounded-lg py-1.5 text-sm font-medium transition-all',
+            collapsed
+              ? 'justify-center px-2'
+              : nested ? 'gap-3 pr-3 pl-9' : 'gap-3 px-3',
             isActive
               ? 'bg-white/10 text-white'
               : 'text-brand-foreground/65 hover:bg-white/5 hover:text-white',
           )}
         >
-          {isActive && (
+          {/* Indicador ativo — barra lateral quando expandido, ponto embaixo quando colapsado */}
+          {isActive && !collapsed && (
             <span className="absolute inset-y-1.5 left-0 w-1 rounded-r-full bg-brand-accent" />
           )}
+          {isActive && collapsed && (
+            <span className="absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-brand-accent" />
+          )}
+
           {Icon && (
             <Icon
               className={cn(
@@ -33,10 +33,20 @@ export default function NavItemLink({ to, label, icon: Icon, end, onNavigate, ne
               )}
             />
           )}
-          {label}
-          {badge > 0 && (
+
+          {!collapsed && label}
+
+          {/* Badge expandido */}
+          {!collapsed && badge > 0 && (
             <span className="ml-auto grid min-w-5 place-items-center rounded-full bg-brand-accent px-1.5 text-[0.65rem] font-bold text-brand-accent-foreground">
               {badge > 99 ? '99+' : badge}
+            </span>
+          )}
+
+          {/* Badge colapsado — ponto no canto do ícone */}
+          {collapsed && badge > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 grid min-w-4 place-items-center rounded-full bg-brand-accent px-1 text-[0.6rem] font-bold text-brand-accent-foreground leading-none py-0.5">
+              {badge > 9 ? '9+' : badge}
             </span>
           )}
         </span>
