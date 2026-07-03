@@ -1,6 +1,18 @@
 import { ChevronLeft, ChevronRight, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarSeparator,
+} from '@/components/ui/sidebar'
 import { useAuth } from '@/auth/auth-context'
 import { useNotificacoesBlog } from '@/notificacoes/notificacoes-blog'
 import { useNotificacoesChamados } from '@/notificacoes/notificacoes-chamados'
@@ -13,6 +25,7 @@ function inicial(nome) {
 }
 
 export default function Sidebar({ className, onNavigate, collapsed = false, onToggle }) {
+export default function AppSidebar() {
   const { usuario, logout } = useAuth()
   const { naoVistos } = useNotificacoesBlog()
   const { naoVistos: chamadosNaoVistos } = useNotificacoesChamados()
@@ -49,6 +62,10 @@ export default function Sidebar({ className, onNavigate, collapsed = false, onTo
           </button>
         )}
       </div>
+    <Sidebar>
+      <SidebarHeader className="h-16 items-center justify-start border-b border-sidebar-border px-5 py-0">
+        <img src="/logo-branca.svg" alt="Blue Pay Solutions" className="h-7 w-auto" />
+      </SidebarHeader>
 
       {/* Navegação */}
       <nav className="relative flex-1 space-y-3 overflow-y-auto px-2 py-3">
@@ -85,7 +102,7 @@ export default function Sidebar({ className, onNavigate, collapsed = false, onTo
             )}
           </div>
         ))}
-      </nav>
+      </SidebarContent>
 
       {/* Usuário + sair */}
       <div className="relative border-t border-white/10 p-3">
@@ -132,5 +149,28 @@ export default function Sidebar({ className, onNavigate, collapsed = false, onTo
         )}
       </div>
     </aside>
+      <SidebarFooter className="border-t border-sidebar-border p-3">
+        <div className="flex items-center gap-2.5 rounded-lg bg-sidebar-accent px-2.5 py-2">
+          <div className="grid size-7 shrink-0 place-items-center rounded-full bg-sidebar-primary text-xs font-semibold text-sidebar-primary-foreground ring-1 ring-sidebar-border">
+            {inicial(usuario?.nome)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-medium text-sidebar-foreground">{usuario?.nome}</p>
+            <span className="text-[0.6rem] font-semibold tracking-wide text-sidebar-primary uppercase">
+              {usuario?.role}
+            </span>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={logout}
+            className="size-7 shrink-0 text-sidebar-foreground/50 hover:bg-white/5 hover:text-sidebar-foreground"
+            title="Sair"
+          >
+            <LogOut className="size-3.5" />
+          </Button>
+        </div>
+      </SidebarFooter>
+    </Sidebar>
   )
 }

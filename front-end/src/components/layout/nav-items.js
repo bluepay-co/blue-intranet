@@ -60,6 +60,21 @@ export const NAV_SECTIONS = [
     roles: ['PRODUTOS', 'DESENVOLVEDOR'],
     items: [
       { to: '/produtos/chamados', label: 'Chamados (Produtos)', icon: PackageSearch },
+      { to: '/calculadora', label: 'Calculadora', icon: Calculator },
+    ],
+  },
+  {
+    label: 'KAM',
+    roles: ['KAM', 'DESENVOLVEDOR'],
+    items: [
+      { to: '/calculadora', label: 'Calculadora', icon: Calculator },
+    ],
+  },
+  {
+    label: 'Insight Sales',
+    roles: ['INSIGHT_SALES', 'DESENVOLVEDOR'],
+    items: [
+      { to: '/calculadora', label: 'Calculadora', icon: Calculator },
     ],
   },
   {

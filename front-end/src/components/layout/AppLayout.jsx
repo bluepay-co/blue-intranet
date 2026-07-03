@@ -1,8 +1,4 @@
-import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
-import { Menu } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
 import { NotificacoesBlogProvider } from '@/notificacoes/NotificacoesBlogProvider'
 import { NotificacoesChamadosProvider } from '@/notificacoes/NotificacoesChamadosProvider'
 import ChatProvider from '@/chat/ChatProvider'
@@ -48,12 +44,9 @@ export default function AppLayout() {
       {/* Conteúdo */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-3 border-b px-4 py-3 md:hidden">
-          <Button variant="ghost" size="icon" onClick={() => setMenuAberto(true)}>
-            <Menu className="size-5" />
-          </Button>
+          <SidebarTrigger />
           <img src="/logo-azul.svg" alt="Blue Pay Solutions" className="h-6 w-auto" />
         </header>
-
         <main className="flex-1 overflow-auto p-6 lg:p-8">
           <Outlet />
         </main>
