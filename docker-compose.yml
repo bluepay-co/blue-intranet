@@ -1,0 +1,54 @@
+# Orquestração de produção da Intranet Blue.
+# Sobe 3 serviços: banco (Postgres), back-end (Express) e front-end (Nginx).
+# Uso: copie .env.deploy.example -> .env, preencha, e rode `docker compose up -d --build`.
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./back-end
+    restart: unless-stopped
+    # Reaproveita todos os segredos que já existem em back-end/.env
+    env_file:
+      - ./back-end/.env
+    # Sobrescreve o host do banco da intranet para apontar ao container `db`.
+    # (O banco de CONSULTA continua remoto, via CONSULTA_DB_HOST do .env.)
+    environment:
+      DB_HOST: db
+    volumes:
+      - ./back-end/uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./front-end
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
+        VITE_GOOGLE_REDIRECT_URI: ${VITE_GOOGLE_REDIRECT_URI}
+        VITE_GOOGLE_SCOPE: ${VITE_GOOGLE_SCOPE}
+        VITE_CORPORATE_DOMAIN: ${VITE_CORPORATE_DOMAIN}
+        VITE_POWERBI_EMBED_URL: ${VITE_POWERBI_EMBED_URL}
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
