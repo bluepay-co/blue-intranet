@@ -1,204 +1,148 @@
 # 🚀 Deploy da Intranet Blue no Hyper-V (Docker)
 
-Guia para subir a aplicação (front + back + banco) numa **VM Ubuntu Server dentro do Hyper-V**,
-usando **Docker Engine** (leve, sem Docker Desktop no servidor).
+Guia da instalação inicial da aplicação (front + back + banco) numa **VM Ubuntu dentro do
+Hyper-V**, usando **Docker Engine**. Para **atualizações do dia a dia**, veja o
+[ATUALIZAR.md](ATUALIZAR.md).
 
-Arquitetura final (tudo numa porta só, a `80`):
+Arquitetura final:
 
 ```
-Navegador → :80 Nginx (front-end) ──/api ─→ backend:5000 (Express)
-                                   ──/uploads─→ backend:5000
-                                                     │
-                                          db:5432 (Postgres intranet)
-                                          35.198.37.22 (banco de consulta, remoto, read-only)
+Navegador → :443 HTTPS Nginx (front) ──/api ─────→ backend:5000 (Express)
+                 (frontend)          ──/uploads──→ backend:5000
+                 :80 → redirect 443                     │
+                                            db:5432 (Postgres 18, banco `postgres`,
+                                                     schema blue_intranet)
+                                            35.198.37.22 (banco de consulta, remoto, read-only)
 ```
+
+Acesso: **https://192.168.0.145.sslip.io**
 
 ---
 
-## Visão geral do que instalar
+## O que instalar
 
 | Onde | O que instalar |
 |------|----------------|
-| **Sua máquina (dev)** | Nada obrigatório além do que já tem. (Docker Desktop é opcional — dá pra buildar direto na VM.) |
-| **VM servidora (Ubuntu)** | Docker Engine + plugin Docker Compose. Só isso. |
-
-> 💡 Você **não precisa** do Docker Desktop no servidor. O caminho mais simples é copiar o
-> projeto pra VM e rodar `docker compose up --build` lá — a própria VM builda as imagens.
+| **Sua máquina (dev)** | Nada além do que já tem (`rsync`, `ssh`, `openssl`, `pg_dump`). |
+| **VM servidora (Ubuntu)** | Docker Engine + plugin Docker Compose. |
 
 ---
 
 ## Passo 1 — Criar a VM Ubuntu no Hyper-V
 
-1. Baixe a ISO do **Ubuntu Server 24.04 LTS**: https://ubuntu.com/download/server
-2. No **Gerenciador do Hyper-V** → *Ação → Novo → Máquina Virtual*:
-   - **Geração 2**
-   - Memória: **4096 MB** (mínimo 2 GB), pode marcar memória dinâmica
-   - Disco: **40 GB**
-   - Rede: conecte ao **Virtual Switch externo** (pra ficar acessível na rede da empresa).
-     Se não existir um, crie em *Gerenciador de Comutadores Virtuais → Externo*.
-   - Aponte a ISO baixada como mídia de instalação.
-3. **Antes de ligar**: nas *Configurações* da VM → *Segurança* → em "Modelo" selecione
-   **Microsoft UEFI Certificate Authority** (senão o Ubuntu não dá boot na Geração 2).
-4. Ligue, instale o Ubuntu Server (marque **"Install OpenSSH server"** na tela de features).
-5. Após instalar, descubra o IP da VM: `ip a` → anote (ex.: `192.168.0.50`). Esse é o **IP_DO_SERVIDOR**.
+- **Geração 2**, 4 GB+ de RAM, disco 40 GB, conectada a um **Virtual Switch Externo**.
+- Em *Configurações → Segurança → Modelo*, use **"Autoridade de Certificação UEFI da Microsoft"**
+  (senão a Geração 2 não dá boot no Ubuntu).
+- Instale o Ubuntu escolhendo **"Use an entire disk"** (é o disco virtual, vazio).
+- Após instalar, **remova a ISO** do drive de DVD (Configurações → DVD → "Nenhum") para não
+  dar boot pela mídia de instalação de novo.
+- Descubra o IP: `ip -4 addr show | grep inet` → aqui usamos **`192.168.0.145`**.
 
----
-
-## Passo 2 — Instalar o Docker Engine na VM
-
-Conecte na VM (pelo console do Hyper-V ou `ssh usuario@IP_DO_SERVIDOR`) e rode:
+## Passo 2 — SSH e Docker na VM
 
 ```bash
-# Instala Docker Engine + Compose (script oficial)
+sudo apt update && sudo apt install -y openssh-server
+sudo systemctl enable --now ssh
+
 curl -fsSL https://get.docker.com | sudo sh
-
-# Permite usar docker sem sudo (relogue depois)
 sudo usermod -aG docker $USER
-
-# Confirma
-docker --version
-docker compose version
 ```
+Saia e reentre no SSH (pra valer o grupo `docker`) e teste: `docker run --rm hello-world`.
 
-Saia e entre de novo na sessão (pra valer o grupo `docker`).
+## Passo 3 — Exportar o banco da INTRANET (na SUA máquina)
 
----
-
-## Passo 3 — Exportar o banco da INTRANET da sua máquina
-
-Na **sua máquina** (onde o Postgres da intranet está hoje), gere um dump completo:
-
+O banco da intranet usa o database **`postgres`**, schema **`blue_intranet`**:
 ```bash
-# Ajuste usuário/porta se necessário. Vai pedir a senha do banco.
-pg_dump -h localhost -U dev_intranet -d intranet_dev -Fc -f intranet_dump.dump
+pg_dump -h localhost -U postgres -d postgres -n blue_intranet -Fc -f intranet_dump.dump
 ```
+> ⚠️ A versão do Postgres do container (**18**) precisa ser **igual ou maior** que a do seu
+> banco local, senão o `pg_restore` falha com "unsupported version in file header".
 
-> `-Fc` = formato comprimido (restaura com `pg_restore`). Preserva schema `blue_intranet`, tabelas e dados.
-> O banco de **consulta** (35.198.37.22) **não** precisa de dump — é remoto e você só o consome.
+## Passo 4 — Configurar variáveis (na SUA máquina)
 
----
-
-## Passo 4 — Levar o projeto e o dump para a VM
-
-Do diretório do projeto na sua máquina:
-
-```bash
-# Copia o projeto (o rsync ignora node_modules pra ficar rápido)
-rsync -az --exclude node_modules --exclude .git \
-  "./" usuario@IP_DO_SERVIDOR:~/blue-intranet/
-
-# Copia o dump do banco
-scp intranet_dump.dump usuario@IP_DO_SERVIDOR:~/blue-intranet/
-```
-
-> Se não tiver `rsync`, pode zipar a pasta (sem `node_modules`) e usar `scp`.
-> **Importante:** os arquivos `back-end/.env` e `front-end/.env` são ignorados pelo git,
-> mas o `rsync` acima os copia normalmente — confira que eles chegaram na VM.
-
----
-
-## Passo 5 — Configurar as variáveis na VM
-
-Na VM, dentro de `~/blue-intranet`:
-
+Copie o template e ajuste (o `.env` da raiz é usado pelo docker-compose):
 ```bash
 cp .env.deploy.example .env
-nano .env
 ```
-
 Preencha no `.env` da raiz:
-- `DB_USER` / `DB_PASSWORD` / `DB_NAME` → **iguais** aos de `back-end/.env`.
-- `VITE_API_BASE_URL=http://IP_DO_SERVIDOR` (o IP real! não localhost).
-- `VITE_GOOGLE_REDIRECT_URI=http://IP_DO_SERVIDOR`
-- Demais `VITE_*` conforme seu `front-end/.env` atual.
+- `DB_USER`, `DB_PASSWORD`, `DB_NAME` → **iguais** aos de `back-end/.env` (aqui: `postgres` / senha / `postgres`).
+- `SERVER_URL`, `VITE_API_BASE_URL`, `VITE_GOOGLE_REDIRECT_URI` → **`https://192.168.0.145.sslip.io`**
+  (hostname `sslip.io` resolve automaticamente pro IP — necessário pro login Google, que não
+  aceita IP puro nem HTTP).
+- Demais `VITE_*` conforme o `front-end/.env`.
 
-Depois edite **`back-end/.env`** na VM e ajuste:
-- `DB_HOST` → deixe `localhost` mesmo (o compose sobrescreve pra `db` automaticamente).
-- `GOOGLE_REDIRECT_URI` → `http://IP_DO_SERVIDOR`
-- `FRONTEND_URL` → `http://IP_DO_SERVIDOR`
-- Mantenha os segredos (`JWT_SECRET`, `*_ENCRYPTION_KEY`, `SLACK_*`, `CONSULTA_DB_*`) como estão.
+> Os segredos do back-end (`JWT_SECRET`, `*_ENCRYPTION_KEY`, `CONSULTA_DB_*`, `SLACK_*`)
+> permanecem em `back-end/.env`. O compose lê esse arquivo via `env_file` e sobrescreve
+> `DB_HOST`, `GOOGLE_REDIRECT_URI` e `FRONTEND_URL` automaticamente.
 
-> ⚠️ **Google OAuth:** no [Google Cloud Console](https://console.cloud.google.com/apis/credentials),
-> no seu OAuth Client, adicione `http://IP_DO_SERVIDOR` em *Authorized JavaScript origins* e
-> em *Authorized redirect URIs* — senão o login com Google falha em produção.
-
----
-
-## Passo 6 — Subir os containers
-
-Na VM, em `~/blue-intranet`:
+## Passo 5 — Enviar tudo para a VM (na SUA máquina)
 
 ```bash
+rsync -az --exclude node_modules --exclude .git --exclude dist \
+  ./ blueintranet@192.168.0.145:~/blue-intranet/
+scp intranet_dump.dump blueintranet@192.168.0.145:~/blue-intranet/
+```
+> Confira que `back-end/.env`, `front-end/.env` e o `.env` da raiz chegaram na VM
+> (são ignorados pelo git, mas o rsync os copia).
+
+## Passo 6 — Gerar o certificado HTTPS (na VM)
+
+Certificado autoassinado para o hostname `sslip.io`:
+```bash
+cd ~/blue-intranet
+mkdir -p certs
+openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
+  -keyout certs/server.key -out certs/server.crt \
+  -subj "/CN=192.168.0.145.sslip.io" \
+  -addext "subjectAltName=DNS:192.168.0.145.sslip.io"
+```
+
+## Passo 7 — Subir os containers (na VM)
+
+```bash
+cd ~/blue-intranet
 docker compose up -d --build
+docker compose ps      # os 3 serviços devem ficar Up; o db, "healthy"
 ```
 
-Isso builda as 3 imagens e sobe tudo. Acompanhe:
+## Passo 8 — Restaurar o banco (na VM)
 
 ```bash
-docker compose ps
-docker compose logs -f backend
-```
-
----
-
-## Passo 7 — Restaurar o banco dentro do container
-
-Com os containers de pé, restaure o dump no Postgres do container:
-
-```bash
-# Copia o dump pra dentro do container do banco
-docker compose cp intranet_dump.dump db:/tmp/intranet_dump.dump
-
-# Restaura (ajuste DB_USER/DB_NAME se mudou no .env)
-docker compose exec db pg_restore -U dev_intranet -d intranet_dev --clean --if-exists /tmp/intranet_dump.dump
-```
-
-Reinicie o back-end pra pegar o banco já populado:
-
-```bash
+docker compose cp intranet_dump.dump db:/tmp/dump.dump
+docker compose exec db pg_restore -U postgres -d postgres /tmp/dump.dump
 docker compose restart backend
 ```
+Confira: `docker compose exec db psql -U postgres -d postgres -c "\dt blue_intranet.*"`
 
-> Se você **não** tiver dados a migrar e quiser começar do zero, pule o dump e rode
-> as migrations em `back-end/database/migrations/` manualmente via
-> `docker compose exec -T db psql -U dev_intranet -d intranet_dev < arquivo.sql`.
+## Passo 9 — Google OAuth
 
----
+No [Google Cloud Console → Credenciais](https://console.cloud.google.com/apis/credentials),
+no OAuth Client (Web), adicione **`https://192.168.0.145.sslip.io`** em:
+- **Authorized JavaScript origins**
+- **Authorized redirect URIs**
 
-## Passo 8 — Testar
+## Passo 10 — Testar
 
-No navegador de qualquer máquina da rede: **`http://IP_DO_SERVIDOR`**
-
-- A tela do front deve carregar.
-- Faça login (Google) e confira se os dados aparecem.
-- Se algo falhar, veja os logs: `docker compose logs -f backend` / `... frontend`.
-
----
-
-## Operação do dia a dia
-
-```bash
-docker compose ps                 # status
-docker compose logs -f backend    # logs ao vivo
-docker compose restart backend    # reiniciar um serviço
-docker compose down               # derrubar tudo (dados do banco ficam no volume pgdata)
-docker compose up -d --build      # atualizar após mudar o código
-```
-
-Backup do banco a qualquer momento:
-
-```bash
-docker compose exec db pg_dump -U dev_intranet -Fc intranet_dev > backup_$(date +%F).dump
-```
+Acesse **https://192.168.0.145.sslip.io** → aceite o aviso do certificado autoassinado
+(*Avançado → Prosseguir*, uma vez) → faça login com Google.
 
 ---
 
-## Notas importantes
+## Depois do deploy
 
-- **Chat em tempo real (socket.io):** ainda não está ligado no `server.ts` (nem nas dependências).
-  O Nginx já está preparado pra WebSocket, mas quando ativarem o socket será preciso criar um
-  `http.createServer(app)` + `socket.io` no back-end. Nada disso bloqueia o deploy de hoje.
-- **HTTPS:** este guia usa HTTP na porta 80 (rede interna). Se precisar de HTTPS, dá pra colocar
-  um Nginx/Caddy na frente com certificado — posso te ajudar depois.
-- **Persistência:** o banco vive no volume `pgdata` e os uploads em `back-end/uploads/`
-  (bind-mount) — ambos sobrevivem a `docker compose down`.
+- **Atualizar a aplicação:** use `./deploy.sh` na sua máquina — veja [ATUALIZAR.md](ATUALIZAR.md).
+- **Persistência:** banco no volume `pgdata`, uploads em `back-end/uploads/` — ambos sobrevivem
+  a `docker compose down` (mas **nunca** use `down -v`, que apaga o volume do banco).
+- **Backup do banco:**
+  ```bash
+  docker compose exec db pg_dump -U postgres -Fc postgres > backup_$(date +%F).dump
+  ```
+
+## Notas
+
+- **Certificado autoassinado** gera aviso no navegador. Para remover, emita um cert real
+  (Let's Encrypt via desafio DNS) quando houver acesso ao DNS do domínio, ou distribua o
+  cert/CA interno nas máquinas.
+- **Chat em tempo real (socket.io):** o `socket.io-client` já está nas dependências do front,
+  mas o servidor ainda não instancia o `socket.io` no `server.ts` — quando ativarem, o Nginx
+  já está preparado (proxy `/socket.io/`).

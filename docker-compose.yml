@@ -4,14 +4,15 @@
 
 services:
   db:
-    image: postgres:16
+    image: postgres:18
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # Postgres 18+ usa layout por versão; monta a raiz (dados vão em /18/docker)
+      - pgdata:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
@@ -28,6 +29,8 @@ services:
     # (O banco de CONSULTA continua remoto, via CONSULTA_DB_HOST do .env.)
     environment:
       DB_HOST: db
+      GOOGLE_REDIRECT_URI: ${SERVER_URL}
+      FRONTEND_URL: ${SERVER_URL}
     volumes:
       - ./back-end/uploads:/app/uploads
     depends_on:
@@ -47,6 +50,10 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      # Certificado autoassinado gerado na VM (ver DEPLOY.md / passo de certs)
+      - ./certs:/etc/nginx/certs:ro
     depends_on:
       - backend
 
