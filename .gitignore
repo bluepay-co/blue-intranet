@@ -54,3 +54,12 @@ querys/
 *.sln
 *.swp
 
+
+# Certificados TLS (gerados na VM, nunca versionar)
+certs/
+
+# Dump de banco (dados reais — nunca versionar)
+*.dump
+
+# Planilhas de metas (dados de negócio, uso local)
+Metas Bluepay*.csv
