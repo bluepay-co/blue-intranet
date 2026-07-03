@@ -7,13 +7,23 @@ import ChatPainel from '@/components/chat/ChatPainel'
 import Sidebar from './Sidebar'
 
 export default function AppLayout() {
+  const [menuAberto, setMenuAberto] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
+
   return (
     <NotificacoesBlogProvider>
     <NotificacoesChamadosProvider>
     <ChatProvider>
     <div className="flex h-svh overflow-hidden bg-background text-foreground">
       {/* Sidebar fixa (desktop) */}
-      <Sidebar className="hidden w-64 shrink-0 border-r border-white/5 md:flex" />
+      <Sidebar
+        collapsed={collapsed}
+        onToggle={() => setCollapsed(c => !c)}
+        className={cn(
+          'hidden shrink-0 border-r border-white/5 md:flex transition-[width] duration-300',
+          collapsed ? 'w-16' : 'w-64',
+        )}
+      />
 
       {/* Sidebar em gaveta (mobile) */}
       <div

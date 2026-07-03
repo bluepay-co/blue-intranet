@@ -11,15 +11,19 @@ import {
 import {
   Wallet, Users, BarChart3, TrendingUp, TrendingDown,
   UserPlus, RefreshCw, AlertCircle, Loader2,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Target,
 } from 'lucide-react'
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 
 function moeda(v) {
   return new Intl.NumberFormat('pt-BR', {
-    style: 'currency', currency: 'BRL', maximumFractionDigits: 0,
+    style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2,
   }).format(v ?? 0)
+}
+
+function numero(v) {
+  return new Intl.NumberFormat('pt-BR').format(v ?? 0)
 }
 
 function pct(v) {
@@ -58,9 +62,9 @@ function TooltipReceita({ active, payload }) {
   if (!active || !payload?.length) return null
   const d = payload[0]?.payload
   return (
-    <div className="rounded-lg border bg-background px-3 py-2 text-sm shadow-md space-y-0.5">
-      <p className="font-semibold">{MESES[(d.mes ?? 1) - 1]} / {d.ano}</p>
-      <p className="text-primary">{moeda(d.receita)}</p>
+    <div className="rounded-xl border bg-background px-3.5 py-2.5 text-sm shadow-xl space-y-1">
+      <p className="font-semibold text-foreground">{MESES[(d.mes ?? 1) - 1]} / {d.ano}</p>
+      <p className="text-primary font-medium">{moeda(d.receita)}</p>
     </div>
   )
 }
@@ -156,24 +160,70 @@ export default function DashboardPessoal() {
 
         return (
           <>
-            {/* Strip Hoje — só no mês corrente */}
+            {/* Cards de Meta — topo do dashboard */}
+            {mesAtual.meta > 0 && (() => {
+              const falta = Math.max(0, mesAtual.meta - mesAtual.receita)
+              return (
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <KpiCard icon={Target} cor="bg-indigo-500/10 text-indigo-600" valor={moeda(mesAtual.meta)} rotulo="Meta do mês" />
+                  <Card>
+                    <CardContent className="flex items-center gap-3 py-4">
+                      <div className={`grid size-10 place-items-center rounded-lg ${mesAtual.pct_meta >= 100 ? 'bg-emerald-500/10 text-emerald-600' : mesAtual.pct_meta >= 70 ? 'bg-amber-500/10 text-amber-600' : 'bg-red-500/10 text-red-500'}`}>
+                        <Target className="size-5" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-2xl font-semibold leading-tight">{mesAtual.pct_meta.toFixed(1)}%</p>
+                        <p className="text-xs text-muted-foreground">% da meta atingida</p>
+                        <div className="mt-1.5 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${mesAtual.pct_meta >= 100 ? 'bg-emerald-500' : mesAtual.pct_meta >= 70 ? 'bg-amber-500' : 'bg-red-500'}`}
+                            style={{ width: `${Math.min(mesAtual.pct_meta, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="flex items-center gap-3 py-4">
+                      <div className={`grid size-10 place-items-center rounded-lg ${falta === 0 ? 'bg-emerald-500/10 text-emerald-600' : 'bg-rose-500/10 text-rose-600'}`}>
+                        <Target className="size-5" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-semibold leading-tight">
+                          {falta === 0 ? 'Meta batida!' : moeda(falta)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Meta Mensal em Aberto</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )
+            })()}
+
+            {/* Hoje — só no mês corrente */}
             {ehMesAtual && hoje && (
-              <Card className="border-l-4 border-l-primary">
-                <CardContent className="py-3 px-5">
+              <Card className="border-l-4 border-l-primary bg-primary/[0.03]">
+                <CardContent className="py-4 px-5">
                   <div className="flex flex-wrap items-center gap-6">
-                    <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Hoje</span>
-                    <div className="flex flex-wrap gap-6">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Receita</p>
-                        <p className="font-bold text-primary">{moeda(hoje.receita)}</p>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="relative flex size-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-60" />
+                        <span className="relative inline-flex size-2 rounded-full bg-primary" />
+                      </span>
+                      <span className="text-xs font-bold uppercase tracking-widest text-primary">Hoje</span>
+                    </div>
+                    <div className="flex flex-wrap gap-6 sm:gap-8 sm:divide-x sm:divide-border">
+                      <div className="sm:pr-8">
+                        <p className="text-xs text-muted-foreground mb-0.5">Receita</p>
+                        <p className="text-base font-bold text-primary">{moeda(hoje.receita)}</p>
                       </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">TPV</p>
-                        <p className="font-bold">{moeda(hoje.tpv)}</p>
+                      <div className="sm:pl-8 sm:pr-8">
+                        <p className="text-xs text-muted-foreground mb-0.5">TPV</p>
+                        <p className="text-base font-bold">{moeda(hoje.tpv)}</p>
                       </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Tickets</p>
-                        <p className="font-bold">{hoje.qtdTickets}</p>
+                      <div className="sm:pl-8">
+                        <p className="text-xs text-muted-foreground mb-0.5">Transações</p>
+                        <p className="text-base font-bold">{numero(hoje.qtdTickets)}</p>
                       </div>
                     </div>
                   </div>
@@ -185,15 +235,15 @@ export default function DashboardPessoal() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <KpiCard icon={Wallet}     cor="bg-blue-500/10 text-blue-600"      valor={moeda(mesAtual.receita)}       rotulo="Receita no mês" />
               <KpiCard icon={TrendingUp} cor="bg-sky-500/10 text-sky-600"        valor={moeda(mesAtual.tpv)}           rotulo="TPV — volume processado" />
-              <KpiCard icon={BarChart3}  cor="bg-amber-500/10 text-amber-600"    valor={mesAtual.qtdTickets}           rotulo="Tickets processados" />
-              <KpiCard icon={Users}      cor="bg-violet-500/10 text-violet-600"  valor={mesAtual.clientesAtivos}       rotulo="Clientes ativos" />
+              <KpiCard icon={BarChart3}  cor="bg-amber-500/10 text-amber-600"    valor={numero(mesAtual.qtdTickets)}    rotulo="Transações processadas" />
+              <KpiCard icon={Users}      cor="bg-violet-500/10 text-violet-600"  valor={numero(mesAtual.clientesAtivos)} rotulo="Clientes ativos" />
             </div>
 
             {/* KPIs linha 2 */}
             <div className="grid gap-4 sm:grid-cols-3">
               <KpiCard icon={BarChart3}  cor="bg-orange-500/10 text-orange-600"  valor={`${(mesAtual.taxaMedia ?? 0).toFixed(3)}%`} rotulo="Taxa média" />
               <KpiCard icon={Wallet}     cor="bg-pink-500/10 text-pink-600"       valor={moeda(mesAtual.ticketMedio)}                rotulo="Ticket médio" />
-              <KpiCard icon={UserPlus}   cor="bg-emerald-500/10 text-emerald-600" valor={mesAtual.clientesNovos}                     rotulo="Clientes novos no mês" />
+              <KpiCard icon={UserPlus}   cor="bg-emerald-500/10 text-emerald-600" valor={numero(mesAtual.clientesNovos)}             rotulo="Clientes novos no mês" />
             </div>
 
             {/* Evolução + vs Mês Anterior */}
@@ -205,17 +255,23 @@ export default function DashboardPessoal() {
                 <CardContent>
                   <ChartContainer className="h-64">
                     <BarChart data={historico} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="mes" tickFormatter={m => MESES[m - 1]} className="text-xs" />
-                      <YAxis tickFormatter={v => moeda(v)} className="text-xs" width={110} />
-                      <Tooltip content={<TooltipReceita />} />
-                      <Bar dataKey="receita" radius={[4, 4, 0, 0]}>
+                      <defs>
+                        <linearGradient id="gradBarPessoal" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={CORES_GRAFICO[0]} stopOpacity={1} />
+                          <stop offset="100%" stopColor={CORES_GRAFICO[0]} stopOpacity={0.7} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="currentColor" className="stroke-border/30" />
+                      <XAxis dataKey="mes" tickFormatter={m => MESES[m - 1]} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                      <YAxis tickFormatter={v => moeda(v)} tick={{ fontSize: 11 }} width={110} tickLine={false} axisLine={false} />
+                      <Tooltip content={<TooltipReceita />} cursor={{ fill: 'currentColor', className: 'fill-muted/40' }} />
+                      <Bar dataKey="receita" radius={[5, 5, 0, 0]}>
                         {historico.map((entry, i) => (
                           <Cell
                             key={i}
                             fill={entry.mes === mes && entry.ano === ano
-                              ? CORES_GRAFICO[0]
-                              : `${CORES_GRAFICO[0]}66`}
+                              ? 'url(#gradBarPessoal)'
+                              : `${CORES_GRAFICO[0]}44`}
                           />
                         ))}
                       </Bar>
@@ -233,8 +289,8 @@ export default function DashboardPessoal() {
                   {[
                     { label: 'Receita',        curr: mesAtual.receita,        prev: mesAnterior?.receita,        f: moeda },
                     { label: 'TPV',            curr: mesAtual.tpv,            prev: mesAnterior?.tpv,            f: moeda },
-                    { label: 'Tickets',        curr: mesAtual.qtdTickets,     prev: mesAnterior?.qtdTickets,     f: v => v },
-                    { label: 'Clientes Ativos', curr: mesAtual.clientesAtivos, prev: mesAnterior?.clientesAtivos, f: v => v },
+                    { label: 'Transações',      curr: mesAtual.qtdTickets,     prev: mesAnterior?.qtdTickets,     f: numero },
+                    { label: 'Clientes Ativos', curr: mesAtual.clientesAtivos, prev: mesAnterior?.clientesAtivos, f: numero },
                   ].map(({ label, curr, prev, f }) => {
                     const delta = prev && curr ? Math.round(((curr - prev) / prev) * 1000) / 10 : null
                     return (
@@ -272,7 +328,7 @@ export default function DashboardPessoal() {
                         <th className="px-4 py-2 text-left font-medium">Cliente</th>
                         <th className="px-4 py-2 text-right font-medium">Receita</th>
                         <th className="px-4 py-2 text-right font-medium">TPV</th>
-                        <th className="px-4 py-2 text-right font-medium">Tickets</th>
+                        <th className="px-4 py-2 text-right font-medium">Transações</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -286,7 +342,7 @@ export default function DashboardPessoal() {
                           <td className="px-4 py-2.5 max-w-[200px] truncate font-medium">{c.nome}</td>
                           <td className="px-4 py-2.5 text-right text-primary font-semibold">{moeda(c.receita)}</td>
                           <td className="px-4 py-2.5 text-right text-muted-foreground">{moeda(c.tpv)}</td>
-                          <td className="px-4 py-2.5 text-right">{c.qtdTickets}</td>
+                          <td className="px-4 py-2.5 text-right">{numero(c.qtdTickets)}</td>
                         </tr>
                       ))}
                     </tbody>

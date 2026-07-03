@@ -17,7 +17,7 @@ export const NAV_SECTIONS = [
   {
     label: 'Geral',
     items: [
-      { to: '/metricas/geral', label: 'Dashboard Geral', icon: Activity },
+      { to: '/metricas/comercial', label: 'Dashboard Comercial', icon: Activity },
       {
         label: 'Agenda',
         icon: Calendar,
@@ -50,8 +50,9 @@ export const NAV_SECTIONS = [
     label: 'Customer Experience',
     roles: ['CX', 'DESENVOLVEDOR'],
     items: [
-      { to: '/cx/chamados', label: 'Chamados', icon: Headset },
-      { to: '/calculadora', label: 'Calculadora', icon: Calculator },
+      { to: '/cx/chamados',        label: 'Chamados',          icon: Headset    },
+      { to: '/metricas/cx',        label: 'Dashboard Pessoal', icon: TrendingUp },
+      { to: '/metricas/cx/equipe', label: 'Dashboard Equipe',  icon: Users      },
     ],
   },
   {
@@ -78,17 +79,18 @@ export const NAV_SECTIONS = [
   },
   {
     label: 'KAM',
-    roles: ['KAM'],
+    roles: ['KAM', 'DESENVOLVEDOR'],
     items: [
-      { to: '/metricas/pessoal', label: 'Dashboard Pessoal', icon: TrendingUp },
+      { to: '/metricas/pessoal',    label: 'Dashboard Pessoal', icon: TrendingUp },
+      { to: '/metricas/kam/equipe', label: 'Dashboard Equipe',  icon: Users },
     ],
   },
   {
     label: 'Insight Sales',
-    roles: ['INSIGHT_SALES'],
+    roles: ['INSIGHT_SALES', 'DESENVOLVEDOR'],
     items: [
-      { to: '/metricas/pessoal', label: 'Dashboard Pessoal', icon: TrendingUp },
-      { to: '/metricas/equipe',  label: 'Dashboard Equipe',  icon: Users },
+      { to: '/metricas/pessoal',   label: 'Dashboard Pessoal', icon: TrendingUp },
+      { to: '/metricas/is/equipe', label: 'Dashboard Equipe',  icon: Users },
     ],
   },
   {
@@ -96,14 +98,6 @@ export const NAV_SECTIONS = [
     roles: ['VENDAS'],
     items: [
       { to: '/metricas/pessoal', label: 'Dashboard Pessoal', icon: TrendingUp },
-    ],
-  },
-  {
-    label: 'Comercial',
-    roles: ['DESENVOLVEDOR'],
-    items: [
-      { to: '/metricas/pessoal', label: 'Dashboard Pessoal', icon: TrendingUp },
-      { to: '/metricas/equipe',  label: 'Dashboard Equipe',  icon: Users },
     ],
   },
 ]

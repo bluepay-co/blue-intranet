@@ -16,6 +16,9 @@ import ChamadosProdutos from '@/pages/produtos/ChamadosProdutos'
 import DashboardPessoal from '@/pages/metricas/DashboardPessoal'
 import DashboardEquipe from '@/pages/metricas/DashboardEquipe'
 import DashboardGeral from '@/pages/metricas/DashboardGeral'
+import DashboardComercialLayout from '@/pages/metricas/DashboardComercialLayout'
+import DashboardCX from '@/pages/metricas/DashboardCX'
+import DashboardCXEquipe from '@/pages/metricas/DashboardCXEquipe'
 
 function App() {
   return (
@@ -31,7 +34,7 @@ function App() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate to="/metricas/geral" replace />} />
+        <Route index element={<Navigate to="/metricas/comercial" replace />} />
         <Route path="agenda" element={<Agenda />} />
         <Route path="tarefas" element={<Tarefas />} />
         <Route path="blog" element={<Blog />} />
@@ -85,14 +88,23 @@ function App() {
             </ProtectedRoute>
           }
         />
+        {/* Redirect de compatibilidade */}
+        <Route path="metricas/geral" element={<Navigate to="/metricas/comercial" replace />} />
+
+        {/* Dashboard Comercial com abas: Geral | IS | KAM — visível para todos */}
         <Route
-          path="metricas/geral"
+          path="metricas/comercial"
           element={
             <ProtectedRoute>
-              <DashboardGeral />
+              <DashboardComercialLayout />
             </ProtectedRoute>
           }
-        />
+        >
+          <Route index element={<DashboardGeral />} />
+          <Route path="is"  element={<DashboardEquipe equipeFixa="IS" />} />
+          <Route path="kam" element={<DashboardEquipe equipeFixa="KAM" />} />
+        </Route>
+
         <Route
           path="metricas/pessoal"
           element={
@@ -102,10 +114,34 @@ function App() {
           }
         />
         <Route
-          path="metricas/equipe"
+          path="metricas/is/equipe"
           element={
             <ProtectedRoute roles={['INSIGHT_SALES', 'DESENVOLVEDOR']}>
               <DashboardEquipe />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="metricas/kam/equipe"
+          element={
+            <ProtectedRoute roles={['KAM', 'DESENVOLVEDOR']}>
+              <DashboardEquipe />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="metricas/cx"
+          element={
+            <ProtectedRoute roles={['CX', 'DESENVOLVEDOR']}>
+              <DashboardCX />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="metricas/cx/equipe"
+          element={
+            <ProtectedRoute roles={['CX', 'DESENVOLVEDOR']}>
+              <DashboardCXEquipe />
             </ProtectedRoute>
           }
         />
