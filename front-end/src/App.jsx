@@ -16,6 +16,8 @@ import ChamadosProdutos from '@/pages/produtos/ChamadosProdutos'
 import DashboardPessoal from '@/pages/metricas/DashboardPessoal'
 import DashboardEquipe from '@/pages/metricas/DashboardEquipe'
 import DashboardGeral from '@/pages/metricas/DashboardGeral'
+import DashboardCX from '@/pages/metricas/DashboardCX'
+import DashboardCXEquipe from '@/pages/metricas/DashboardCXEquipe'
 
 function App() {
   return (
@@ -102,10 +104,34 @@ function App() {
           }
         />
         <Route
-          path="metricas/equipe"
+          path="metricas/is/equipe"
           element={
-            <ProtectedRoute roles={['INSIGHT_SALES', 'KAM', 'DESENVOLVEDOR']}>
+            <ProtectedRoute roles={['INSIGHT_SALES', 'DESENVOLVEDOR']}>
               <DashboardEquipe />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="metricas/kam/equipe"
+          element={
+            <ProtectedRoute roles={['KAM', 'DESENVOLVEDOR']}>
+              <DashboardEquipe />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="metricas/cx"
+          element={
+            <ProtectedRoute roles={['CX', 'DESENVOLVEDOR']}>
+              <DashboardCX />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="metricas/cx/equipe"
+          element={
+            <ProtectedRoute roles={['CX', 'DESENVOLVEDOR']}>
+              <DashboardCXEquipe />
             </ProtectedRoute>
           }
         />
