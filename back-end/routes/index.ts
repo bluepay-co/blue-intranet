@@ -6,6 +6,7 @@ import { blogRouter } from './blog.routes';
 import { usuarioRouter } from './usuario.routes';
 import { chamadosRouter } from './chamado.routes';
 import { metricasRouter } from './metricas.routes';
+import { prevendasRouter } from './prevendas.routes';
 
 const router = Router();
 
@@ -30,5 +31,8 @@ router.use('/api/chamados', chamadosRouter);
 
 // Domínio: Métricas de Vendas (vendedores — banco bluepay3_production, somente leitura)
 router.use('/api/metricas', metricasRouter);
+
+// Domínio: Pré-Vendas (SDRs — atividades lançadas na intranet, tabelas pv_*)
+router.use('/api/prevendas', prevendasRouter);
 
 export { router };

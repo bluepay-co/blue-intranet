@@ -19,6 +19,9 @@ import DashboardGeral from '@/pages/metricas/DashboardGeral'
 import DashboardComercialLayout from '@/pages/metricas/DashboardComercialLayout'
 import DashboardCX from '@/pages/metricas/DashboardCX'
 import DashboardCXEquipe from '@/pages/metricas/DashboardCXEquipe'
+import DashboardPreVendas from '@/pages/metricas/DashboardPreVendas'
+import DashboardPreVendasEquipe from '@/pages/metricas/DashboardPreVendasEquipe'
+import LancamentoPreVendas from '@/pages/prevendas/LancamentoPreVendas'
 
 function App() {
   return (
@@ -142,6 +145,30 @@ function App() {
           element={
             <ProtectedRoute roles={['CX', 'DESENVOLVEDOR']}>
               <DashboardCXEquipe />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="metricas/prevendas"
+          element={
+            <ProtectedRoute roles={['PRE_VENDAS', 'DIRETORIA', 'DESENVOLVEDOR']}>
+              <DashboardPreVendas />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="metricas/prevendas/equipe"
+          element={
+            <ProtectedRoute roles={['PRE_VENDAS', 'DIRETORIA', 'DESENVOLVEDOR']}>
+              <DashboardPreVendasEquipe />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="prevendas/lancamento"
+          element={
+            <ProtectedRoute roles={['PRE_VENDAS', 'DIRETORIA', 'DESENVOLVEDOR']}>
+              <LancamentoPreVendas />
             </ProtectedRoute>
           }
         />
