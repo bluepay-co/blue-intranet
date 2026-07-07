@@ -1,4 +1,4 @@
-import { Calendar, CalendarDays, ListTodo, Users, Newspaper, LayoutList, LifeBuoy, Headset, BarChart3, PackageSearch, TrendingUp, Activity, PhoneCall, Building2 } from 'lucide-react'
+import { Calendar, ListTodo, Users, Newspaper, LayoutList, LifeBuoy, Headset, BarChart3, PackageSearch, TrendingUp, Activity, PhoneCall, Building2 } from 'lucide-react'
 
 /**
  * Navegação principal da sidebar, organizada em SEÇÕES por setor.
@@ -18,14 +18,8 @@ export const NAV_SECTIONS = [
     label: 'Geral',
     items: [
       { to: '/metricas/comercial', label: 'Dashboard Comercial', icon: Activity },
-      {
-        label: 'Agenda',
-        icon: Calendar,
-        children: [
-          { to: '/agenda', label: 'Agenda', icon: CalendarDays, end: true },
-          { to: '/tarefas', label: 'Tarefas', icon: ListTodo },
-        ],
-      },
+      { to: '/agenda', label: 'Agenda', icon: Calendar, end: true },
+      { to: '/tarefas', label: 'Tarefas', icon: ListTodo },
       { to: '/blog', label: 'Blog', icon: Newspaper },
       { to: '/chamados', label: 'Chamados', icon: LifeBuoy },
     ],
