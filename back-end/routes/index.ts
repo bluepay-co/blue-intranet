@@ -6,6 +6,7 @@ import { blogRouter } from './blog.routes';
 import { usuarioRouter } from './usuario.routes';
 import { chamadosRouter } from './chamado.routes';
 import { metricasRouter } from './metricas.routes';
+import { prevendasRouter } from './prevendas.routes';
 
 const router = Router();
 
@@ -32,5 +33,8 @@ router.use('/api/chamados', chamadosRouter);
 router.use('/api/metricas', metricasRouter);
 // Domínio: Chat Interno (mensagens em tempo real — todos os colaboradores)
 router.use('/api/chat', chatRouter);
+
+// Domínio: Pré-Vendas (SDRs — atividades lançadas na intranet, tabelas pv_*)
+router.use('/api/prevendas', prevendasRouter);
 
 export { router };
