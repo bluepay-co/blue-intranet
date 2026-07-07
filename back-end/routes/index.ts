@@ -8,6 +8,7 @@ import { chamadosRouter } from './chamado.routes';
 import { metricasRouter } from './metricas.routes';
 import { prevendasRouter } from './prevendas.routes';
 import { clienteRouter } from './cliente.routes';
+import { carteiraRouter } from './carteira.routes';
 
 const router = Router();
 
@@ -38,5 +39,8 @@ router.use('/api/prevendas', prevendasRouter);
 
 // Domínio: Clientes do vendedor (bluepay3_production, somente leitura, escopo por manager_id)
 router.use('/api/clientes', clienteRouter);
+
+// Domínio: Carteira (inteligência — radar de risco e cross-sell, escopo por manager_id)
+router.use('/api/carteira', carteiraRouter);
 
 export { router };

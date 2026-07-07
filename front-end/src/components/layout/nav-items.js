@@ -1,4 +1,4 @@
-import { Calendar, ListTodo, Users, Newspaper, LayoutList, LifeBuoy, Headset, BarChart3, PackageSearch, TrendingUp, Activity, PhoneCall, Building2 } from 'lucide-react'
+import { Calendar, ListTodo, Users, Newspaper, LayoutList, LifeBuoy, Headset, BarChart3, PackageSearch, TrendingUp, Activity, PhoneCall, Building2, AlertTriangle, Sparkles } from 'lucide-react'
 
 /**
  * Navegação principal da sidebar, organizada em SEÇÕES por setor.
@@ -63,6 +63,8 @@ export const NAV_SECTIONS = [
       { to: '/metricas/pessoal',    label: 'Dashboard Pessoal', icon: TrendingUp },
       { to: '/metricas/kam/equipe', label: 'Dashboard Equipe',  icon: Users },
       { to: '/clientes',            label: 'Meus Clientes',     icon: Building2 },
+      { to: '/carteira/risco',      label: 'Radar de Risco',    icon: AlertTriangle },
+      { to: '/carteira/cross-sell', label: 'Cross-sell',        icon: Sparkles },
     ],
   },
   {
@@ -72,6 +74,8 @@ export const NAV_SECTIONS = [
       { to: '/metricas/pessoal',   label: 'Dashboard Pessoal', icon: TrendingUp },
       { to: '/metricas/is/equipe', label: 'Dashboard Equipe',  icon: Users },
       { to: '/clientes',           label: 'Meus Clientes',     icon: Building2 },
+      { to: '/carteira/risco',      label: 'Radar de Risco',    icon: AlertTriangle },
+      { to: '/carteira/cross-sell', label: 'Cross-sell',        icon: Sparkles },
     ],
   },
   {
