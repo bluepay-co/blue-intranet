@@ -71,7 +71,7 @@ export const NAV_SECTIONS = [
     ],
   },
   {
-    label: 'Insight Sales',
+    label: 'Inside Sales',
     roles: ['INSIGHT_SALES', 'DESENVOLVEDOR'],
     items: [
       { to: '/metricas/pessoal',   label: 'Dashboard Pessoal', icon: TrendingUp },
