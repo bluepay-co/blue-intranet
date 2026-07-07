@@ -534,6 +534,97 @@ async function buscarTopClientesEquipe(
   }));
 }
 
+/** Agregados anuais da equipe (com corte de mês opcional p/ "vs ano anterior"). */
+async function buscarMetricasAnualEquipe(managerIds: number[], ano: number, ateMes?: number) {
+  const filtroMes = ateMes != null ? 'AND EXTRACT(MONTH FROM t.invoice_payment_date) <= $3' : '';
+  const params = ateMes != null ? [managerIds, ano, ateMes] : [managerIds, ano];
+  const { rows } = await consultaPool.query(`
+    WITH base AS (
+      SELECT t.client_id, t.excel_total_bonus AS tpv, t.excel_total_rate AS receita, t.excel_rate AS taxa
+      FROM tickets t LEFT JOIN clients c ON c.id = t.client_id
+      WHERE ${FILTROS_BASE}
+        AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+        AND EXTRACT(YEAR FROM t.invoice_payment_date) = $2
+        ${filtroMes}
+    )
+    SELECT
+      COUNT(*)::int                          AS "qtdTickets",
+      COUNT(DISTINCT base.client_id)::int    AS "clientesAtivos",
+      COALESCE(SUM(base.tpv), 0)::float       AS tpv,
+      COALESCE(SUM(base.receita), 0)::float   AS receita,
+      COALESCE(AVG(base.taxa) * 100, 0)::float AS "taxaMedia",
+      COALESCE(AVG(base.tpv), 0)::float        AS "ticketMedio"
+    FROM base
+  `, params);
+  const r = rows[0];
+  return {
+    receita: r?.receita ?? 0, tpv: r?.tpv ?? 0, qtdTickets: r?.qtdTickets ?? 0,
+    clientesAtivos: r?.clientesAtivos ?? 0, ticketMedio: r?.ticketMedio ?? 0, taxaMedia: r?.taxaMedia ?? 0,
+  };
+}
+
+/** Receita mensal da equipe num ano (array[12]). */
+async function buscarReceitaMensalAnoEquipe(managerIds: number[], ano: number): Promise<number[]> {
+  const { rows } = await consultaPool.query(`
+    SELECT EXTRACT(MONTH FROM t.invoice_payment_date)::int AS mes,
+           COALESCE(SUM(t.excel_total_rate), 0)::float AS receita
+    FROM tickets t LEFT JOIN clients c ON c.id = t.client_id
+    WHERE ${FILTROS_BASE} AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+      AND EXTRACT(YEAR FROM t.invoice_payment_date) = $2
+    GROUP BY mes ORDER BY mes
+  `, [managerIds, ano]);
+  const arr = new Array<number>(12).fill(0);
+  for (const r of rows) arr[r.mes - 1] = r.receita;
+  return arr;
+}
+
+/** Top clientes da equipe no ano inteiro. */
+async function buscarTopClientesEquipeAno(managerIds: number[], ano: number, limite = 10): Promise<TopClienteGeral[]> {
+  const { rows } = await consultaPool.query(`
+    SELECT c.name AS nome, COUNT(*)::int AS "qtdTickets",
+      COALESCE(SUM(t.excel_total_bonus), 0)::float AS tpv,
+      COALESCE(SUM(t.excel_total_rate), 0)::float  AS receita,
+      COALESCE(AVG(t.excel_rate) * 100, 0)::float   AS taxa
+    FROM tickets t LEFT JOIN clients c ON c.id = t.client_id
+    WHERE ${FILTROS_BASE} AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+      AND EXTRACT(YEAR FROM t.invoice_payment_date) = $2
+    GROUP BY c.name ORDER BY receita DESC LIMIT $3
+  `, [managerIds, ano, limite]);
+  return rows.map(r => ({ nome: r.nome, qtdTickets: r.qtdTickets, tpv: r.tpv, receita: r.receita, taxa: r.taxa }));
+}
+
+/** Ranking anual dos membros (agregados do ano + meta anual individual). */
+async function buscarMembrosAnualEquipe(
+  managerIds: number[], ano: number, nomeMap: Map<number, string>,
+): Promise<MetricasEquipeMembro[]> {
+  const { rows } = await consultaPool.query(`
+    SELECT ${MANAGER_ID_REMAPPED} AS "managerId",
+      COUNT(*)::int AS "qtdTickets",
+      COUNT(DISTINCT t.client_id)::int AS "clientesAtivos",
+      COALESCE(SUM(t.excel_total_rate), 0)::float  AS receita,
+      COALESCE(SUM(t.excel_total_bonus), 0)::float AS tpv,
+      COALESCE(AVG(t.excel_rate) * 100, 0)::float  AS "taxaMedia",
+      CASE WHEN COUNT(*) = 0 THEN 0 ELSE (COALESCE(SUM(t.excel_total_rate), 0) / COUNT(*))::float END AS "ticketMedio"
+    FROM tickets t LEFT JOIN clients c ON c.id = t.client_id
+    WHERE ${FILTROS_BASE} AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+      AND EXTRACT(YEAR FROM t.invoice_payment_date) = $2
+    GROUP BY ${MANAGER_ID_REMAPPED} ORDER BY receita DESC
+  `, [managerIds, ano]);
+  return rows.map((r: { managerId: number; qtdTickets: number; clientesAtivos: number; receita: number; tpv: number; taxaMedia: number; ticketMedio: number }) => {
+    const nome = nomeMap.get(r.managerId) ?? 'Desconhecido';
+    const primeiroNome = nome.split(' ')[0] ?? '';
+    let metaAnual = 0;
+    for (let m = 1; m <= 12; m++) metaAnual += getMetaIndividual(primeiroNome, m, ano);
+    return {
+      vendedorId: r.managerId, nome, receita: r.receita, tpv: r.tpv,
+      qtdTickets: r.qtdTickets, clientesAtivos: r.clientesAtivos,
+      taxaMedia: r.taxaMedia, ticketMedio: r.ticketMedio,
+      receitaHoje: 0, ticketsHoje: 0,
+      meta: metaAnual, pct_meta: metaAnual > 0 ? Math.round((r.receita / metaAnual) * 1000) / 10 : 0,
+    };
+  });
+}
+
 export async function buscarMetricasEquipe(
   roles: string[],
   mes: number,
@@ -688,6 +779,54 @@ export async function buscarMetricasEquipe(
   const meta_equipe    = getMetaEquipe(equipeType, mes, ano);
   const totalReceita   = t.totalReceita as number;
 
+  // ── Consolidado anual da equipe (para a aba Anual) ──────────────────────────
+  const hojeRef = new Date();
+  const ateMesAnual = ano > hojeRef.getFullYear() ? 0
+    : ano === hojeRef.getFullYear() ? hojeRef.getMonth() + 1
+    : 12;
+
+  const [anualAgg, anualAggAnterior, mensalAtualAno, mensalAnteriorAno, topClientesAno, membrosAnual] = await Promise.all([
+    buscarMetricasAnualEquipe(managerIds, ano),
+    buscarMetricasAnualEquipe(managerIds, ano - 1, ateMesAnual),
+    buscarReceitaMensalAnoEquipe(managerIds, ano),
+    buscarReceitaMensalAnoEquipe(managerIds, ano - 1),
+    buscarTopClientesEquipeAno(managerIds, ano, 10),
+    buscarMembrosAnualEquipe(managerIds, ano, nomeMap),
+  ]);
+
+  let metaAnualEquipe = 0;
+  for (let m = 1; m <= 12; m++) metaAnualEquipe += getMetaEquipe(equipeType, m, ano);
+
+  const anual = {
+    meta:           metaAnualEquipe,
+    realizado:      anualAgg.receita,
+    pct_meta:       metaAnualEquipe > 0 ? Math.round((anualAgg.receita / metaAnualEquipe) * 1000) / 10 : 0,
+    em_aberto:      Math.max(0, metaAnualEquipe - anualAgg.receita),
+    tpv:            anualAgg.tpv,
+    qtdTickets:     anualAgg.qtdTickets,
+    clientesAtivos: anualAgg.clientesAtivos,
+    ticketMedio:    anualAgg.ticketMedio,
+    taxaMedia:      anualAgg.taxaMedia,
+    anterior: {
+      receita:        anualAggAnterior.receita,
+      tpv:            anualAggAnterior.tpv,
+      qtdTickets:     anualAggAnterior.qtdTickets,
+      clientesAtivos: anualAggAnterior.clientesAtivos,
+      ateMes:         ateMesAnual,
+    },
+    topClientes: topClientesAno,
+    membros:     membrosAnual,
+    yoy: {
+      anoAtual:    ano,
+      anoAnterior: ano - 1,
+      meses: Array.from({ length: 12 }, (_, i) => ({
+        mes:      i + 1,
+        atual:    mensalAtualAno[i] ?? 0,
+        anterior: mensalAnteriorAno[i] ?? 0,
+      })),
+    },
+  };
+
   return {
     equipe:              roles.length > 1 ? 'GERAL' : (roles[0] ?? 'GERAL'),
     mes,
@@ -711,6 +850,7 @@ export async function buscarMetricasEquipe(
     historicoMensal,
     topClientes,
     membros,
+    anual,
   };
 }
 

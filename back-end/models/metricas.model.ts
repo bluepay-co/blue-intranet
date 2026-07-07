@@ -117,6 +117,34 @@ export interface MetricasEquipe {
   historicoMensal: CrescimentoMoM[];
   topClientes: TopClienteGeral[];
   membros: MetricasEquipeMembro[];
+  anual: MetricasEquipeAnual;
+}
+
+/** Consolidado anual da equipe (espelha a aba Anual do Dashboard Pessoal). */
+export interface MetricasEquipeAnual {
+  meta: number;
+  realizado: number;
+  pct_meta: number;
+  em_aberto: number;
+  tpv: number;
+  qtdTickets: number;
+  clientesAtivos: number;
+  ticketMedio: number;
+  taxaMedia: number;
+  anterior: {
+    receita: number;
+    tpv: number;
+    qtdTickets: number;
+    clientesAtivos: number;
+    ateMes: number;
+  };
+  topClientes: TopClienteGeral[];
+  membros: MetricasEquipeMembro[];
+  yoy: {
+    anoAtual: number;
+    anoAnterior: number;
+    meses: { mes: number; atual: number; anterior: number }[];
+  };
 }
 
 // ── Métricas Gerais da Empresa ──────────────────────────────────────────
