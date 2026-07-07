@@ -31,7 +31,7 @@ const LABEL_PRODUTO = {
 
 const LABEL_EQUIPE = {
   KAM:           'Equipe KAM',
-  INSIGHT_SALES: 'Equipe Insight Sales',
+  INSIGHT_SALES: 'Equipe Inside Sales',
   VENDAS:        'Equipe Vendas',
   GERAL:         'Todas as Equipes',
 }

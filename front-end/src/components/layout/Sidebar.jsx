@@ -6,6 +6,7 @@ import { useAuth } from '@/auth/auth-context'
 import { useNotificacoesBlog } from '@/notificacoes/notificacoes-blog'
 import { useNotificacoesChamados } from '@/notificacoes/notificacoes-chamados'
 import { secoesVisiveis } from './nav-items'
+import { rotuloRole } from '@/api/modules/usuarios'
 import NavItemLink from './NavItemLink'
 import NavGroup from './NavGroup'
 
@@ -118,7 +119,7 @@ export default function Sidebar({ className, onNavigate, collapsed = false, onTo
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-white">{usuario?.nome}</p>
                 <span className="mt-0.5 inline-block rounded-full bg-brand-accent/15 px-2 py-0.5 text-[0.65rem] font-semibold tracking-wide text-brand-accent uppercase">
-                  {usuario?.role}
+                  {rotuloRole(usuario?.role)}
                 </span>
               </div>
             </div>
