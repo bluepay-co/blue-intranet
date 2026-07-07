@@ -7,7 +7,7 @@ import { ChartContainer, CORES_GRAFICO } from '@/components/ui/chart'
 import PageHeader from '@/components/layout/PageHeader'
 import { cn } from '@/lib/utils'
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
+  BarChart, Bar, LineChart, Line, Legend, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
 } from 'recharts'
 import {
   Wallet, Users, BarChart3, TrendingUp, TrendingDown,
@@ -72,6 +72,88 @@ function TooltipReceita({ active, payload }) {
       <p className="font-semibold text-foreground">{MESES[(d.mes ?? 1) - 1]} / {d.ano}</p>
       <p className="text-primary font-medium">{moeda(d.receita)}</p>
     </div>
+  )
+}
+
+function TooltipYoY({ active, payload, label, anoAtual, anoAnterior }) {
+  if (!active || !payload?.length) return null
+  const atual    = payload.find(p => p.dataKey === 'atual')?.value
+  const anterior = payload.find(p => p.dataKey === 'anterior')?.value
+  const delta = anterior && atual ? Math.round(((atual - anterior) / anterior) * 1000) / 10 : null
+  return (
+    <div className="rounded-xl border bg-background px-3.5 py-2.5 text-sm shadow-xl space-y-1 min-w-[180px]">
+      <p className="font-semibold text-foreground">{MESES[(label ?? 1) - 1]}</p>
+      {atual != null    && <p className="text-primary font-medium">{anoAtual}: {moeda(atual)}</p>}
+      {anterior != null && <p className="text-muted-foreground">{anoAnterior}: {moeda(anterior)}</p>}
+      {delta !== null && (
+        <p className={`text-xs font-semibold ${delta >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+          YoY: {pct(delta)}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/** Comparativo Ano × Ano — receita mensal do ano atual vs. anterior (mesmo gráfico do Comercial). */
+function ComparativoAnoAno({ yoy }) {
+  if (!yoy?.meses?.length) return null
+  const dados = yoy.meses
+    .map(m => ({
+      mes: m.mes,
+      atual:    m.atual > 0    ? m.atual    : null,
+      anterior: m.anterior > 0 ? m.anterior : null,
+    }))
+    .filter(d => d.atual !== null || d.anterior !== null)
+
+  if (dados.length === 0) {
+    return (
+      <Card>
+        <CardHeader><CardTitle>Comparativo Ano × Ano — Receita</CardTitle></CardHeader>
+        <CardContent>
+          <p className="py-8 text-center text-sm text-muted-foreground">Sem dados para comparar neste período.</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Comparativo Ano × Ano — Receita</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ChartContainer className="h-64">
+          <LineChart data={dados} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="currentColor" className="stroke-border/30" />
+            <XAxis dataKey="mes" tickFormatter={m => MESES[m - 1]} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+            <YAxis tickFormatter={v => moeda(v)} tick={{ fontSize: 11 }} width={110} tickLine={false} axisLine={false} />
+            <Tooltip content={<TooltipYoY anoAtual={yoy.anoAtual} anoAnterior={yoy.anoAnterior} />} />
+            <Legend
+              formatter={v => v === 'atual' ? `${yoy.anoAtual} (atual)` : `${yoy.anoAnterior} (realizado)`}
+              wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+            />
+            <Line
+              type="monotone"
+              dataKey="anterior"
+              stroke={`${CORES_GRAFICO[0]}88`}
+              strokeWidth={2}
+              strokeDasharray="5 4"
+              dot={false}
+              connectNulls
+            />
+            <Line
+              type="monotone"
+              dataKey="atual"
+              stroke={CORES_GRAFICO[0]}
+              strokeWidth={2.5}
+              dot={{ r: 3.5, fill: CORES_GRAFICO[0], strokeWidth: 0 }}
+              activeDot={{ r: 5 }}
+              connectNulls
+            />
+          </LineChart>
+        </ChartContainer>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -151,6 +233,10 @@ export default function DashboardPessoal() {
     setMes(m); setAno(a)
   }
 
+  function mudarAno(delta) {
+    setAno((a) => a + delta)
+  }
+
   if (carregando && !dados) {
     return (
       <div className="grid place-items-center py-24">
@@ -170,13 +256,13 @@ export default function DashboardPessoal() {
             <RefreshCw className={`size-4 ${carregando ? 'animate-spin' : ''}`} />
           </Button>
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => mudarMes(-1)} disabled={carregando}>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => (aba === 'anual' ? mudarAno(-1) : mudarMes(-1))} disabled={carregando} title={aba === 'anual' ? 'Ano anterior' : 'Mês anterior'}>
               <ChevronLeft className="size-4" />
             </Button>
             <span className="min-w-[100px] text-center text-sm font-medium">
-              {MESES[mes - 1]} / {ano}
+              {aba === 'anual' ? ano : `${MESES[mes - 1]} / ${ano}`}
             </span>
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => mudarMes(1)} disabled={carregando}>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => (aba === 'anual' ? mudarAno(1) : mudarMes(1))} disabled={carregando} title={aba === 'anual' ? 'Próximo ano' : 'Próximo mês'}>
               <ChevronRight className="size-4" />
             </Button>
           </div>
@@ -431,7 +517,96 @@ export default function DashboardPessoal() {
                   </div>
                 )}
 
-                <EvolucaoReceita historico={historico} mes={mes} ano={ano} />
+                {/* KPIs acumulados do ano */}
+                {anual && (
+                  <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+                    <KpiCard icon={TrendingUp} cor="bg-sky-500/10 text-sky-600"       valor={moeda(anual.tpv)}                        rotulo="TPV no ano" />
+                    <KpiCard icon={BarChart3}  cor="bg-amber-500/10 text-amber-600"   valor={numero(anual.qtdTickets)}                rotulo="Transações no ano" />
+                    <KpiCard icon={Users}      cor="bg-violet-500/10 text-violet-600" valor={numero(anual.clientesAtivos)}            rotulo="Clientes ativos no ano" />
+                    <KpiCard icon={Wallet}     cor="bg-pink-500/10 text-pink-600"     valor={moeda(anual.ticketMedio)}                rotulo="Ticket médio no ano" />
+                    <KpiCard icon={BarChart3}  cor="bg-orange-500/10 text-orange-600" valor={`${(anual.taxaMedia ?? 0).toFixed(3)}%`} rotulo="Taxa média no ano" />
+                  </div>
+                )}
+
+                {/* Evolução Mensal + vs Ano Anterior */}
+                {anual && (
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    <EvolucaoReceita historico={historico} mes={mes} ano={ano} className="lg:col-span-2" />
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>vs Ano Anterior</CardTitle>
+                        <p className="text-xs text-muted-foreground">
+                          {(anual.anterior?.ateMes ?? 12) >= 12
+                            ? 'ano completo'
+                            : `mesmo período · Jan–${MESES[(anual.anterior?.ateMes ?? 1) - 1]}`}
+                        </p>
+                      </CardHeader>
+                      <CardContent className="space-y-4 pt-2">
+                        {[
+                          { label: 'Receita',        curr: anual.realizado,      prev: anual.anterior?.receita,        f: moeda },
+                          { label: 'TPV',            curr: anual.tpv,            prev: anual.anterior?.tpv,            f: moeda },
+                          { label: 'Transações',      curr: anual.qtdTickets,     prev: anual.anterior?.qtdTickets,     f: numero },
+                          { label: 'Clientes Ativos', curr: anual.clientesAtivos, prev: anual.anterior?.clientesAtivos, f: numero },
+                        ].map(({ label, curr, prev, f }) => {
+                          const delta = prev && curr ? Math.round(((curr - prev) / prev) * 1000) / 10 : null
+                          return (
+                            <div key={label} className="flex items-center justify-between text-sm border-b pb-3 last:border-0 last:pb-0">
+                              <span className="text-muted-foreground">{label}</span>
+                              <div className="text-right">
+                                <p className="font-semibold">{curr != null ? f(curr) : '—'}</p>
+                                <DeltaTag value={delta} />
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Comparativo Ano × Ano — mesmo gráfico do Dashboard Comercial */}
+                {anual && <ComparativoAnoAno yoy={anual.yoy} />}
+
+                {/* Top Clientes do Ano */}
+                {anual && (
+                  <Card className="overflow-hidden">
+                    <CardHeader className="border-b bg-muted/30">
+                      <CardTitle>Top Clientes do Ano</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      {(!anual.topClientes || anual.topClientes.length === 0) ? (
+                        <p className="py-8 text-center text-sm text-muted-foreground">Nenhum cliente neste ano.</p>
+                      ) : (
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b text-xs text-muted-foreground">
+                              <th className="px-4 py-2 text-left font-medium">#</th>
+                              <th className="px-4 py-2 text-left font-medium">Cliente</th>
+                              <th className="px-4 py-2 text-right font-medium">Receita</th>
+                              <th className="px-4 py-2 text-right font-medium">TPV</th>
+                              <th className="px-4 py-2 text-right font-medium">Transações</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {anual.topClientes.map((c, i) => (
+                              <tr key={c.nome} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                                <td className="px-4 py-2.5">
+                                  <Badge variant={i === 0 ? 'default' : 'outline'} className="w-6 h-6 flex items-center justify-center p-0 text-xs">
+                                    {i + 1}
+                                  </Badge>
+                                </td>
+                                <td className="px-4 py-2.5 max-w-[200px] truncate font-medium">{c.nome}</td>
+                                <td className="px-4 py-2.5 text-right text-primary font-semibold">{moeda(c.receita)}</td>
+                                <td className="px-4 py-2.5 text-right text-muted-foreground">{moeda(c.tpv)}</td>
+                                <td className="px-4 py-2.5 text-right">{numero(c.qtdTickets)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             )}
           </>

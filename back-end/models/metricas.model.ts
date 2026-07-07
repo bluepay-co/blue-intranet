@@ -29,10 +29,31 @@ export interface MetricasHistorico {
 
 /** Consolidado anual do vendedor (meta somada dos 12 meses vs. realizado no ano). */
 export interface MetricasAnual {
-  meta: number;       // soma das metas mensais do ano
-  realizado: number;  // receita acumulada no ano (YTD)
-  pct_meta: number;   // realizado / meta * 100
-  em_aberto: number;  // quanto falta para bater a meta anual (>= 0)
+  meta: number;           // soma das metas mensais do ano
+  realizado: number;      // receita acumulada no ano (YTD)
+  pct_meta: number;       // realizado / meta * 100
+  em_aberto: number;      // quanto falta para bater a meta anual (>= 0)
+  tpv: number;            // TPV acumulado no ano
+  qtdTickets: number;     // transações no ano
+  clientesAtivos: number; // clientes distintos atendidos no ano
+  ticketMedio: number;    // TPV médio por transação no ano
+  taxaMedia: number;      // taxa média (%) no ano
+  /** Totais do ano anterior no MESMO período do ano atual (comparativo justo). */
+  anterior: {
+    receita: number;
+    tpv: number;
+    qtdTickets: number;
+    clientesAtivos: number;
+    ateMes: number; // período comparado (1..12); acompanha o mês corrente no ano atual
+  };
+  /** Top clientes do ano (receita/TPV acumulados). */
+  topClientes: TopCliente[];
+  /** Comparativo Ano × Ano — receita mensal do ano atual vs. ano anterior. */
+  yoy: {
+    anoAtual: number;
+    anoAnterior: number;
+    meses: { mes: number; atual: number; anterior: number }[];
+  };
 }
 
 export interface MetricasVendedor {
