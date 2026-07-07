@@ -6,10 +6,12 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ChartContainer, CORES_GRAFICO } from '@/components/ui/chart'
 import PageHeader from '@/components/layout/PageHeader'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts'
 import {
-  Wallet, TrendingUp, BarChart3, Percent, Calendar, CalendarDays,
-  Building2, MapPin, Phone, Mail, FileText, ArrowLeft, AlertCircle, Loader2,
+  BarChart, Bar, LineChart, Line, Legend, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
+} from 'recharts'
+import {
+  Wallet, TrendingUp, BarChart3, Percent, CalendarDays,
+  Building2, ArrowLeft, AlertCircle, Loader2,
 } from 'lucide-react'
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
@@ -21,6 +23,10 @@ function moeda(v) {
 }
 function numero(v) {
   return new Intl.NumberFormat('pt-BR').format(v ?? 0)
+}
+function pct(v) {
+  if (v == null) return '—'
+  return `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`
 }
 function dataLonga(v) {
   if (!v) return '—'
@@ -43,14 +49,22 @@ function KpiCard({ icon: Icon, cor, valor, rotulo }) {
   )
 }
 
-function Campo({ icon: Icon, label, children }) {
+/** Par rótulo/valor da ficha. */
+function Campo({ label, children }) {
   return (
-    <div className="flex items-start gap-2">
-      {Icon && <Icon className="size-4 shrink-0 text-muted-foreground mt-0.5" />}
-      <div className="min-w-0">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-sm font-medium break-words">{children || '—'}</p>
-      </div>
+    <div className="min-w-0">
+      <p className="text-[0.7rem] uppercase tracking-wide text-muted-foreground/70">{label}</p>
+      <p className="text-sm font-medium break-words">{children || '—'}</p>
+    </div>
+  )
+}
+
+/** Seção da ficha, com divisória e título. */
+function Secao({ title, children }) {
+  return (
+    <div className="space-y-3 border-t pt-4">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+      {children}
     </div>
   )
 }
@@ -63,6 +77,60 @@ function TooltipReceita({ active, payload }) {
       <p className="font-semibold text-foreground">{MESES[(d.mes ?? 1) - 1]} / {d.ano}</p>
       <p className="text-primary font-medium">{moeda(d.receita)}</p>
     </div>
+  )
+}
+
+function TooltipYoY({ active, payload, label, anoAtual, anoAnterior }) {
+  if (!active || !payload?.length) return null
+  const atual    = payload.find(p => p.dataKey === 'atual')?.value
+  const anterior = payload.find(p => p.dataKey === 'anterior')?.value
+  const delta = anterior && atual ? Math.round(((atual - anterior) / anterior) * 1000) / 10 : null
+  return (
+    <div className="rounded-xl border bg-background px-3.5 py-2.5 text-sm shadow-xl space-y-1 min-w-[180px]">
+      <p className="font-semibold text-foreground">{MESES[(label ?? 1) - 1]}</p>
+      {atual != null    && <p className="text-primary font-medium">{anoAtual}: {moeda(atual)}</p>}
+      {anterior != null && <p className="text-muted-foreground">{anoAnterior}: {moeda(anterior)}</p>}
+      {delta !== null && (
+        <p className={`text-xs font-semibold ${delta >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+          YoY: {pct(delta)}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function ComparativoAnoAno({ yoy }) {
+  if (!yoy?.meses?.length) return null
+  const dados = yoy.meses
+    .map(m => ({ mes: m.mes, atual: m.atual > 0 ? m.atual : null, anterior: m.anterior > 0 ? m.anterior : null }))
+    .filter(d => d.atual !== null || d.anterior !== null)
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Comparativo Ano × Ano — Receita do Cliente</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {dados.length === 0 ? (
+          <p className="py-16 text-center text-sm text-muted-foreground">Sem dados para comparar entre os anos.</p>
+        ) : (
+          <ChartContainer className="h-64">
+            <LineChart data={dados} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="currentColor" className="stroke-border/30" />
+              <XAxis dataKey="mes" tickFormatter={m => MESES[m - 1]} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+              <YAxis tickFormatter={v => moeda(v)} tick={{ fontSize: 11 }} width={110} tickLine={false} axisLine={false} />
+              <Tooltip content={<TooltipYoY anoAtual={yoy.anoAtual} anoAnterior={yoy.anoAnterior} />} />
+              <Legend
+                formatter={v => v === 'atual' ? `${yoy.anoAtual} (atual)` : `${yoy.anoAnterior} (realizado)`}
+                wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+              />
+              <Line type="monotone" dataKey="anterior" stroke={`${CORES_GRAFICO[0]}88`} strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls />
+              <Line type="monotone" dataKey="atual" stroke={CORES_GRAFICO[0]} strokeWidth={2.5} dot={{ r: 3.5, fill: CORES_GRAFICO[0], strokeWidth: 0 }} activeDot={{ r: 5 }} connectNulls />
+            </LineChart>
+          </ChartContainer>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -112,11 +180,9 @@ export default function ClienteDetalhe() {
 
   const { cliente, metricas } = dados
   const end = cliente.endereco ?? {}
-  const enderecoLinha = [
+  const logradouro = [
     [end.logradouro, end.numero].filter(Boolean).join(', '),
     end.complemento, end.bairro,
-    [end.cidade, end.uf].filter(Boolean).join('/'),
-    end.cep,
   ].filter(Boolean).join(' · ')
 
   const produtos = [
@@ -146,43 +212,67 @@ export default function ClienteDetalhe() {
         <KpiCard icon={Wallet}     cor="bg-violet-500/10 text-violet-600"  valor={moeda(metricas.ticketMedio)}  rotulo="Ticket médio" />
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard icon={Percent}     cor="bg-orange-500/10 text-orange-600"  valor={`${(metricas.taxaMedia ?? 0).toFixed(3)}%`} rotulo="Taxa média" />
-        <KpiCard icon={Wallet}      cor="bg-emerald-500/10 text-emerald-600" valor={moeda(metricas.receitaAno)}  rotulo="Receita no ano" />
-        <KpiCard icon={Wallet}      cor="bg-pink-500/10 text-pink-600"       valor={moeda(metricas.receitaMes)}  rotulo="Receita no mês" />
-        <KpiCard icon={CalendarDays} cor="bg-teal-500/10 text-teal-600"      valor={dataLonga(metricas.primeiroTicket)} rotulo="Cliente ativo desde" />
+        <KpiCard icon={Percent}      cor="bg-orange-500/10 text-orange-600"  valor={`${(metricas.taxaMedia ?? 0).toFixed(3)}%`} rotulo="Taxa média" />
+        <KpiCard icon={Wallet}       cor="bg-emerald-500/10 text-emerald-600" valor={moeda(metricas.receitaAno)}  rotulo="Receita no ano" />
+        <KpiCard icon={Wallet}       cor="bg-pink-500/10 text-pink-600"       valor={moeda(metricas.receitaMes)}  rotulo="Receita no mês" />
+        <KpiCard icon={CalendarDays} cor="bg-teal-500/10 text-teal-600"       valor={dataLonga(metricas.primeiroTicket)} rotulo="Cliente ativo desde" />
       </div>
 
       {/* Ficha + Evolução */}
       <div className="grid gap-4 lg:grid-cols-3">
-        {/* Ficha cadastral */}
+        {/* Ficha cadastral — em seções */}
         <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Building2 className="size-4 text-muted-foreground" /> Ficha Cadastral</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <Campo icon={Building2} label="Razão social">{cliente.nome}</Campo>
-            {cliente.nomeComercial && cliente.nomeComercial !== cliente.nome && (
-              <Campo label="Nome comercial">{cliente.nomeComercial}</Campo>
-            )}
-            <Campo icon={FileText} label="CNPJ">{cliente.cnpj}</Campo>
-            <div className="grid grid-cols-2 gap-3">
-              <Campo label="Inscr. estadual">{cliente.inscricaoEstadual}</Campo>
-              <Campo label="Inscr. municipal">{cliente.inscricaoMunicipal}</Campo>
+          <CardContent className="space-y-5">
+            {/* Identificação */}
+            <div className="space-y-3">
+              <Campo label="Razão social">{cliente.nome}</Campo>
+              {cliente.nomeComercial && cliente.nomeComercial !== cliente.nome && (
+                <Campo label="Nome comercial">{cliente.nomeComercial}</Campo>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <Campo label="CNPJ">{cliente.cnpj}</Campo>
+                <Campo label="Segmento">{cliente.segmento}</Campo>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Campo label="Inscr. estadual">{cliente.inscricaoEstadual}</Campo>
+                <Campo label="Inscr. municipal">{cliente.inscricaoMunicipal}</Campo>
+              </div>
             </div>
-            <Campo icon={MapPin} label="Endereço">{enderecoLinha}</Campo>
-            <Campo icon={Phone} label="Contato / Telefone">
-              {[cliente.contato, cliente.telefone].filter(Boolean).join(' · ')}
-            </Campo>
-            <Campo icon={Mail} label="E-mail">{cliente.email}</Campo>
-            <div className="grid grid-cols-2 gap-3">
-              <Campo label="Produtos">{produtos.length ? produtos.join(', ') : '—'}</Campo>
-              <Campo label="Contrato">{cliente.contrato}</Campo>
-            </div>
-            <Campo icon={Calendar} label="Cadastrado em">{dataLonga(cliente.criadoEm)}</Campo>
+
+            {/* Contato */}
+            <Secao title="Contato">
+              <Campo label="Responsável">{cliente.contato}</Campo>
+              <div className="grid grid-cols-2 gap-3">
+                <Campo label="Telefone">{cliente.telefone}</Campo>
+                <Campo label="E-mail">{cliente.email}</Campo>
+              </div>
+              {cliente.emailNf && <Campo label="E-mail NF">{cliente.emailNf}</Campo>}
+            </Secao>
+
+            {/* Endereço */}
+            <Secao title="Endereço">
+              <Campo label="Logradouro">{logradouro}</Campo>
+              <div className="grid grid-cols-3 gap-3">
+                <Campo label="Cidade">{end.cidade}</Campo>
+                <Campo label="UF">{end.uf}</Campo>
+                <Campo label="CEP">{end.cep}</Campo>
+              </div>
+            </Secao>
+
+            {/* Comercial */}
+            <Secao title="Comercial">
+              <div className="grid grid-cols-2 gap-3">
+                <Campo label="Produtos">{produtos.length ? produtos.join(', ') : '—'}</Campo>
+                <Campo label="Cliente desde">{dataLonga(cliente.criadoEm)}</Campo>
+              </div>
+            </Secao>
           </CardContent>
         </Card>
 
-        {/* Evolução de receita */}
+        {/* Evolução de receita (12 meses) */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Evolução de Receita — últimos 12 meses</CardTitle>
@@ -212,6 +302,9 @@ export default function ClienteDetalhe() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Comparativo Ano × Ano */}
+      <ComparativoAnoAno yoy={metricas.yoy} />
     </div>
   )
 }

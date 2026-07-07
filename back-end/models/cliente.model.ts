@@ -46,7 +46,6 @@ export interface ClienteDetalhe {
     cartao: boolean;
     bancario: boolean;
   };
-  contrato: string | null;
   criadoEm: string | null;
 }
 
@@ -62,6 +61,12 @@ export interface ClienteMetricas {
   primeiroTicket: string | null;
   ultimoTicket: string | null;
   evolucao: { mes: number; ano: number; receita: number }[];
+  /** Comparativo Ano × Ano — receita mensal do cliente (ano atual vs. anterior). */
+  yoy: {
+    anoAtual: number;
+    anoAnterior: number;
+    meses: { mes: number; atual: number; anterior: number }[];
+  };
 }
 
 /** Resposta do endpoint de detalhe. */

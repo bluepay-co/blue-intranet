@@ -74,7 +74,7 @@ export async function buscarClienteDoVendedor(
       c.address_district, c.address_city, c.address_uf, c.address_zipcode,
       s.name AS segmento,
       c.product_virtual, c.product_creditcard, c.product_bank,
-      c.contract, c.created_at
+      c.created_at
     FROM clients c
     LEFT JOIN segments s ON s.id = c.segment_id
     WHERE c.id = $1 AND ${MANAGER_ID_REMAPPED} = $2
@@ -110,14 +110,15 @@ export async function buscarClienteDoVendedor(
       cartao:   !!r.product_creditcard,
       bancario: !!r.product_bank,
     },
-    contrato: r.contract,
     criadoEm: r.created_at,
   };
 }
 
 /** Métricas agregadas do cliente (só chamar após confirmar a propriedade). */
 export async function buscarMetricasCliente(clienteId: number): Promise<ClienteMetricas> {
-  const [totais, evolucao] = await Promise.all([
+  const anoAtual = new Date().getFullYear();
+
+  const [totais, evolucao, comparativo] = await Promise.all([
     consultaPool.query(`
       SELECT
         COUNT(*)::int                                AS "qtdTickets",
@@ -149,7 +150,26 @@ export async function buscarMetricasCliente(clienteId: number): Promise<ClienteM
       GROUP BY ano, mes
       ORDER BY ano, mes
     `, [clienteId]),
+    consultaPool.query(`
+      SELECT
+        EXTRACT(YEAR  FROM t.invoice_payment_date)::int AS ano,
+        EXTRACT(MONTH FROM t.invoice_payment_date)::int AS mes,
+        COALESCE(SUM(t.excel_total_rate), 0)::float     AS receita
+      FROM tickets t
+      WHERE ${FILTROS_BASE}
+        AND t.client_id = $1
+        AND EXTRACT(YEAR FROM t.invoice_payment_date) IN ($2, $3)
+      GROUP BY ano, mes
+    `, [clienteId, anoAtual, anoAtual - 1]),
   ]);
+
+  // Monta o comparativo Ano × Ano (12 meses de cada ano).
+  const mAtual = new Array<number>(12).fill(0);
+  const mAnterior = new Array<number>(12).fill(0);
+  for (const e of comparativo.rows as { ano: number; mes: number; receita: number }[]) {
+    if (e.ano === anoAtual) mAtual[e.mes - 1] = e.receita;
+    else if (e.ano === anoAtual - 1) mAnterior[e.mes - 1] = e.receita;
+  }
 
   const r = totais.rows[0];
   return {
@@ -165,5 +185,12 @@ export async function buscarMetricasCliente(clienteId: number): Promise<ClienteM
     evolucao:       evolucao.rows.map((e: { ano: number; mes: number; receita: number }) => ({
       mes: e.mes, ano: e.ano, receita: e.receita,
     })),
+    yoy: {
+      anoAtual,
+      anoAnterior: anoAtual - 1,
+      meses: Array.from({ length: 12 }, (_, i) => ({
+        mes: i + 1, atual: mAtual[i] ?? 0, anterior: mAnterior[i] ?? 0,
+      })),
+    },
   };
 }
