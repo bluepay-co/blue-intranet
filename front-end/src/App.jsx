@@ -22,6 +22,8 @@ import DashboardCXEquipe from '@/pages/metricas/DashboardCXEquipe'
 import DashboardPreVendas from '@/pages/metricas/DashboardPreVendas'
 import DashboardPreVendasEquipe from '@/pages/metricas/DashboardPreVendasEquipe'
 import LancamentoPreVendas from '@/pages/prevendas/LancamentoPreVendas'
+import MeusClientes from '@/pages/clientes/MeusClientes'
+import ClienteDetalhe from '@/pages/clientes/ClienteDetalhe'
 
 function App() {
   return (
@@ -169,6 +171,22 @@ function App() {
           element={
             <ProtectedRoute roles={['PRE_VENDAS', 'DIRETORIA', 'DESENVOLVEDOR']}>
               <LancamentoPreVendas />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="clientes"
+          element={
+            <ProtectedRoute roles={['KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
+              <MeusClientes />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="clientes/:id"
+          element={
+            <ProtectedRoute roles={['KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
+              <ClienteDetalhe />
             </ProtectedRoute>
           }
         />

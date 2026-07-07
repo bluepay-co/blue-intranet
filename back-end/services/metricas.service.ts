@@ -13,7 +13,7 @@ import type {
   MetricasCXCompletas, MetricasCXMembroEquipe, MetricasCXEquipe,
 } from '../models/metricas.model';
 
-const FILTROS_BASE = `
+export const FILTROS_BASE = `
   t.status = 'done'
   AND t.invoice_status = 'received'
   AND t.excel_total_value > 0
@@ -25,7 +25,7 @@ const FILTROS_BASE = `
  * Normaliza manager_id legados para seus IDs corretos.
  * Aplicar em TODAS as queries que filtram por manager_id de clients.
  */
-const MANAGER_ID_REMAPPED = `
+export const MANAGER_ID_REMAPPED = `
   CASE
     WHEN c.manager_id = 64   THEN 123
     WHEN c.manager_id = 2    THEN 123
