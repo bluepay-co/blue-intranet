@@ -147,7 +147,7 @@ export default function DashboardPessoal() {
       )}
 
       {dados && (() => {
-        const { mesAtual, hoje, historico } = dados
+        const { mesAtual, hoje, historico, anual } = dados
         const agora_ref  = new Date()
         const ehMesAtual = mes === agora_ref.getMonth() + 1 && ano === agora_ref.getFullYear()
 
@@ -199,6 +199,44 @@ export default function DashboardPessoal() {
                 </div>
               )
             })()}
+
+            {/* Cards de Meta Anual — acumulado do ano (vale para IS e KAM) */}
+            {anual && anual.meta > 0 && (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <KpiCard icon={Target} cor="bg-indigo-500/10 text-indigo-600" valor={moeda(anual.meta)} rotulo="Meta Anual" />
+                <KpiCard icon={Wallet} cor="bg-emerald-500/10 text-emerald-600" valor={moeda(anual.realizado)} rotulo="Meta Total Realizada" />
+                <Card>
+                  <CardContent className="flex items-center gap-3 py-4">
+                    <div className={`grid size-10 shrink-0 place-items-center rounded-lg ${anual.pct_meta >= 100 ? 'bg-emerald-500/10 text-emerald-600' : anual.pct_meta >= 70 ? 'bg-amber-500/10 text-amber-600' : 'bg-red-500/10 text-red-500'}`}>
+                      <Target className="size-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-2xl font-semibold leading-tight">{anual.pct_meta.toFixed(1)}%</p>
+                      <p className="text-xs text-muted-foreground">% da Meta Anual atingida</p>
+                      <div className="mt-1.5 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${anual.pct_meta >= 100 ? 'bg-emerald-500' : anual.pct_meta >= 70 ? 'bg-amber-500' : 'bg-red-500'}`}
+                          style={{ width: `${Math.min(anual.pct_meta, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="flex items-center gap-3 py-4">
+                    <div className={`grid size-10 shrink-0 place-items-center rounded-lg ${anual.em_aberto === 0 ? 'bg-emerald-500/10 text-emerald-600' : 'bg-rose-500/10 text-rose-600'}`}>
+                      <Target className="size-5" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-semibold leading-tight">
+                        {anual.em_aberto === 0 ? 'Meta batida!' : moeda(anual.em_aberto)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Meta Anual em Aberto</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             {/* Hoje — só no mês corrente */}
             {ehMesAtual && hoje && (

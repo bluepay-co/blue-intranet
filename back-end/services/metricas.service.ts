@@ -189,6 +189,19 @@ export async function buscarTopClientes(
   }));
 }
 
+/** Receita acumulada do vendedor no ano inteiro (YTD — meses futuros somam 0). */
+export async function buscarReceitaAnual(managerId: number, ano: number): Promise<number> {
+  const { rows } = await consultaPool.query(`
+    SELECT COALESCE(SUM(t.excel_total_rate), 0)::float AS receita
+    FROM tickets t
+    LEFT JOIN clients c ON c.id = t.client_id
+    WHERE ${FILTROS_BASE}
+      AND ${MANAGER_ID_REMAPPED} = $1
+      AND EXTRACT(YEAR FROM t.invoice_payment_date) = $2
+  `, [managerId, ano]);
+  return rows[0]?.receita ?? 0;
+}
+
 export async function buscarMetricasCompletas(
   email: string,
   mes?: number,
@@ -201,16 +214,28 @@ export async function buscarMetricasCompletas(
   const vendedor = await buscarVendedorPorEmail(email);
   if (!vendedor) return null;
 
-  const [mesAtual, hoje, historico] = await Promise.all([
+  const [mesAtual, hoje, historico, receitaAnual] = await Promise.all([
     buscarMetricasMes(vendedor.id, mesConsulta, anoConsulta),
     buscarMetricasHoje(vendedor.id),
     buscarHistorico(vendedor.id, 6),
+    buscarReceitaAnual(vendedor.id, anoConsulta),
   ]);
 
   const primeiroNome = vendedor.nome.split(' ')[0] ?? '';
   const meta = getMetaIndividual(primeiroNome, mesConsulta, anoConsulta);
   mesAtual.meta     = meta;
   mesAtual.pct_meta = meta > 0 ? Math.round((mesAtual.receita / meta) * 1000) / 10 : 0;
+
+  // Meta anual = soma das 12 metas mensais do vendedor no ano.
+  let metaAnual = 0;
+  for (let m = 1; m <= 12; m++) metaAnual += getMetaIndividual(primeiroNome, m, anoConsulta);
+
+  const anual = {
+    meta:      metaAnual,
+    realizado: receitaAnual,
+    pct_meta:  metaAnual > 0 ? Math.round((receitaAnual / metaAnual) * 1000) / 10 : 0,
+    em_aberto: Math.max(0, metaAnual - receitaAnual),
+  };
 
   return {
     vendedorId: vendedor.id,
@@ -219,6 +244,7 @@ export async function buscarMetricasCompletas(
     mesAtual,
     hoje,
     historico,
+    anual,
   };
 }
 

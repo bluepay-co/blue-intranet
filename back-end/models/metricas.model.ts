@@ -27,6 +27,14 @@ export interface MetricasHistorico {
   clientesAtivos: number;
 }
 
+/** Consolidado anual do vendedor (meta somada dos 12 meses vs. realizado no ano). */
+export interface MetricasAnual {
+  meta: number;       // soma das metas mensais do ano
+  realizado: number;  // receita acumulada no ano (YTD)
+  pct_meta: number;   // realizado / meta * 100
+  em_aberto: number;  // quanto falta para bater a meta anual (>= 0)
+}
+
 export interface MetricasVendedor {
   vendedorId: number;
   nome: string;
@@ -34,6 +42,7 @@ export interface MetricasVendedor {
   mesAtual: MetricasMes;
   hoje: MetricasHoje;
   historico: MetricasHistorico[];
+  anual: MetricasAnual;
 }
 
 export interface TopCliente {
