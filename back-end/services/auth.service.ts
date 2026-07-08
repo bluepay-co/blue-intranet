@@ -5,6 +5,7 @@ import { pool } from '../database/pool';
 import { Role } from '../models/usuario.model';
 import type { UsuarioPublico } from '../models/usuario.model';
 import { AppError } from '../utils/app-error';
+import { garantirCanalSetor } from './chat.service';
 
 interface LoginResult {
   token: string;
@@ -98,6 +99,11 @@ export async function autenticarComGoogle(code: string): Promise<LoginResult> {
   }
 
   const { bloqueado: _bloqueado, ...usuario } = registro;
+
+  // Garante que o canal de setor do usuário existe e que ele é membro (fire-and-forget)
+  garantirCanalSetor(usuario.role, usuario.id).catch((err) =>
+    console.error('[chat] garantirCanalSetor:', err),
+  );
 
   // 5. JWT da sessão
   const secret = process.env.JWT_SECRET;

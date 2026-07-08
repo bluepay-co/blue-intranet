@@ -33,6 +33,8 @@ router.use('/api/chamados', chamadosRouter);
 
 // Domínio: Métricas de Vendas (vendedores — banco bluepay3_production, somente leitura)
 router.use('/api/metricas', metricasRouter);
+// Domínio: Chat Interno (mensagens em tempo real — todos os colaboradores)
+router.use('/api/chat', chatRouter);
 
 // Domínio: Pré-Vendas (SDRs — atividades lançadas na intranet, tabelas pv_*)
 router.use('/api/prevendas', prevendasRouter);

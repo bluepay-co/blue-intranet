@@ -17,20 +17,21 @@ import {
 /** POST /api/chamados — abre um chamado (multipart, anexo opcional). */
 export async function postCriar(req: Request, res: Response) {
   try {
-    const { titulo, descricao, categoria, criticidade } = req.body as {
+    const { titulo, descricao, categoria, criticidade, setor, identificadorUrl } = req.body as {
       titulo?: string;
       descricao?: string;
       categoria?: string;
       criticidade?: string;
+      setor?: string;
+      identificadorUrl?: string;
     };
-
-    const { identificadorUrl } = req.body as { identificadorUrl?: string };
 
     const chamado = await criarChamado(req.usuario!.id, {
       titulo: titulo ?? '',
       descricao: descricao ?? '',
       categoria: categoria ?? '',
       criticidade: criticidade ?? '',
+      setor: setor ?? 'TI',
       anexoUrl: req.file ? `/uploads/chamados/${req.file.filename}` : null,
       anexoNome: req.file ? req.file.originalname : null,
       anexoMime: req.file ? req.file.mimetype : null,
