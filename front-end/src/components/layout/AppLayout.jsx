@@ -1,4 +1,8 @@
 import { Outlet } from 'react-router-dom'
+import { Menu } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import ThemeToggle from '@/components/ThemeToggle'
 import { NotificacoesBlogProvider } from '@/notificacoes/NotificacoesBlogProvider'
 import { NotificacoesChamadosProvider } from '@/notificacoes/NotificacoesChamadosProvider'
 import ChatProvider from '@/chat/ChatProvider'
@@ -44,8 +48,11 @@ export default function AppLayout() {
       {/* Conteúdo */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-3 border-b px-4 py-3 md:hidden">
-          <SidebarTrigger />
-          <img src="/logo-azul.svg" alt="Blue Pay Solutions" className="h-6 w-auto" />
+          <Button variant="ghost" size="icon" onClick={() => setMenuAberto(true)}>
+            <Menu className="size-5" />
+          </Button>
+          <img src="/logo.png" alt="Blue Pay Solutions" className="h-6 w-auto" />
+          <ThemeToggle className="ml-auto" />
         </header>
         <main className="flex-1 overflow-auto p-6 lg:p-8">
           <Outlet />

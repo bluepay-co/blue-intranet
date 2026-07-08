@@ -27,13 +27,16 @@ export const ROTULOS_ROLE = {
   TI: 'T.I',
   DESENVOLVEDOR: 'Desenvolvedor',
   MARKETING: 'Marketing',
-  INSIGHT_SALES: 'Insight Sales',
+  INSIGHT_SALES: 'Inside Sales',
   KAM: 'KAM',
   RH: 'RH',
   VENDAS: 'Vendas',
   FINANCEIRO: 'Financeiro',
   DIRETORIA: 'Diretoria',
   COLABORADOR: 'Colaborador',
+  CX: 'CX',
+  PRODUTOS: 'Produtos',
+  PRE_VENDAS: 'Pré-Vendas',
 }
 
 /** Retorna o rótulo de exibição de um setor (fallback: o próprio valor). */

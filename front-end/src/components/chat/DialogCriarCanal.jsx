@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useChat } from '@/chat/chat-context'
 import { buscarUsuarios } from '@/api/modules/chat'
+import { rotuloRole } from '@/api/modules/usuarios'
 
 export default function DialogCriarCanal({ aberto, onFechar }) {
   const { criarCanal } = useChat()
@@ -86,7 +87,7 @@ export default function DialogCriarCanal({ aberto, onFechar }) {
                   className={`w-full rounded px-2 py-1 text-left text-sm transition-colors ${selecionados.find((s) => s.id === u.id) ? 'bg-accent' : 'hover:bg-muted'}`}
                   onClick={() => toggleSelecionado(u)}
                 >
-                  {u.nome} <span className="text-muted-foreground text-xs">({u.role})</span>
+                  {u.nome} <span className="text-muted-foreground text-xs">({rotuloRole(u.role)})</span>
                 </button>
               ))}
             </div>

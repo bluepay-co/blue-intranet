@@ -27,6 +27,35 @@ export interface MetricasHistorico {
   clientesAtivos: number;
 }
 
+/** Consolidado anual do vendedor (meta somada dos 12 meses vs. realizado no ano). */
+export interface MetricasAnual {
+  meta: number;           // soma das metas mensais do ano
+  realizado: number;      // receita acumulada no ano (YTD)
+  pct_meta: number;       // realizado / meta * 100
+  em_aberto: number;      // quanto falta para bater a meta anual (>= 0)
+  tpv: number;            // TPV acumulado no ano
+  qtdTickets: number;     // transações no ano
+  clientesAtivos: number; // clientes distintos atendidos no ano
+  ticketMedio: number;    // TPV médio por transação no ano
+  taxaMedia: number;      // taxa média (%) no ano
+  /** Totais do ano anterior no MESMO período do ano atual (comparativo justo). */
+  anterior: {
+    receita: number;
+    tpv: number;
+    qtdTickets: number;
+    clientesAtivos: number;
+    ateMes: number; // período comparado (1..12); acompanha o mês corrente no ano atual
+  };
+  /** Top clientes do ano (receita/TPV acumulados). */
+  topClientes: TopCliente[];
+  /** Comparativo Ano × Ano — receita mensal do ano atual vs. ano anterior. */
+  yoy: {
+    anoAtual: number;
+    anoAnterior: number;
+    meses: { mes: number; atual: number; anterior: number }[];
+  };
+}
+
 export interface MetricasVendedor {
   vendedorId: number;
   nome: string;
@@ -34,6 +63,7 @@ export interface MetricasVendedor {
   mesAtual: MetricasMes;
   hoje: MetricasHoje;
   historico: MetricasHistorico[];
+  anual: MetricasAnual;
 }
 
 export interface TopCliente {
@@ -87,6 +117,34 @@ export interface MetricasEquipe {
   historicoMensal: CrescimentoMoM[];
   topClientes: TopClienteGeral[];
   membros: MetricasEquipeMembro[];
+  anual: MetricasEquipeAnual;
+}
+
+/** Consolidado anual da equipe (espelha a aba Anual do Dashboard Pessoal). */
+export interface MetricasEquipeAnual {
+  meta: number;
+  realizado: number;
+  pct_meta: number;
+  em_aberto: number;
+  tpv: number;
+  qtdTickets: number;
+  clientesAtivos: number;
+  ticketMedio: number;
+  taxaMedia: number;
+  anterior: {
+    receita: number;
+    tpv: number;
+    qtdTickets: number;
+    clientesAtivos: number;
+    ateMes: number;
+  };
+  topClientes: TopClienteGeral[];
+  membros: MetricasEquipeMembro[];
+  yoy: {
+    anoAtual: number;
+    anoAnterior: number;
+    meses: { mes: number; atual: number; anterior: number }[];
+  };
 }
 
 // ── Métricas Gerais da Empresa ──────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { Calendar, CalendarDays, ListTodo, Users, Newspaper, LayoutList, LifeBuoy, Headset, BarChart3, PackageSearch, TrendingUp, Activity, PhoneCall } from 'lucide-react'
+import { Calendar, ListTodo, Users, Newspaper, LayoutList, LifeBuoy, Headset, BarChart3, PackageSearch, TrendingUp, Activity, PhoneCall, Building2, AlertTriangle, Sparkles } from 'lucide-react'
 
 /**
  * Navegação principal da sidebar, organizada em SEÇÕES por setor.
@@ -18,14 +18,8 @@ export const NAV_SECTIONS = [
     label: 'Geral',
     items: [
       { to: '/metricas/comercial', label: 'Dashboard Comercial', icon: Activity },
-      {
-        label: 'Agenda',
-        icon: Calendar,
-        children: [
-          { to: '/agenda', label: 'Agenda', icon: CalendarDays, end: true },
-          { to: '/tarefas', label: 'Tarefas', icon: ListTodo },
-        ],
-      },
+      { to: '/agenda', label: 'Agenda', icon: Calendar, end: true },
+      { to: '/tarefas', label: 'Tarefas', icon: ListTodo },
       { to: '/blog', label: 'Blog', icon: Newspaper },
       { to: '/chamados', label: 'Chamados', icon: LifeBuoy },
     ],
@@ -83,14 +77,20 @@ export const NAV_SECTIONS = [
     items: [
       { to: '/metricas/pessoal',    label: 'Dashboard Pessoal', icon: TrendingUp },
       { to: '/metricas/kam/equipe', label: 'Dashboard Equipe',  icon: Users },
+      { to: '/clientes',            label: 'Meus Clientes',     icon: Building2 },
+      { to: '/carteira/risco',      label: 'Radar de Risco',    icon: AlertTriangle },
+      { to: '/carteira/cross-sell', label: 'Cross-sell',        icon: Sparkles },
     ],
   },
   {
-    label: 'Insight Sales',
+    label: 'Inside Sales',
     roles: ['INSIGHT_SALES', 'DESENVOLVEDOR'],
     items: [
       { to: '/metricas/pessoal',   label: 'Dashboard Pessoal', icon: TrendingUp },
       { to: '/metricas/is/equipe', label: 'Dashboard Equipe',  icon: Users },
+      { to: '/clientes',           label: 'Meus Clientes',     icon: Building2 },
+      { to: '/carteira/risco',      label: 'Radar de Risco',    icon: AlertTriangle },
+      { to: '/carteira/cross-sell', label: 'Cross-sell',        icon: Sparkles },
     ],
   },
   {

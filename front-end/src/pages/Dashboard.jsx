@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Link } from 'react-router-dom'
 import PageHeader from '@/components/layout/PageHeader'
 import { useAuth } from '@/auth/auth-context'
+import { rotuloRole } from '@/api/modules/usuarios'
 
 export default function Dashboard() {
   const { usuario } = useAuth()
@@ -16,7 +17,7 @@ export default function Dashboard() {
         subtitle="Bem-vindo à Intranet da Bluepay Solutions."
       >
         <span className="rounded-full bg-brand-accent/10 px-3 py-1 text-xs font-semibold tracking-wide text-brand-accent uppercase">
-          {usuario?.role}
+          {rotuloRole(usuario?.role)}
         </span>
       </PageHeader>
 

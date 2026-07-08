@@ -2,21 +2,12 @@ import { ChevronLeft, ChevronRight, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarSeparator,
-} from '@/components/ui/sidebar'
+import ThemeToggle from '@/components/ThemeToggle'
 import { useAuth } from '@/auth/auth-context'
 import { useNotificacoesBlog } from '@/notificacoes/notificacoes-blog'
 import { useNotificacoesChamados } from '@/notificacoes/notificacoes-chamados'
 import { secoesVisiveis } from './nav-items'
+import { rotuloRole } from '@/api/modules/usuarios'
 import NavItemLink from './NavItemLink'
 import NavGroup from './NavGroup'
 
@@ -34,17 +25,17 @@ export default function AppSidebar() {
   return (
     <aside
       className={cn(
-        'relative flex h-svh flex-col overflow-hidden bg-brand text-brand-foreground',
+        'relative flex h-svh flex-col overflow-hidden bg-brand text-brand-foreground dark:bg-sidebar dark:text-sidebar-foreground',
         className,
       )}
     >
-      {/* Brilho decorativo */}
-      <div className="pointer-events-none absolute -top-24 -left-16 h-56 w-56 rounded-full bg-brand-accent/15 blur-3xl" />
+      {/* Brilho decorativo (some no modo escuro para não puxar azul) */}
+      <div className="pointer-events-none absolute -top-24 -left-16 h-56 w-56 rounded-full bg-brand-accent/15 blur-3xl dark:hidden" />
 
       {/* Marca + botão de colapso */}
       <div className="relative flex h-16 items-center border-b border-white/10 px-3">
         {!collapsed && (
-          <img src="/logo-branca.svg" alt="Blue Pay Solutions" className="h-7 w-auto flex-1" />
+          <img src="/logo.png" alt="Blue Pay Solutions" className="h-7 w-auto flex-1 object-contain object-left" />
         )}
         {onToggle && (
           <button
@@ -114,6 +105,7 @@ export default function AppSidebar() {
             >
               {inicial(usuario?.nome)}
             </div>
+            <ThemeToggle className="size-8 text-brand-foreground/60 hover:bg-white/5 hover:text-white" />
             <Button
               variant="ghost"
               size="icon"
@@ -133,18 +125,21 @@ export default function AppSidebar() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-white">{usuario?.nome}</p>
                 <span className="mt-0.5 inline-block rounded-full bg-brand-accent/15 px-2 py-0.5 text-[0.65rem] font-semibold tracking-wide text-brand-accent uppercase">
-                  {usuario?.role}
+                  {rotuloRole(usuario?.role)}
                 </span>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              onClick={logout}
-              className="mt-2 w-full justify-start gap-3 text-brand-foreground/60 hover:bg-white/5 hover:text-white"
-            >
-              <LogOut className="size-4" />
-              Sair
-            </Button>
+            <div className="mt-2 flex items-center gap-2">
+              <Button
+                variant="ghost"
+                onClick={logout}
+                className="flex-1 justify-start gap-3 text-brand-foreground/60 hover:bg-white/5 hover:text-white"
+              >
+                <LogOut className="size-4" />
+                Sair
+              </Button>
+              <ThemeToggle className="shrink-0 text-brand-foreground/60 hover:bg-white/5 hover:text-white" />
+            </div>
           </>
         )}
       </div>

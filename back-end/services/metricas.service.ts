@@ -13,7 +13,7 @@ import type {
   MetricasCXCompletas, MetricasCXMembroEquipe, MetricasCXEquipe,
 } from '../models/metricas.model';
 
-const FILTROS_BASE = `
+export const FILTROS_BASE = `
   t.status = 'done'
   AND t.invoice_status = 'received'
   AND t.excel_total_value > 0
@@ -25,7 +25,7 @@ const FILTROS_BASE = `
  * Normaliza manager_id legados para seus IDs corretos.
  * Aplicar em TODAS as queries que filtram por manager_id de clients.
  */
-const MANAGER_ID_REMAPPED = `
+export const MANAGER_ID_REMAPPED = `
   CASE
     WHEN c.manager_id = 64   THEN 123
     WHEN c.manager_id = 2    THEN 123
@@ -189,6 +189,103 @@ export async function buscarTopClientes(
   }));
 }
 
+/**
+ * Agregados do vendedor no ano (YTD — meses futuros somam 0).
+ * `ateMes` (opcional) limita a soma aos meses 1..ateMes — usado para comparar o
+ * ano anterior no MESMO período do ano atual (ex.: Jan–Jul vs Jan–Jul).
+ */
+export async function buscarMetricasAnual(
+  managerId: number,
+  ano: number,
+  ateMes?: number,
+): Promise<{
+  receita: number; tpv: number; qtdTickets: number;
+  clientesAtivos: number; ticketMedio: number; taxaMedia: number;
+}> {
+  const filtroMes = ateMes != null ? 'AND EXTRACT(MONTH FROM t.invoice_payment_date) <= $3' : '';
+  const params = ateMes != null ? [managerId, ano, ateMes] : [managerId, ano];
+  const { rows } = await consultaPool.query(`
+    WITH base AS (
+      SELECT
+        t.client_id,
+        t.excel_total_bonus AS tpv,
+        t.excel_total_rate  AS receita,
+        t.excel_rate        AS taxa
+      FROM tickets t
+      LEFT JOIN clients c ON c.id = t.client_id
+      WHERE ${FILTROS_BASE}
+        AND ${MANAGER_ID_REMAPPED} = $1
+        AND EXTRACT(YEAR FROM t.invoice_payment_date) = $2
+        ${filtroMes}
+    )
+    SELECT
+      COUNT(*)::int                         AS "qtdTickets",
+      COUNT(DISTINCT base.client_id)::int   AS "clientesAtivos",
+      COALESCE(SUM(base.tpv), 0)::float      AS tpv,
+      COALESCE(SUM(base.receita), 0)::float  AS receita,
+      COALESCE(AVG(base.taxa) * 100, 0)::float AS "taxaMedia",
+      COALESCE(AVG(base.tpv), 0)::float       AS "ticketMedio"
+    FROM base
+  `, params);
+
+  const r = rows[0];
+  return {
+    receita:        r?.receita ?? 0,
+    tpv:            r?.tpv ?? 0,
+    qtdTickets:     r?.qtdTickets ?? 0,
+    clientesAtivos: r?.clientesAtivos ?? 0,
+    ticketMedio:    r?.ticketMedio ?? 0,
+    taxaMedia:      r?.taxaMedia ?? 0,
+  };
+}
+
+/** Top clientes do vendedor no ano inteiro (receita/TPV acumulados). */
+async function buscarTopClientesAno(
+  managerId: number,
+  ano: number,
+  limite: number = 10,
+): Promise<TopCliente[]> {
+  const { rows } = await consultaPool.query(`
+    SELECT
+      c.name                                        AS nome,
+      COUNT(*)::int                                 AS "qtdTickets",
+      COALESCE(SUM(t.excel_total_bonus), 0)::float  AS tpv,
+      COALESCE(SUM(t.excel_total_rate), 0)::float   AS receita
+    FROM tickets t
+    LEFT JOIN clients c ON c.id = t.client_id
+    WHERE ${FILTROS_BASE}
+      AND ${MANAGER_ID_REMAPPED} = $1
+      AND EXTRACT(YEAR FROM t.invoice_payment_date) = $2
+    GROUP BY c.name
+    ORDER BY receita DESC
+    LIMIT $3
+  `, [managerId, ano, limite]);
+
+  return rows.map(r => ({
+    nome: r.nome, qtdTickets: r.qtdTickets, tpv: r.tpv, receita: r.receita,
+  }));
+}
+
+/** Receita mensal do vendedor num ano (array[12], índice 0 = janeiro). */
+async function buscarReceitaMensalAno(managerId: number, ano: number): Promise<number[]> {
+  const { rows } = await consultaPool.query(`
+    SELECT
+      EXTRACT(MONTH FROM t.invoice_payment_date)::int AS mes,
+      COALESCE(SUM(t.excel_total_rate), 0)::float     AS receita
+    FROM tickets t
+    LEFT JOIN clients c ON c.id = t.client_id
+    WHERE ${FILTROS_BASE}
+      AND ${MANAGER_ID_REMAPPED} = $1
+      AND EXTRACT(YEAR FROM t.invoice_payment_date) = $2
+    GROUP BY mes
+    ORDER BY mes
+  `, [managerId, ano]);
+
+  const arr = new Array<number>(12).fill(0);
+  for (const r of rows) arr[r.mes - 1] = r.receita;
+  return arr;
+}
+
 export async function buscarMetricasCompletas(
   email: string,
   mes?: number,
@@ -201,16 +298,61 @@ export async function buscarMetricasCompletas(
   const vendedor = await buscarVendedorPorEmail(email);
   if (!vendedor) return null;
 
-  const [mesAtual, hoje, historico] = await Promise.all([
+  // Corte de período para o comparativo "vs Ano Anterior" (mesmo período):
+  // no ano corrente compara até o mês atual; em anos já fechados, o ano inteiro.
+  const hojeRef = new Date();
+  const ateMes = anoConsulta > hojeRef.getFullYear() ? 0
+    : anoConsulta === hojeRef.getFullYear() ? hojeRef.getMonth() + 1
+    : 12;
+
+  const [mesAtual, hoje, historico, anualAgg, anualAggAnterior, mensalAtual, mensalAnterior, topClientesAno] = await Promise.all([
     buscarMetricasMes(vendedor.id, mesConsulta, anoConsulta),
     buscarMetricasHoje(vendedor.id),
     buscarHistorico(vendedor.id, 6),
+    buscarMetricasAnual(vendedor.id, anoConsulta),
+    buscarMetricasAnual(vendedor.id, anoConsulta - 1, ateMes),
+    buscarReceitaMensalAno(vendedor.id, anoConsulta),
+    buscarReceitaMensalAno(vendedor.id, anoConsulta - 1),
+    buscarTopClientesAno(vendedor.id, anoConsulta, 10),
   ]);
 
   const primeiroNome = vendedor.nome.split(' ')[0] ?? '';
   const meta = getMetaIndividual(primeiroNome, mesConsulta, anoConsulta);
   mesAtual.meta     = meta;
   mesAtual.pct_meta = meta > 0 ? Math.round((mesAtual.receita / meta) * 1000) / 10 : 0;
+
+  // Meta anual = soma das 12 metas mensais do vendedor no ano.
+  let metaAnual = 0;
+  for (let m = 1; m <= 12; m++) metaAnual += getMetaIndividual(primeiroNome, m, anoConsulta);
+
+  const anual = {
+    meta:           metaAnual,
+    realizado:      anualAgg.receita,
+    pct_meta:       metaAnual > 0 ? Math.round((anualAgg.receita / metaAnual) * 1000) / 10 : 0,
+    em_aberto:      Math.max(0, metaAnual - anualAgg.receita),
+    tpv:            anualAgg.tpv,
+    qtdTickets:     anualAgg.qtdTickets,
+    clientesAtivos: anualAgg.clientesAtivos,
+    ticketMedio:    anualAgg.ticketMedio,
+    taxaMedia:      anualAgg.taxaMedia,
+    anterior: {
+      receita:        anualAggAnterior.receita,
+      tpv:            anualAggAnterior.tpv,
+      qtdTickets:     anualAggAnterior.qtdTickets,
+      clientesAtivos: anualAggAnterior.clientesAtivos,
+      ateMes,
+    },
+    topClientes: topClientesAno,
+    yoy: {
+      anoAtual:    anoConsulta,
+      anoAnterior: anoConsulta - 1,
+      meses: Array.from({ length: 12 }, (_, i) => ({
+        mes:      i + 1,
+        atual:    mensalAtual[i] ?? 0,
+        anterior: mensalAnterior[i] ?? 0,
+      })),
+    },
+  };
 
   return {
     vendedorId: vendedor.id,
@@ -219,6 +361,7 @@ export async function buscarMetricasCompletas(
     mesAtual,
     hoje,
     historico,
+    anual,
   };
 }
 
@@ -391,6 +534,97 @@ async function buscarTopClientesEquipe(
   }));
 }
 
+/** Agregados anuais da equipe (com corte de mês opcional p/ "vs ano anterior"). */
+async function buscarMetricasAnualEquipe(managerIds: number[], ano: number, ateMes?: number) {
+  const filtroMes = ateMes != null ? 'AND EXTRACT(MONTH FROM t.invoice_payment_date) <= $3' : '';
+  const params = ateMes != null ? [managerIds, ano, ateMes] : [managerIds, ano];
+  const { rows } = await consultaPool.query(`
+    WITH base AS (
+      SELECT t.client_id, t.excel_total_bonus AS tpv, t.excel_total_rate AS receita, t.excel_rate AS taxa
+      FROM tickets t LEFT JOIN clients c ON c.id = t.client_id
+      WHERE ${FILTROS_BASE}
+        AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+        AND EXTRACT(YEAR FROM t.invoice_payment_date) = $2
+        ${filtroMes}
+    )
+    SELECT
+      COUNT(*)::int                          AS "qtdTickets",
+      COUNT(DISTINCT base.client_id)::int    AS "clientesAtivos",
+      COALESCE(SUM(base.tpv), 0)::float       AS tpv,
+      COALESCE(SUM(base.receita), 0)::float   AS receita,
+      COALESCE(AVG(base.taxa) * 100, 0)::float AS "taxaMedia",
+      COALESCE(AVG(base.tpv), 0)::float        AS "ticketMedio"
+    FROM base
+  `, params);
+  const r = rows[0];
+  return {
+    receita: r?.receita ?? 0, tpv: r?.tpv ?? 0, qtdTickets: r?.qtdTickets ?? 0,
+    clientesAtivos: r?.clientesAtivos ?? 0, ticketMedio: r?.ticketMedio ?? 0, taxaMedia: r?.taxaMedia ?? 0,
+  };
+}
+
+/** Receita mensal da equipe num ano (array[12]). */
+async function buscarReceitaMensalAnoEquipe(managerIds: number[], ano: number): Promise<number[]> {
+  const { rows } = await consultaPool.query(`
+    SELECT EXTRACT(MONTH FROM t.invoice_payment_date)::int AS mes,
+           COALESCE(SUM(t.excel_total_rate), 0)::float AS receita
+    FROM tickets t LEFT JOIN clients c ON c.id = t.client_id
+    WHERE ${FILTROS_BASE} AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+      AND EXTRACT(YEAR FROM t.invoice_payment_date) = $2
+    GROUP BY mes ORDER BY mes
+  `, [managerIds, ano]);
+  const arr = new Array<number>(12).fill(0);
+  for (const r of rows) arr[r.mes - 1] = r.receita;
+  return arr;
+}
+
+/** Top clientes da equipe no ano inteiro. */
+async function buscarTopClientesEquipeAno(managerIds: number[], ano: number, limite = 10): Promise<TopClienteGeral[]> {
+  const { rows } = await consultaPool.query(`
+    SELECT c.name AS nome, COUNT(*)::int AS "qtdTickets",
+      COALESCE(SUM(t.excel_total_bonus), 0)::float AS tpv,
+      COALESCE(SUM(t.excel_total_rate), 0)::float  AS receita,
+      COALESCE(AVG(t.excel_rate) * 100, 0)::float   AS taxa
+    FROM tickets t LEFT JOIN clients c ON c.id = t.client_id
+    WHERE ${FILTROS_BASE} AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+      AND EXTRACT(YEAR FROM t.invoice_payment_date) = $2
+    GROUP BY c.name ORDER BY receita DESC LIMIT $3
+  `, [managerIds, ano, limite]);
+  return rows.map(r => ({ nome: r.nome, qtdTickets: r.qtdTickets, tpv: r.tpv, receita: r.receita, taxa: r.taxa }));
+}
+
+/** Ranking anual dos membros (agregados do ano + meta anual individual). */
+async function buscarMembrosAnualEquipe(
+  managerIds: number[], ano: number, nomeMap: Map<number, string>,
+): Promise<MetricasEquipeMembro[]> {
+  const { rows } = await consultaPool.query(`
+    SELECT ${MANAGER_ID_REMAPPED} AS "managerId",
+      COUNT(*)::int AS "qtdTickets",
+      COUNT(DISTINCT t.client_id)::int AS "clientesAtivos",
+      COALESCE(SUM(t.excel_total_rate), 0)::float  AS receita,
+      COALESCE(SUM(t.excel_total_bonus), 0)::float AS tpv,
+      COALESCE(AVG(t.excel_rate) * 100, 0)::float  AS "taxaMedia",
+      CASE WHEN COUNT(*) = 0 THEN 0 ELSE (COALESCE(SUM(t.excel_total_rate), 0) / COUNT(*))::float END AS "ticketMedio"
+    FROM tickets t LEFT JOIN clients c ON c.id = t.client_id
+    WHERE ${FILTROS_BASE} AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+      AND EXTRACT(YEAR FROM t.invoice_payment_date) = $2
+    GROUP BY ${MANAGER_ID_REMAPPED} ORDER BY receita DESC
+  `, [managerIds, ano]);
+  return rows.map((r: { managerId: number; qtdTickets: number; clientesAtivos: number; receita: number; tpv: number; taxaMedia: number; ticketMedio: number }) => {
+    const nome = nomeMap.get(r.managerId) ?? 'Desconhecido';
+    const primeiroNome = nome.split(' ')[0] ?? '';
+    let metaAnual = 0;
+    for (let m = 1; m <= 12; m++) metaAnual += getMetaIndividual(primeiroNome, m, ano);
+    return {
+      vendedorId: r.managerId, nome, receita: r.receita, tpv: r.tpv,
+      qtdTickets: r.qtdTickets, clientesAtivos: r.clientesAtivos,
+      taxaMedia: r.taxaMedia, ticketMedio: r.ticketMedio,
+      receitaHoje: 0, ticketsHoje: 0,
+      meta: metaAnual, pct_meta: metaAnual > 0 ? Math.round((r.receita / metaAnual) * 1000) / 10 : 0,
+    };
+  });
+}
+
 export async function buscarMetricasEquipe(
   roles: string[],
   mes: number,
@@ -545,6 +779,54 @@ export async function buscarMetricasEquipe(
   const meta_equipe    = getMetaEquipe(equipeType, mes, ano);
   const totalReceita   = t.totalReceita as number;
 
+  // ── Consolidado anual da equipe (para a aba Anual) ──────────────────────────
+  const hojeRef = new Date();
+  const ateMesAnual = ano > hojeRef.getFullYear() ? 0
+    : ano === hojeRef.getFullYear() ? hojeRef.getMonth() + 1
+    : 12;
+
+  const [anualAgg, anualAggAnterior, mensalAtualAno, mensalAnteriorAno, topClientesAno, membrosAnual] = await Promise.all([
+    buscarMetricasAnualEquipe(managerIds, ano),
+    buscarMetricasAnualEquipe(managerIds, ano - 1, ateMesAnual),
+    buscarReceitaMensalAnoEquipe(managerIds, ano),
+    buscarReceitaMensalAnoEquipe(managerIds, ano - 1),
+    buscarTopClientesEquipeAno(managerIds, ano, 10),
+    buscarMembrosAnualEquipe(managerIds, ano, nomeMap),
+  ]);
+
+  let metaAnualEquipe = 0;
+  for (let m = 1; m <= 12; m++) metaAnualEquipe += getMetaEquipe(equipeType, m, ano);
+
+  const anual = {
+    meta:           metaAnualEquipe,
+    realizado:      anualAgg.receita,
+    pct_meta:       metaAnualEquipe > 0 ? Math.round((anualAgg.receita / metaAnualEquipe) * 1000) / 10 : 0,
+    em_aberto:      Math.max(0, metaAnualEquipe - anualAgg.receita),
+    tpv:            anualAgg.tpv,
+    qtdTickets:     anualAgg.qtdTickets,
+    clientesAtivos: anualAgg.clientesAtivos,
+    ticketMedio:    anualAgg.ticketMedio,
+    taxaMedia:      anualAgg.taxaMedia,
+    anterior: {
+      receita:        anualAggAnterior.receita,
+      tpv:            anualAggAnterior.tpv,
+      qtdTickets:     anualAggAnterior.qtdTickets,
+      clientesAtivos: anualAggAnterior.clientesAtivos,
+      ateMes:         ateMesAnual,
+    },
+    topClientes: topClientesAno,
+    membros:     membrosAnual,
+    yoy: {
+      anoAtual:    ano,
+      anoAnterior: ano - 1,
+      meses: Array.from({ length: 12 }, (_, i) => ({
+        mes:      i + 1,
+        atual:    mensalAtualAno[i] ?? 0,
+        anterior: mensalAnteriorAno[i] ?? 0,
+      })),
+    },
+  };
+
   return {
     equipe:              roles.length > 1 ? 'GERAL' : (roles[0] ?? 'GERAL'),
     mes,
@@ -568,6 +850,7 @@ export async function buscarMetricasEquipe(
     historicoMensal,
     topClientes,
     membros,
+    anual,
   };
 }
 
