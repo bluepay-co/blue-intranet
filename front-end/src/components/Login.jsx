@@ -68,13 +68,13 @@ export default function Login() {
           }}
         />
 
-        <img src="/logo.png" alt="Blue Pay Solutions" className="relative h-10 w-auto" />
+        <img src="/logo.png" alt="Bluepay Solutions" className="relative h-11 w-40" />
 
         <div className="relative space-y-6">
           <div className="space-y-3">
             <h2 className="text-3xl font-semibold leading-tight">Intranet corporativa</h2>
             <p className="max-w-sm text-brand-foreground/70">
-              Acesse ferramentas, agenda e recursos internos da Blue Pay Solutions
+              Acesse ferramentas, agenda e recursos internos da Bluepay Solutions
               em um só lugar.
             </p>
           </div>
@@ -96,7 +96,7 @@ export default function Login() {
         </div>
 
         <p className="relative text-xs text-brand-foreground/50">
-          © {new Date().getFullYear()} Blue Pay Solutions
+          © {new Date().getFullYear()} Bluepay Solutions
         </p>
       </aside>
 
@@ -110,7 +110,7 @@ export default function Login() {
             {/* No mobile o painel da marca some, então mostramos o logo aqui */}
             <img
               src="/logo.png"
-              alt="Blue Pay Solutions"
+              alt="BluePay Solutions"
               className="mx-auto mb-2 h-9 w-auto lg:hidden"
             />
             <CardTitle className="text-2xl">Bem-vindo</CardTitle>
