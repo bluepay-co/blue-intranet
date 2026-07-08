@@ -22,6 +22,10 @@ import DashboardCXEquipe from '@/pages/metricas/DashboardCXEquipe'
 import DashboardPreVendas from '@/pages/metricas/DashboardPreVendas'
 import DashboardPreVendasEquipe from '@/pages/metricas/DashboardPreVendasEquipe'
 import LancamentoPreVendas from '@/pages/prevendas/LancamentoPreVendas'
+import MeusClientes from '@/pages/clientes/MeusClientes'
+import ClienteDetalhe from '@/pages/clientes/ClienteDetalhe'
+import RadarRisco from '@/pages/carteira/RadarRisco'
+import CrossSell from '@/pages/carteira/CrossSell'
 
 function App() {
   return (
@@ -169,6 +173,38 @@ function App() {
           element={
             <ProtectedRoute roles={['PRE_VENDAS', 'DIRETORIA', 'DESENVOLVEDOR']}>
               <LancamentoPreVendas />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="clientes"
+          element={
+            <ProtectedRoute roles={['KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
+              <MeusClientes />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="clientes/:id"
+          element={
+            <ProtectedRoute roles={['KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
+              <ClienteDetalhe />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="carteira/risco"
+          element={
+            <ProtectedRoute roles={['KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
+              <RadarRisco />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="carteira/cross-sell"
+          element={
+            <ProtectedRoute roles={['KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
+              <CrossSell />
             </ProtectedRoute>
           }
         />
