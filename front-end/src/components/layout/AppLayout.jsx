@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -55,7 +54,6 @@ export default function AppLayout() {
           <img src="/logo.png" alt="Blue Pay Solutions" className="h-6 w-auto" />
           <ThemeToggle className="ml-auto" />
         </header>
-
         <main className="flex-1 overflow-auto p-6 lg:p-8">
           <Outlet />
         </main>

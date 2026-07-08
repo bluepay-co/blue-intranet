@@ -1,5 +1,14 @@
-import { NavLink } from 'react-router-dom'
-import { cn } from '@/lib/utils'
+import { useLocation, NavLink } from 'react-router-dom'
+import { SidebarMenuItem, SidebarMenuButton, useSidebar } from '@/components/ui/sidebar'
+
+export default function NavItemLink({ to, label, icon: Icon, end, badge = 0 }) {
+  const { pathname } = useLocation()
+  const { isMobile, setOpenMobile } = useSidebar()
+  const isActive = end ? pathname === to : pathname.startsWith(to)
+
+  function handleClick() {
+    if (isMobile) setOpenMobile(false)
+  }
 
 export default function NavItemLink({ to, label, icon: Icon, end, onNavigate, nested = false, badge = 0, collapsed = false }) {
   return (
