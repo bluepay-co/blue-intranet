@@ -9,6 +9,7 @@ import { metricasRouter } from './metricas.routes';
 import { prevendasRouter } from './prevendas.routes';
 import { clienteRouter } from './cliente.routes';
 import { carteiraRouter } from './carteira.routes';
+import { backofficeRouter } from './backoffice.routes';
 
 const router = Router();
 
@@ -42,5 +43,8 @@ router.use('/api/clientes', clienteRouter);
 
 // Domínio: Carteira (inteligência — radar de risco e cross-sell, escopo por manager_id)
 router.use('/api/carteira', carteiraRouter);
+
+// Domínio: Chamados de Infra via BluePay Backoffice (API externa, proxy seguro)
+router.use('/api/backoffice/chamados', backofficeRouter);
 
 export { router };

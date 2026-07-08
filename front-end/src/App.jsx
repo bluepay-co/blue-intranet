@@ -46,6 +46,7 @@ function App() {
         <Route path="tarefas" element={<Tarefas />} />
         <Route path="blog" element={<Blog />} />
         <Route path="chamados" element={<Chamados />} />
+        <Route path="chamados/cx/:id" element={<ChamadoDetalhe fonte="cx" />} />
         <Route path="chamados/:id" element={<ChamadoDetalhe />} />
         <Route
           path="ti/dashboard"

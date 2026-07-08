@@ -32,6 +32,7 @@ export default function ChamadoFormDialog({ aberto, onFechar, chamadoEditando, o
   const [descricao, setDescricao] = useState(chamadoEditando?.descricao ?? '')
   const [categoria, setCategoria] = useState(chamadoEditando?.categoria ?? CATEGORIAS[0].value)
   const [criticidade, setCriticidade] = useState(chamadoEditando?.criticidade ?? '')
+  const [patrimonio, setPatrimonio] = useState('')
   const [anexo, setAnexo] = useState(null)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
@@ -68,6 +69,7 @@ export default function ChamadoFormDialog({ aberto, onFechar, chamadoEditando, o
           descricao,
           categoria,
           criticidade,
+          patrimonio: patrimonio.trim() || undefined,
           anexo: anexo || undefined,
         })
       }
@@ -139,6 +141,18 @@ export default function ChamadoFormDialog({ aberto, onFechar, chamadoEditando, o
               </select>
             </div>
           </div>
+
+          {!ehEdicao && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium">Patrimônio do equipamento (opcional)</label>
+              <Input
+                value={patrimonio}
+                onChange={(e) => setPatrimonio(e.target.value)}
+                placeholder="Ex.: PAT-00123"
+                maxLength={120}
+              />
+            </div>
+          )}
 
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Descrição do problema</label>
