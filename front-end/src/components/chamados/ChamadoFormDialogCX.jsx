@@ -12,8 +12,8 @@ import { Input } from '@/components/ui/input'
 import {
   CATEGORIAS_CX,
   CRITICIDADES,
-  criarChamado,
-  editarChamado,
+  criarChamadoCx as criarChamado,
+  editarChamadoCx as editarChamado,
 } from '@/api/modules/chamados'
 
 const classeCampo =

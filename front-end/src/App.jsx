@@ -2,7 +2,6 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Login from '@/components/Login'
 import AppLayout from '@/components/layout/AppLayout'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import Dashboard from '@/pages/Dashboard'
 import Agenda from '@/pages/Agenda'
 import Tarefas from '@/pages/Tarefas'
 import Usuarios from '@/pages/Usuarios'
@@ -14,6 +13,19 @@ import ChamadosTI from '@/pages/ti/ChamadosTI'
 import DashboardTI from '@/pages/ti/DashboardTI'
 import ChamadosCX from '@/pages/cx/ChamadosCX'
 import ChamadosProdutos from '@/pages/produtos/ChamadosProdutos'
+import DashboardPessoal from '@/pages/metricas/DashboardPessoal'
+import DashboardEquipe from '@/pages/metricas/DashboardEquipe'
+import DashboardGeral from '@/pages/metricas/DashboardGeral'
+import DashboardComercialLayout from '@/pages/metricas/DashboardComercialLayout'
+import DashboardCX from '@/pages/metricas/DashboardCX'
+import DashboardCXEquipe from '@/pages/metricas/DashboardCXEquipe'
+import DashboardPreVendas from '@/pages/metricas/DashboardPreVendas'
+import DashboardPreVendasEquipe from '@/pages/metricas/DashboardPreVendasEquipe'
+import LancamentoPreVendas from '@/pages/prevendas/LancamentoPreVendas'
+import MeusClientes from '@/pages/clientes/MeusClientes'
+import ClienteDetalhe from '@/pages/clientes/ClienteDetalhe'
+import RadarRisco from '@/pages/carteira/RadarRisco'
+import CrossSell from '@/pages/carteira/CrossSell'
 
 function App() {
   return (
@@ -29,11 +41,12 @@ function App() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Dashboard />} />
+        <Route index element={<Navigate to="/metricas/comercial" replace />} />
         <Route path="agenda" element={<Agenda />} />
         <Route path="tarefas" element={<Tarefas />} />
         <Route path="blog" element={<Blog />} />
         <Route path="chamados" element={<Chamados />} />
+        <Route path="chamados/cx/:id" element={<ChamadoDetalhe fonte="cx" />} />
         <Route path="chamados/:id" element={<ChamadoDetalhe />} />
         <Route
           path="ti/dashboard"
@@ -80,6 +93,119 @@ function App() {
           element={
             <ProtectedRoute roles={['TI', 'DESENVOLVEDOR']}>
               <Usuarios />
+            </ProtectedRoute>
+          }
+        />
+        {/* Redirect de compatibilidade */}
+        <Route path="metricas/geral" element={<Navigate to="/metricas/comercial" replace />} />
+
+        {/* Dashboard Comercial com abas: Geral | IS | KAM — visível para todos */}
+        <Route
+          path="metricas/comercial"
+          element={
+            <ProtectedRoute>
+              <DashboardComercialLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<DashboardGeral />} />
+          <Route path="is"  element={<DashboardEquipe equipeFixa="IS" />} />
+          <Route path="kam" element={<DashboardEquipe equipeFixa="KAM" />} />
+        </Route>
+
+        <Route
+          path="metricas/pessoal"
+          element={
+            <ProtectedRoute roles={['VENDAS', 'KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
+              <DashboardPessoal />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="metricas/is/equipe"
+          element={
+            <ProtectedRoute roles={['INSIGHT_SALES', 'DESENVOLVEDOR']}>
+              <DashboardEquipe />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="metricas/kam/equipe"
+          element={
+            <ProtectedRoute roles={['KAM', 'DESENVOLVEDOR']}>
+              <DashboardEquipe />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="metricas/cx"
+          element={
+            <ProtectedRoute roles={['CX', 'DESENVOLVEDOR']}>
+              <DashboardCX />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="metricas/cx/equipe"
+          element={
+            <ProtectedRoute roles={['CX', 'DESENVOLVEDOR']}>
+              <DashboardCXEquipe />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="metricas/prevendas"
+          element={
+            <ProtectedRoute roles={['PRE_VENDAS', 'DIRETORIA', 'DESENVOLVEDOR']}>
+              <DashboardPreVendas />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="metricas/prevendas/equipe"
+          element={
+            <ProtectedRoute roles={['PRE_VENDAS', 'DIRETORIA', 'DESENVOLVEDOR']}>
+              <DashboardPreVendasEquipe />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="prevendas/lancamento"
+          element={
+            <ProtectedRoute roles={['PRE_VENDAS', 'DIRETORIA', 'DESENVOLVEDOR']}>
+              <LancamentoPreVendas />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="clientes"
+          element={
+            <ProtectedRoute roles={['KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
+              <MeusClientes />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="clientes/:id"
+          element={
+            <ProtectedRoute roles={['KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
+              <ClienteDetalhe />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="carteira/risco"
+          element={
+            <ProtectedRoute roles={['KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
+              <RadarRisco />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="carteira/cross-sell"
+          element={
+            <ProtectedRoute roles={['KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
+              <CrossSell />
             </ProtectedRoute>
           }
         />

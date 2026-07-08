@@ -5,6 +5,11 @@ import { tarefasRouter } from './tarefas.routes';
 import { blogRouter } from './blog.routes';
 import { usuarioRouter } from './usuario.routes';
 import { chamadosRouter } from './chamado.routes';
+import { metricasRouter } from './metricas.routes';
+import { prevendasRouter } from './prevendas.routes';
+import { clienteRouter } from './cliente.routes';
+import { carteiraRouter } from './carteira.routes';
+import { backofficeRouter } from './backoffice.routes';
 
 const router = Router();
 
@@ -26,5 +31,20 @@ router.use('/api/usuarios', usuarioRouter);
 
 // Domínio: Chamados (help desk de T.I. — abertura por todos, gestão pela T.I.)
 router.use('/api/chamados', chamadosRouter);
+
+// Domínio: Métricas de Vendas (vendedores — banco bluepay3_production, somente leitura)
+router.use('/api/metricas', metricasRouter);
+
+// Domínio: Pré-Vendas (SDRs — atividades lançadas na intranet, tabelas pv_*)
+router.use('/api/prevendas', prevendasRouter);
+
+// Domínio: Clientes do vendedor (bluepay3_production, somente leitura, escopo por manager_id)
+router.use('/api/clientes', clienteRouter);
+
+// Domínio: Carteira (inteligência — radar de risco e cross-sell, escopo por manager_id)
+router.use('/api/carteira', carteiraRouter);
+
+// Domínio: Chamados de Infra via BluePay Backoffice (API externa, proxy seguro)
+router.use('/api/backoffice/chamados', backofficeRouter);
 
 export { router };

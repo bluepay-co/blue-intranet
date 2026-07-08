@@ -206,7 +206,7 @@ export default function ChamadosCX() {
           {filtrados.map((c) => (
             <div
               key={c.id}
-              onClick={() => navigate(`/chamados/${c.id}`)}
+              onClick={() => navigate(`/chamados/cx/${c.id}`)}
               className={`flex cursor-pointer flex-col rounded-xl border border-l-4 bg-card p-4 shadow-sm transition-colors hover:bg-muted/40 ${BORDA[c.criticidade] ?? ''}`}
             >
               <div className="flex items-center justify-between gap-2">

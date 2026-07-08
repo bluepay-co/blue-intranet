@@ -240,7 +240,7 @@ export default function ChamadosProdutos() {
                   {itens.length === 0 ? (
                     <p className="py-6 text-center text-xs text-muted-foreground">Nenhum chamado.</p>
                   ) : (
-                    itens.map((c) => <ChamadoCard key={c.id} chamado={c} onAbrir={(id) => navigate(`/chamados/${id}`)} />)
+                    itens.map((c) => <ChamadoCard key={c.id} chamado={c} onAbrir={(id) => navigate(`/chamados/cx/${id}`)} />)
                   )}
                 </div>
               </div>

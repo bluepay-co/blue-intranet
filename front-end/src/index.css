@@ -6,6 +6,8 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  /* Faz os controles nativos (select/options, scrollbar, inputs) seguirem o tema */
+  color-scheme: light;
   --radius: 0.625rem;
 
   /* Identidade visual Blue Pay Solutions */
@@ -48,6 +50,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -134,5 +137,12 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  /* Popup de opções dos <select> nativos seguindo o tema (essencial no dark mode:
+     sem isto o navegador desenha o dropdown com fundo branco e texto claro). */
+  select option {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
   }
 }

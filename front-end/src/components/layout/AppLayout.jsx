@@ -3,23 +3,32 @@ import { Outlet } from 'react-router-dom'
 import { Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import ThemeToggle from '@/components/ThemeToggle'
 import { NotificacoesBlogProvider } from '@/notificacoes/NotificacoesBlogProvider'
 import { NotificacoesChamadosProvider } from '@/notificacoes/NotificacoesChamadosProvider'
+import ChatProvider from '@/chat/ChatProvider'
+import ChatFAB from '@/components/chat/ChatFAB'
+import ChatPainel from '@/components/chat/ChatPainel'
 import Sidebar from './Sidebar'
 
-/**
- * Casca autenticada da Intranet: sidebar fixa no desktop e gaveta no mobile,
- * com a área de conteúdo renderizada pelo <Outlet/> das rotas filhas.
- */
 export default function AppLayout() {
   const [menuAberto, setMenuAberto] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
 
   return (
     <NotificacoesBlogProvider>
     <NotificacoesChamadosProvider>
+    <ChatProvider>
     <div className="flex h-svh overflow-hidden bg-background text-foreground">
       {/* Sidebar fixa (desktop) */}
-      <Sidebar className="hidden w-64 shrink-0 border-r border-white/5 md:flex" />
+      <Sidebar
+        collapsed={collapsed}
+        onToggle={() => setCollapsed(c => !c)}
+        className={cn(
+          'hidden shrink-0 border-r border-white/5 md:flex transition-[width] duration-300',
+          collapsed ? 'w-16' : 'w-64',
+        )}
+      />
 
       {/* Sidebar em gaveta (mobile) */}
       <div
@@ -43,7 +52,8 @@ export default function AppLayout() {
           <Button variant="ghost" size="icon" onClick={() => setMenuAberto(true)}>
             <Menu className="size-5" />
           </Button>
-          <img src="/logo-azul.svg" alt="Blue Pay Solutions" className="h-6 w-auto" />
+          <img src="/logo.png" alt="Blue Pay Solutions" className="h-6 w-auto" />
+          <ThemeToggle className="ml-auto" />
         </header>
 
         <main className="flex-1 overflow-auto p-6 lg:p-8">
@@ -51,6 +61,9 @@ export default function AppLayout() {
         </main>
       </div>
     </div>
+    <ChatFAB />
+    <ChatPainel />
+    </ChatProvider>
     </NotificacoesChamadosProvider>
     </NotificacoesBlogProvider>
   )

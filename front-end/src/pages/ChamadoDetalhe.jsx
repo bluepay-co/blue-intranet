@@ -29,6 +29,9 @@ import {
   buscarChamado,
   alterarStatus,
   adicionarComentario,
+  buscarChamadoCx,
+  alterarStatusCx,
+  adicionarComentarioCx,
 } from '@/api/modules/chamados'
 import { useNotificacoesChamados } from '@/notificacoes/notificacoes-chamados'
 import { StatusBadge, CriticidadeBadge } from '@/components/chamados/badges'
@@ -49,7 +52,8 @@ function InfoLinha({ icon: Icon, rotulo, children }) {
   )
 }
 
-export default function ChamadoDetalhe() {
+export default function ChamadoDetalhe({ fonte = 'backoffice' }) {
+  const ehCx = fonte === 'cx'
   const { id } = useParams()
   const navigate = useNavigate()
   const { usuario } = useAuth()
@@ -67,7 +71,7 @@ export default function ChamadoDetalhe() {
     let ativo = true
     ;(async () => {
       try {
-        const data = await buscarChamado(id)
+        const data = await (ehCx ? buscarChamadoCx : buscarChamado)(id)
         if (ativo) {
           setChamado(data)
           marcarVisto(Number(id))
@@ -88,7 +92,7 @@ export default function ChamadoDetalhe() {
     if (!mensagem.trim()) return
     setEnviando(true)
     try {
-      const novo = await adicionarComentario(id, mensagem.trim())
+      const novo = await (ehCx ? adicionarComentarioCx : adicionarComentario)(id, mensagem.trim())
       setChamado((c) => ({ ...c, comentarios: [...c.comentarios, novo] }))
       setMensagem('')
     } catch (err) {
@@ -102,7 +106,7 @@ export default function ChamadoDetalhe() {
     if (novoStatus === chamado?.status) return
     setMudandoStatus(true)
     try {
-      const atualizado = await alterarStatus(id, novoStatus)
+      const atualizado = await (ehCx ? alterarStatusCx : alterarStatus)(id, novoStatus)
       setChamado((c) => ({ ...c, status: atualizado.status }))
     } catch (err) {
       setErro(err?.response?.data?.message ?? 'Erro ao alterar o status.')

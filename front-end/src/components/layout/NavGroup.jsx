@@ -1,16 +1,10 @@
 import { useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, NavLink } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import NavItemLink from './NavItemLink'
 
-/**
- * Grupo de navegação expansível na sidebar (ex.: Agenda → Calendário, Tarefas).
- * Abre automaticamente quando uma rota filha está ativa; o usuário pode alternar.
- *
- * @param {{ item: { label: string, icon?: React.ComponentType, children: object[] }, onNavigate?: () => void }} props
- */
-export default function NavGroup({ item, onNavigate }) {
+export default function NavGroup({ item, onNavigate, collapsed = false }) {
   const { pathname } = useLocation()
   const Icon = item.icon
 
@@ -20,13 +14,44 @@ export default function NavGroup({ item, onNavigate }) {
   const [override, setOverride] = useState(null)
   const aberto = override ?? algumAtivo
 
+  /* Modo colapsado: só ícone, clica navega para o primeiro filho */
+  if (collapsed) {
+    const firstChild = item.children[0]
+    return (
+      <NavLink to={firstChild?.to ?? '#'} onClick={onNavigate} className="group block">
+        <span
+          title={item.label}
+          className={cn(
+            'relative flex justify-center items-center rounded-lg px-2 py-1.5 text-sm font-medium transition-all',
+            algumAtivo
+              ? 'bg-white/10 text-white'
+              : 'text-brand-foreground/65 hover:bg-white/5 hover:text-white',
+          )}
+        >
+          {algumAtivo && (
+            <span className="absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-brand-accent" />
+          )}
+          {Icon && (
+            <Icon
+              className={cn(
+                'size-4 shrink-0 transition-colors',
+                algumAtivo ? 'text-brand-accent' : 'text-brand-foreground/50 group-hover:text-white',
+              )}
+            />
+          )}
+        </span>
+      </NavLink>
+    )
+  }
+
+  /* Modo expandido */
   return (
     <div>
       <button
         onClick={() => setOverride(!aberto)}
         aria-expanded={aberto}
         className={cn(
-          'group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all',
+          'group flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-all',
           algumAtivo ? 'text-white' : 'text-brand-foreground/65 hover:bg-white/5 hover:text-white',
         )}
       >

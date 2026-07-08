@@ -1,4 +1,4 @@
-import { LayoutDashboard, Calendar, CalendarDays, ListTodo, Users, Newspaper, LayoutList, LifeBuoy, Headset, BarChart3, PackageSearch } from 'lucide-react'
+import { Calendar, ListTodo, Users, Newspaper, LayoutList, LifeBuoy, Headset, BarChart3, PackageSearch, TrendingUp, Activity, PhoneCall, Building2, AlertTriangle, Sparkles } from 'lucide-react'
 
 /**
  * Navegação principal da sidebar, organizada em SEÇÕES por setor.
@@ -17,15 +17,9 @@ export const NAV_SECTIONS = [
   {
     label: 'Geral',
     items: [
-      { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-      {
-        label: 'Agenda',
-        icon: Calendar,
-        children: [
-          { to: '/agenda', label: 'Agenda', icon: CalendarDays, end: true },
-          { to: '/tarefas', label: 'Tarefas', icon: ListTodo },
-        ],
-      },
+      { to: '/metricas/comercial', label: 'Dashboard Comercial', icon: Activity },
+      { to: '/agenda', label: 'Agenda', icon: Calendar, end: true },
+      { to: '/tarefas', label: 'Tarefas', icon: ListTodo },
       { to: '/blog', label: 'Blog', icon: Newspaper },
       { to: '/chamados', label: 'Chamados', icon: LifeBuoy },
     ],
@@ -50,7 +44,9 @@ export const NAV_SECTIONS = [
     label: 'Customer Experience',
     roles: ['CX', 'DESENVOLVEDOR'],
     items: [
-      { to: '/cx/chamados', label: 'Chamados', icon: Headset },
+      { to: '/cx/chamados',        label: 'Chamados',          icon: Headset    },
+      { to: '/metricas/cx',        label: 'Dashboard Pessoal', icon: TrendingUp },
+      { to: '/metricas/cx/equipe', label: 'Dashboard Equipe',  icon: Users      },
     ],
   },
   {
@@ -58,6 +54,44 @@ export const NAV_SECTIONS = [
     roles: ['PRODUTOS', 'DESENVOLVEDOR'],
     items: [
       { to: '/produtos/chamados', label: 'Chamados (Produtos)', icon: PackageSearch },
+    ],
+  },
+  {
+    label: 'KAM',
+    roles: ['KAM', 'DESENVOLVEDOR'],
+    items: [
+      { to: '/metricas/pessoal',    label: 'Dashboard Pessoal', icon: TrendingUp },
+      { to: '/metricas/kam/equipe', label: 'Dashboard Equipe',  icon: Users },
+      { to: '/clientes',            label: 'Meus Clientes',     icon: Building2 },
+      { to: '/carteira/risco',      label: 'Radar de Risco',    icon: AlertTriangle },
+      { to: '/carteira/cross-sell', label: 'Cross-sell',        icon: Sparkles },
+    ],
+  },
+  {
+    label: 'Inside Sales',
+    roles: ['INSIGHT_SALES', 'DESENVOLVEDOR'],
+    items: [
+      { to: '/metricas/pessoal',   label: 'Dashboard Pessoal', icon: TrendingUp },
+      { to: '/metricas/is/equipe', label: 'Dashboard Equipe',  icon: Users },
+      { to: '/clientes',           label: 'Meus Clientes',     icon: Building2 },
+      { to: '/carteira/risco',      label: 'Radar de Risco',    icon: AlertTriangle },
+      { to: '/carteira/cross-sell', label: 'Cross-sell',        icon: Sparkles },
+    ],
+  },
+  {
+    label: 'Vendas',
+    roles: ['VENDAS'],
+    items: [
+      { to: '/metricas/pessoal', label: 'Dashboard Pessoal', icon: TrendingUp },
+    ],
+  },
+  {
+    label: 'Pré-Vendas',
+    roles: ['PRE_VENDAS', 'DIRETORIA', 'DESENVOLVEDOR'],
+    items: [
+      { to: '/metricas/prevendas',        label: 'Dashboard Pessoal', icon: TrendingUp },
+      { to: '/metricas/prevendas/equipe', label: 'Dashboard Equipe',  icon: Users },
+      { to: '/prevendas/lancamento',      label: 'Lançamento',        icon: PhoneCall },
     ],
   },
 ]

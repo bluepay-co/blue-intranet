@@ -8,6 +8,8 @@ import {
   CardFooter,
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import ThemeToggle from '@/components/ThemeToggle'
+import { CalendarDays, ShieldCheck, Sparkles } from 'lucide-react'
 import { useAuth } from '@/auth/auth-context'
 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
@@ -52,35 +54,64 @@ export default function Login() {
   return (
     <div className="grid min-h-svh bg-background text-foreground lg:grid-cols-2">
       {/* Painel da marca (esquerda) — oculto no mobile */}
-      <aside className="relative hidden flex-col justify-between overflow-hidden bg-brand p-10 text-brand-foreground lg:flex">
+      <aside className="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-brand via-brand to-[#0d1216] p-10 text-brand-foreground lg:flex">
         {/* Brilho decorativo na cor secundária */}
         <div className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full bg-brand-accent/25 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-32 -left-20 h-80 w-80 rounded-full bg-brand-accent/10 blur-3xl" />
+        {/* Grade sutil de fundo */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.04]"
+          style={{
+            backgroundImage:
+              'linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)',
+            backgroundSize: '48px 48px',
+          }}
+        />
 
-        <img src="/logo-branca.svg" alt="Blue Pay Solutions" className="relative h-9 w-auto" />
+        <img src="/logo.png" alt="Bluepay Solutions" className="relative h-11 w-40" />
 
-        <div className="relative space-y-3">
-          <h2 className="text-3xl font-semibold leading-tight">Intranet corporativa</h2>
-          <p className="max-w-sm text-brand-foreground/70">
-            Acesse ferramentas, agenda e recursos internos da Blue Pay Solutions
-            em um só lugar.
-          </p>
+        <div className="relative space-y-6">
+          <div className="space-y-3">
+            <h2 className="text-3xl font-semibold leading-tight">Intranet corporativa</h2>
+            <p className="max-w-sm text-brand-foreground/70">
+              Acesse ferramentas, agenda e recursos internos da Bluepay Solutions
+              em um só lugar.
+            </p>
+          </div>
+
+          <ul className="space-y-3 text-sm text-brand-foreground/80">
+            {[
+              { Icon: Sparkles, texto: 'Métricas e dashboards em tempo real' },
+              { Icon: CalendarDays, texto: 'Agenda, tarefas e chamados integrados' },
+              { Icon: ShieldCheck, texto: 'Acesso seguro via Google Workspace' },
+            ].map(({ Icon, texto }) => (
+              <li key={texto} className="flex items-center gap-3">
+                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-brand-accent/15 text-brand-accent">
+                  <Icon className="size-4" />
+                </span>
+                {texto}
+              </li>
+            ))}
+          </ul>
         </div>
 
         <p className="relative text-xs text-brand-foreground/50">
-          © {new Date().getFullYear()} Blue Pay Solutions
+          © {new Date().getFullYear()} Bluepay Solutions
         </p>
       </aside>
 
       {/* Painel do formulário (direita) */}
-      <main className="flex items-center justify-center p-6">
-        <Card className="w-full max-w-sm border-border/60 shadow-sm">
+      <main className="relative flex items-center justify-center p-6">
+        {/* Alternância de tema */}
+        <ThemeToggle className="absolute top-4 right-4" />
+
+        <Card className="w-full max-w-sm border-border/60 shadow-lg">
           <CardHeader className="text-center">
             {/* No mobile o painel da marca some, então mostramos o logo aqui */}
             <img
-              src="/logo-azul.svg"
-              alt="Blue Pay Solutions"
-              className="mx-auto mb-2 h-8 w-auto lg:hidden"
+              src="/logo.png"
+              alt="BluePay Solutions"
+              className="mx-auto mb-2 h-9 w-auto lg:hidden"
             />
             <CardTitle className="text-2xl">Bem-vindo</CardTitle>
             <CardDescription>
@@ -90,15 +121,25 @@ export default function Login() {
 
           {erro && (
             <CardContent>
-              <p className="text-sm text-destructive">{erro}</p>
+              <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {erro}
+              </p>
             </CardContent>
           )}
 
-          <CardFooter>
-            <Button className="w-full" onClick={handleGoogle} disabled={carregando}>
+          <CardFooter className="flex-col gap-4">
+            <Button
+              className="w-full"
+              size="lg"
+              onClick={handleGoogle}
+              disabled={carregando}
+            >
               <GoogleIcon />
               {carregando ? 'Entrando…' : 'Entrar com o Google Workspace'}
             </Button>
+            <p className="text-center text-xs text-muted-foreground">
+              Ao continuar, você concorda com as políticas internas da Blue Pay Solutions.
+            </p>
           </CardFooter>
         </Card>
       </main>

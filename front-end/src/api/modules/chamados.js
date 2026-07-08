@@ -54,27 +54,29 @@ export function urlAnexo(anexoPath) {
   return `${API_BASE}${anexoPath}`
 }
 
-/** Lista os chamados do próprio usuário logado. */
+// ── Fluxo Infra/T.I. — proxied para o BluePay Backoffice (API externa) ──────────
+
+/** Lista os chamados de infra do próprio usuário logado. */
 export async function listarMeus() {
-  const { data } = await api.get('/api/chamados')
+  const { data } = await api.get('/api/backoffice/chamados')
   return data.chamados
 }
 
-/** Lista TODOS os chamados (T.I.), com filtros opcionais. */
+/** Lista TODOS os chamados de infra (T.I.), com filtros opcionais. */
 export async function listarTodos(filtros = {}) {
-  const { data } = await api.get('/api/chamados/admin/todos', { params: filtros })
+  const { data } = await api.get('/api/backoffice/chamados/admin/todos', { params: filtros })
   return data.chamados
 }
 
-/** Busca a ficha completa de um chamado (inclui o chat). */
+/** Busca a ficha completa de um chamado de infra (inclui o chat). */
 export async function buscarChamado(id) {
-  const { data } = await api.get(`/api/chamados/${id}`)
+  const { data } = await api.get(`/api/backoffice/chamados/${id}`)
   return data.chamado
 }
 
 /**
- * Abre um chamado (multipart, anexo opcional).
- * @param {{ titulo: string, descricao: string, categoria: string, criticidade: string, anexo?: File }} payload
+ * Abre um chamado de infra no backoffice (multipart, anexo opcional).
+ * @param {{ titulo, descricao, categoria, criticidade, patrimonio?, anexo?: File }} payload
  */
 export async function criarChamado(payload) {
   const form = new FormData()
@@ -82,44 +84,44 @@ export async function criarChamado(payload) {
   form.append('descricao', payload.descricao)
   form.append('categoria', payload.categoria)
   form.append('criticidade', payload.criticidade)
+  if (payload.patrimonio) form.append('patrimonio', payload.patrimonio)
   if (payload.anexo) form.append('anexo', payload.anexo)
-  if (payload.identificadorUrl) form.append('identificadorUrl', payload.identificadorUrl)
-  const { data } = await api.post('/api/chamados', form, {
+  const { data } = await api.post('/api/backoffice/chamados', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
   return data.chamado
 }
 
-/** Edita título/descrição (só o dono e enquanto o status for "Em Aberto"). */
+/** Edita título/descrição do chamado de infra (só o dono). */
 export async function editarChamado(id, payload) {
-  const { data } = await api.put(`/api/chamados/${id}`, {
+  const { data } = await api.put(`/api/backoffice/chamados/${id}`, {
     titulo: payload.titulo,
     descricao: payload.descricao,
   })
   return data.chamado
 }
 
-/** Altera o status do chamado (T.I.). */
+/** Altera o status do chamado de infra (T.I.). */
 export async function alterarStatus(id, status) {
-  const { data } = await api.patch(`/api/chamados/${id}/status`, { status })
+  const { data } = await api.patch(`/api/backoffice/chamados/${id}/status`, { status })
   return data.chamado
 }
 
-/** Envia uma mensagem ao chat do chamado (será cifrada no backend). */
+/** Envia um comentário ao chamado de infra. */
 export async function adicionarComentario(id, conteudo) {
-  const { data } = await api.post(`/api/chamados/${id}/comentarios`, { conteudo })
+  const { data } = await api.post(`/api/backoffice/chamados/${id}/comentarios`, { conteudo })
   return data.comentario
 }
 
-/** Resumo leve dos chamados relevantes (para o polling de notificações). */
+/** Resumo leve dos chamados de infra (polling de notificações). */
 export async function resumo() {
-  const { data } = await api.get('/api/chamados/resumo')
+  const { data } = await api.get('/api/backoffice/chamados/resumo')
   return data.chamados
 }
 
-/** Métricas globais do painel da T.I. (KPIs + dados dos gráficos). */
+/** Métricas do painel de infra da T.I. (KPIs + gráficos). */
 export async function dashboard() {
-  const { data } = await api.get('/api/chamados/admin/dashboard')
+  const { data } = await api.get('/api/backoffice/chamados/admin/dashboard')
   return data
 }
 
@@ -133,4 +135,45 @@ export async function listarCx(filtros = {}) {
 export async function listarProdutos(filtros = {}) {
   const { data } = await api.get('/api/chamados/produtos/todos', { params: filtros })
   return data.chamados
+}
+
+// ── Fluxo CX/Produtos — permanece no banco da intranet (não migrou) ─────────────
+
+/** Abre um chamado do CX (banco da intranet). */
+export async function criarChamadoCx(payload) {
+  const form = new FormData()
+  form.append('titulo', payload.titulo)
+  form.append('descricao', payload.descricao)
+  form.append('categoria', payload.categoria)
+  form.append('criticidade', payload.criticidade)
+  if (payload.anexo) form.append('anexo', payload.anexo)
+  if (payload.identificadorUrl) form.append('identificadorUrl', payload.identificadorUrl)
+  const { data } = await api.post('/api/chamados', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data.chamado
+}
+
+/** Edita título/descrição de um chamado do CX (banco). */
+export async function editarChamadoCx(id, payload) {
+  const { data } = await api.put(`/api/chamados/${id}`, { titulo: payload.titulo, descricao: payload.descricao })
+  return data.chamado
+}
+
+/** Busca a ficha de um chamado do CX (banco). */
+export async function buscarChamadoCx(id) {
+  const { data } = await api.get(`/api/chamados/${id}`)
+  return data.chamado
+}
+
+/** Comentário num chamado do CX (banco, cifrado). */
+export async function adicionarComentarioCx(id, conteudo) {
+  const { data } = await api.post(`/api/chamados/${id}/comentarios`, { conteudo })
+  return data.comentario
+}
+
+/** Altera status de um chamado do CX (banco, T.I.). */
+export async function alterarStatusCx(id, status) {
+  const { data } = await api.patch(`/api/chamados/${id}/status`, { status })
+  return data.chamado
 }
