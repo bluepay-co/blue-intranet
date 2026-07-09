@@ -35,6 +35,15 @@ export async function getMeuResumo(mes, ano) {
   return data
 }
 
+/** Reuniões lançadas pela SDR logada no mês (detalhe estilo planilha). */
+export async function getMinhasReunioes(mes, ano) {
+  const params = {}
+  if (mes) params.mes = mes
+  if (ano) params.ano = ano
+  const { data } = await api.get('/api/prevendas/reunioes', { params })
+  return data
+}
+
 /** Consolidado da equipe de Pré-Vendas no mês (visão de gestão). */
 export async function getEquipe(mes, ano) {
   const params = {}

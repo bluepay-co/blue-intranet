@@ -28,16 +28,27 @@ export interface ResumoSdr {
   nome: string;
   mes: number;
   ano: number;
-  agendadas: number;
-  realizadas: number;
-  qualificadas: number;
+  agendadas: number;      // total de reuniões lançadas (funil completo)
+  realizadas: number;     // REALIZADA + QUALIFICADA (contam para a meta)
+  qualificadas: number;   // apenas QUALIFICADA
   ligacoes: number;
   meta: number;
   pctMeta: number;        // realizadas / meta * 100
   multiplicador: number;  // fator de bônus (ex.: 1.1)
   faixaMulti: string;     // rótulo da faixa (ex.: '100-109,99%')
   faltaParaBater: number; // reuniões faltando para atingir a meta (>= 0)
-  taxaConversao: number;  // qualificadas / agendadas * 100
+  taxaConversao: number;  // qualificadas / realizadas * 100
+}
+
+export interface ReuniaoItem {
+  id: number;
+  empresa: string;
+  vendedorNome: string | null;
+  segmento: string | null;
+  mes: number;
+  semana: number;
+  status: string;
+  qualificada: boolean;
 }
 
 export interface ResumoEquipe {
@@ -123,18 +134,24 @@ export async function resumoDaSdr(sdrId: number, nome: string, mes: number, ano:
     ),
   ]);
 
-  let agendadas = 0, realizadas = 0, qualificadas = 0;
+  // Funil cumulativo: qualificada ⊂ realizada ⊂ agendada.
+  // - agendadas = total de reuniões lançadas (toda reunião foi agendada);
+  // - realizadas = REALIZADA + QUALIFICADA (as qualificadas também aconteceram)
+  //   e são o que conta para a meta;
+  // - qualificadas = apenas as QUALIFICADA.
+  let statusRealizada = 0, qualificadas = 0, agendadas = 0;
   for (const r of contagens.rows) {
-    if (r.status === 'AGENDADA') agendadas = r.n;
-    else if (r.status === 'REALIZADA') realizadas = r.n;
+    agendadas += r.n;
+    if (r.status === 'REALIZADA') statusRealizada = r.n;
     else if (r.status === 'QUALIFICADA') qualificadas = r.n;
   }
+  const realizadas = statusRealizada + qualificadas;
 
   const meta = getMetaSdr(nome, mes, ano);
   const pctMeta = meta > 0 ? (realizadas / meta) * 100 : 0;
   const faixa = getMultiplicador(pctMeta);
   const faltaParaBater = Math.max(meta - realizadas, 0);
-  const taxaConversao = agendadas > 0 ? (qualificadas / agendadas) * 100 : 0;
+  const taxaConversao = realizadas > 0 ? (qualificadas / realizadas) * 100 : 0;
 
   return {
     sdrId,
@@ -152,6 +169,30 @@ export async function resumoDaSdr(sdrId: number, nome: string, mes: number, ano:
     faltaParaBater,
     taxaConversao,
   };
+}
+
+/** Lista as reuniões lançadas por uma SDR num mês (detalhe estilo planilha). */
+export async function listarReunioes(sdrId: number, mes: number, ano: number): Promise<ReuniaoItem[]> {
+  const { rows } = await pool.query<{
+    id: number; empresa: string; vendedor_nome: string | null;
+    segmento: string | null; mes: number; semana: number; status: string;
+  }>(
+    `SELECT id, empresa, vendedor_nome, segmento, mes, semana, status
+       FROM pv_reuniao
+      WHERE sdr_id = $1 AND ano = $2 AND mes = $3
+      ORDER BY semana, empresa`,
+    [sdrId, ano, mes],
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    empresa: r.empresa,
+    vendedorNome: r.vendedor_nome,
+    segmento: r.segmento,
+    mes: r.mes,
+    semana: r.semana,
+    status: r.status,
+    qualificada: r.status === 'QUALIFICADA',
+  }));
 }
 
 /** Consolidado da equipe de Pré-Vendas: por SDR + distribuições por vendedor/segmento. */
