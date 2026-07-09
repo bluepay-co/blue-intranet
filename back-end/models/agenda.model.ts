@@ -21,6 +21,14 @@ export interface EventoAgenda {
   status: string | null;
   /** Tipo do evento (espelha o eventType do Google). */
   tipo: TipoEvento;
+  /** Id da agenda de origem no Google (ex.: sala@resource.calendar.google.com). */
+  calendarioId: string;
+  /** Nome exibível da agenda de origem (summaryOverride ?? summary). */
+  calendario: string;
+  /** Cor (hex) da agenda de origem, vinda do calendarList. */
+  cor: string | null;
+  /** true apenas para a agenda principal — só ela é editável pela Intranet. */
+  agendaPrincipal: boolean;
 }
 
 /** Tipos de evento suportados (menu "Criar" do Google Agenda). */

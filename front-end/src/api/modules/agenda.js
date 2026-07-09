@@ -18,6 +18,10 @@ import api from '@/api/api'
  * @property {string|null} linkReuniao  Link do Google Meet, quando houver
  * @property {string|null} organizador
  * @property {string|null} status
+ * @property {string} calendarioId     Id da agenda de origem no Google
+ * @property {string} calendario       Nome exibível da agenda de origem (sala/compartilhada)
+ * @property {string|null} cor         Cor (hex) da agenda de origem
+ * @property {boolean} agendaPrincipal true só na agenda principal (única editável)
  */
 
 /**

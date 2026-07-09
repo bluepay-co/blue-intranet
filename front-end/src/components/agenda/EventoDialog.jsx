@@ -1,4 +1,4 @@
-import { Clock, MapPin, User, Users, Video, ExternalLink, AlignLeft, Pencil, Trash2 } from 'lucide-react'
+import { Clock, MapPin, User, Users, Video, ExternalLink, AlignLeft, Pencil, Trash2, CalendarDays } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -74,7 +74,10 @@ export default function EventoDialog({ evento, aberto, onOpenChange, onEditar, o
           <>
             <DialogHeader>
               <div className="flex items-center gap-2">
-                <span className="size-2.5 shrink-0 rounded-full bg-brand-accent" />
+                <span
+                  className="size-2.5 shrink-0 rounded-full bg-brand-accent"
+                  style={evento.cor ? { backgroundColor: evento.cor } : undefined}
+                />
                 {status && (
                   <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.cor}`}>
                     {status.texto}
@@ -88,6 +91,15 @@ export default function EventoDialog({ evento, aberto, onOpenChange, onEditar, o
               <Linha icon={Clock}>
                 <p className="font-medium text-foreground">{intervaloTexto(evento)}</p>
               </Linha>
+
+              {!evento.agendaPrincipal && evento.calendario && (
+                <Linha icon={CalendarDays}>
+                  <p>
+                    <span className="text-muted-foreground">Agenda: </span>
+                    {evento.calendario}
+                  </p>
+                </Linha>
+              )}
 
               {evento.local && (
                 <Linha icon={MapPin}>
@@ -152,7 +164,7 @@ export default function EventoDialog({ evento, aberto, onOpenChange, onEditar, o
                 )}
               </div>
 
-              {evento.tipo !== 'aniversario' && (
+              {evento.tipo !== 'aniversario' && evento.agendaPrincipal && (
                 <div className="flex gap-2">
                   {onEditar && (
                     <Button variant="outline" size="sm" onClick={() => onEditar(evento)}>

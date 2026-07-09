@@ -1,4 +1,4 @@
-import { Calendar, MapPin, User, Users, Video } from 'lucide-react'
+import { Calendar, CalendarDays, MapPin, User, Users, Video } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { horario } from '@/lib/datas'
@@ -37,8 +37,11 @@ function CardEvento({ evento, onSelecionar }) {
         )}
       </div>
 
-      {/* Trilho */}
-      <span className="h-12 w-1 shrink-0 rounded-full bg-brand-accent/60 transition-colors group-hover:bg-brand-accent" />
+      {/* Trilho (cor da agenda de origem) */}
+      <span
+        className="h-12 w-1 shrink-0 rounded-full bg-brand-accent/60 transition-colors group-hover:bg-brand-accent"
+        style={evento.cor ? { backgroundColor: evento.cor } : undefined}
+      />
 
       {/* Detalhes */}
       <div className="min-w-0 flex-1 space-y-1.5">
@@ -60,6 +63,12 @@ function CardEvento({ evento, onSelecionar }) {
             <span className="flex items-center gap-1.5">
               <Users className="size-3.5 shrink-0" />
               {evento.participantes.length}
+            </span>
+          )}
+          {!evento.agendaPrincipal && evento.calendario && (
+            <span className="flex min-w-0 items-center gap-1.5">
+              <CalendarDays className="size-3.5 shrink-0" />
+              <span className="truncate">{evento.calendario}</span>
             </span>
           )}
         </div>
