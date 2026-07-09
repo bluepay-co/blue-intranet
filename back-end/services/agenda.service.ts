@@ -56,6 +56,9 @@ function mapearEvento(ev: calendar_v3.Schema$Event, cal: CalMeta = CAL_PRIMARIA)
     .map((a) => a.displayName ?? a.email ?? '')
     .filter((nome): nome is string => nome.length > 0);
 
+  // Sala reservada = primeiro attendee marcado como recurso.
+  const salaAttendee = (ev.attendees ?? []).find((a) => a.resource);
+
   return {
     id: ev.id ?? '',
     titulo: ev.summary?.trim() || '(Sem título)',
@@ -74,6 +77,8 @@ function mapearEvento(ev: calendar_v3.Schema$Event, cal: CalMeta = CAL_PRIMARIA)
     calendario: cal.nome,
     cor: cal.cor,
     agendaPrincipal: cal.principal,
+    salaId: salaAttendee?.email ?? null,
+    salaNome: salaAttendee?.displayName ?? salaAttendee?.email ?? null,
   };
 }
 
@@ -93,6 +98,23 @@ async function listarCalendarios(
       cor: c.backgroundColor ?? null,
       principal: c.primary === true,
     }));
+}
+
+/**
+ * Lista as salas de reunião que o usuário enxerga (recursos do Workspace, com id no
+ * formato `...@resource.calendar.google.com`), para reserva ao criar eventos.
+ */
+export async function listarSalas(usuarioId: number): Promise<CalMeta[]> {
+  const auth = await criarClienteAutenticado(usuarioId);
+  const calendar = google.calendar({ version: 'v3', auth });
+  try {
+    const cals = await listarCalendarios(calendar);
+    return cals
+      .filter((c) => c.id.endsWith('@resource.calendar.google.com'))
+      .sort((a, b) => a.nome.localeCompare(b.nome));
+  } catch (err) {
+    lancarErroGoogle(err, 'agenda');
+  }
 }
 
 /**
@@ -280,13 +302,21 @@ function montarRecurso(entrada: EntradaEvento): calendar_v3.Schema$Event {
     recurso.end = end;
   }
 
-  switch (entrada.tipo) {
+  // Reservar uma sala exige um evento normal com a sala como recurso; um "Local de
+  // trabalho" com sala escolhida vira, portanto, um evento (workingLocation não reserva sala).
+  const tipoEfetivo = entrada.salaId && entrada.tipo === 'local' ? 'evento' : entrada.tipo;
+
+  switch (tipoEfetivo) {
     case 'evento': {
       if (entrada.local != null) recurso.location = entrada.local;
       if (entrada.descricao != null) recurso.description = entrada.descricao;
-      if (entrada.participantes?.length) {
-        recurso.attendees = entrada.participantes.map((email) => ({ email }));
+      const attendees: calendar_v3.Schema$EventAttendee[] = (entrada.participantes ?? []).map(
+        (email) => ({ email }),
+      );
+      if (entrada.salaId) {
+        attendees.push({ email: entrada.salaId, resource: true });
       }
+      if (attendees.length) recurso.attendees = attendees;
       if (entrada.comMeet) {
         recurso.conferenceData = {
           createRequest: {

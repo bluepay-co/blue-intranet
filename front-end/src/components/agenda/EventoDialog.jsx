@@ -1,4 +1,4 @@
-import { Clock, MapPin, User, Users, Video, ExternalLink, AlignLeft, Pencil, Trash2, CalendarDays } from 'lucide-react'
+import { Clock, MapPin, DoorOpen, User, Users, Video, ExternalLink, AlignLeft, Pencil, Trash2, CalendarDays } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -97,6 +97,15 @@ export default function EventoDialog({ evento, aberto, onOpenChange, onEditar, o
                   <p>
                     <span className="text-muted-foreground">Agenda: </span>
                     {evento.calendario}
+                  </p>
+                </Linha>
+              )}
+
+              {evento.salaNome && (
+                <Linha icon={DoorOpen}>
+                  <p>
+                    <span className="text-muted-foreground">Sala: </span>
+                    {evento.salaNome}
                   </p>
                 </Linha>
               )}

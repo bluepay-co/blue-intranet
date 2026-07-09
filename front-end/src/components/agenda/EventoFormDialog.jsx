@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Loader2, X } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -10,8 +10,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { chaveDia } from '@/lib/datas'
-import { criarEvento, atualizarEvento } from '@/api/modules/agenda'
+import { criarEvento, atualizarEvento, listarSalas } from '@/api/modules/agenda'
 import { criarTarefa } from '@/api/modules/tarefas'
+import { buscarUsuarios } from '@/api/modules/chat'
 
 const ROTULO = {
   evento: 'evento',
@@ -51,12 +52,13 @@ function valoresIniciais(evento, referencia) {
     fimLocal: localPadrao(ref, 10),
     local: '',
     descricao: '',
-    participantes: '',
+    convidados: [],
     comMeet: false,
     recusarConflitos: false,
     mensagemRecusa: '',
     tipoLocal: 'casa',
     rotuloLocal: '',
+    salaId: '',
   }
   if (!evento) return base
 
@@ -66,8 +68,9 @@ function valoresIniciais(evento, referencia) {
     diaInteiro: evento.diaInteiro,
     local: evento.local ?? '',
     descricao: evento.descricao ?? '',
-    participantes: (evento.participantes ?? []).join(', '),
+    convidados: (evento.participantes ?? []).filter(ehEmail).map((e) => e.toLowerCase()),
     comMeet: Boolean(evento.linkReuniao),
+    salaId: evento.salaId ?? '',
   }
   if (evento.inicio) {
     if (evento.diaInteiro) {
@@ -91,10 +94,137 @@ function Campo({ label, children }) {
   )
 }
 
+/** Validação simples de e-mail. */
+function ehEmail(v) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
+}
+
+/**
+ * Campo de convidados com autocomplete dos usuários do sistema.
+ * `valor` é um array de e-mails; `onChange` recebe o novo array.
+ */
+function SeletorConvidados({ valor, onChange }) {
+  const [busca, setBusca] = useState('')
+  const [sugestoes, setSugestoes] = useState([])
+  const [aberto, setAberto] = useState(false)
+  const blurTimer = useRef(null)
+
+  // Busca usuários (debounce) enquanto digita.
+  useEffect(() => {
+    const q = busca.trim()
+    let ativo = true
+    const t = setTimeout(() => {
+      if (q.length < 2) {
+        setSugestoes([])
+        return
+      }
+      buscarUsuarios(q)
+        .then((lista) => ativo && setSugestoes(lista))
+        .catch(() => ativo && setSugestoes([]))
+    }, 250)
+    return () => {
+      ativo = false
+      clearTimeout(t)
+    }
+  }, [busca])
+
+  const adicionar = (email) => {
+    const e = email.trim().toLowerCase()
+    if (!e || valor.includes(e)) return
+    onChange([...valor, e])
+    setBusca('')
+    setSugestoes([])
+  }
+
+  const remover = (email) => onChange(valor.filter((e) => e !== email))
+
+  const aoTeclar = (ev) => {
+    if ((ev.key === 'Enter' || ev.key === ',') && busca.trim()) {
+      ev.preventDefault()
+      if (ehEmail(busca.trim())) adicionar(busca)
+    } else if (ev.key === 'Backspace' && !busca && valor.length) {
+      remover(valor[valor.length - 1])
+    }
+  }
+
+  // Só sugere quem ainda não foi adicionado.
+  const sugestoesFiltradas = sugestoes.filter((u) => !valor.includes(u.email?.toLowerCase()))
+
+  return (
+    <div className="relative">
+      {valor.length > 0 && (
+        <div className="mb-1.5 flex flex-wrap gap-1.5">
+          {valor.map((email) => (
+            <span
+              key={email}
+              className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs"
+            >
+              {email}
+              <button
+                type="button"
+                onClick={() => remover(email)}
+                aria-label={`Remover ${email}`}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <Input
+        value={busca}
+        onChange={(e) => setBusca(e.target.value)}
+        onKeyDown={aoTeclar}
+        onFocus={() => setAberto(true)}
+        onBlur={() => {
+          blurTimer.current = setTimeout(() => setAberto(false), 150)
+        }}
+        placeholder="Buscar por nome ou e-mail…"
+      />
+      {aberto && sugestoesFiltradas.length > 0 && (
+        <ul className="absolute z-50 mt-1 max-h-52 w-full overflow-auto rounded-lg border bg-popover p-1 shadow-md">
+          {sugestoesFiltradas.map((u) => (
+            <li key={u.id}>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  clearTimeout(blurTimer.current)
+                  adicionar(u.email)
+                }}
+                className="flex w-full flex-col items-start rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+              >
+                <span className="font-medium">{u.nome}</span>
+                <span className="text-xs text-muted-foreground">{u.email}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 function FormularioEvento({ tipo, evento, referencia, onCancelar, onSalvo }) {
   const [form, setForm] = useState(() => valoresIniciais(evento, referencia))
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
+  const [salas, setSalas] = useState([])
+
+  const permiteSala = tipo === 'evento' || tipo === 'local'
+
+  // Carrega as salas de reunião disponíveis (só quando o tipo permite reservar sala).
+  useEffect(() => {
+    if (!permiteSala) return
+    let ativo = true
+    listarSalas()
+      .then((lista) => ativo && setSalas(lista))
+      .catch(() => ativo && setSalas([]))
+    return () => {
+      ativo = false
+    }
+  }, [permiteSala])
 
   const editar = Boolean(evento)
   const set = (campo) => (e) =>
@@ -104,6 +234,25 @@ function FormularioEvento({ tipo, evento, referencia, onCancelar, onSalvo }) {
     }))
 
   const ehDiaInteiro = tipo === 'local' || (tipo === 'evento' && form.diaInteiro)
+
+  // Campo de seleção de sala (reutilizado em Evento e Local de trabalho).
+  const campoSala = permiteSala && salas.length > 0 && (
+    <Campo label="Sala (opcional)">
+      <select value={form.salaId} onChange={set('salaId')} className={inputCls}>
+        <option value="">Nenhuma</option>
+        {salas.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.nome}
+          </option>
+        ))}
+      </select>
+      {tipo === 'local' && form.salaId && (
+        <span className="text-xs font-normal text-muted-foreground">
+          Ao escolher uma sala, será criado um evento reservando-a (visível para todos).
+        </span>
+      )}
+    </Campo>
+  )
 
   function montarPayload() {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -122,10 +271,7 @@ function FormularioEvento({ tipo, evento, referencia, onCancelar, onSalvo }) {
     if (tipo === 'evento') {
       payload.local = form.local || null
       payload.descricao = form.descricao || null
-      payload.participantes = form.participantes
-        .split(/[,\n;]/)
-        .map((s) => s.trim())
-        .filter(Boolean)
+      payload.participantes = form.convidados
       payload.comMeet = form.comMeet
     }
     if (tipo === 'ausente' || tipo === 'foco') {
@@ -135,6 +281,9 @@ function FormularioEvento({ tipo, evento, referencia, onCancelar, onSalvo }) {
     if (tipo === 'local') {
       payload.tipoLocal = form.tipoLocal
       payload.rotuloLocal = form.rotuloLocal || null
+    }
+    if (permiteSala) {
+      payload.salaId = form.salaId || null
     }
     return payload
   }
@@ -237,11 +386,11 @@ function FormularioEvento({ tipo, evento, referencia, onCancelar, onSalvo }) {
           <Campo label="Local">
             <Input value={form.local} onChange={set('local')} placeholder="Adicionar local" />
           </Campo>
-          <Campo label="Convidados (e-mails separados por vírgula)">
-            <Input
-              value={form.participantes}
-              onChange={set('participantes')}
-              placeholder="fulano@empresa.com, ciclano@empresa.com"
+          {campoSala}
+          <Campo label="Convidados">
+            <SeletorConvidados
+              valor={form.convidados}
+              onChange={(lista) => setForm((f) => ({ ...f, convidados: lista }))}
             />
           </Campo>
           <label className="flex items-center gap-2 text-sm">
@@ -293,6 +442,7 @@ function FormularioEvento({ tipo, evento, referencia, onCancelar, onSalvo }) {
               />
             </Campo>
           )}
+          {campoSala}
         </>
       )}
 

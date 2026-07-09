@@ -22,6 +22,8 @@ import api from '@/api/api'
  * @property {string} calendario       Nome exibível da agenda de origem (sala/compartilhada)
  * @property {string|null} cor         Cor (hex) da agenda de origem
  * @property {boolean} agendaPrincipal true só na agenda principal (única editável)
+ * @property {string|null} salaId      Id (e-mail de recurso) da sala reservada, se houver
+ * @property {string|null} salaNome    Nome exibível da sala reservada, se houver
  */
 
 /**
@@ -33,6 +35,15 @@ import api from '@/api/api'
 export async function listarEventos({ inicio, fim }) {
   const { data } = await api.get('/api/agenda/eventos', { params: { inicio, fim } })
   return data.eventos
+}
+
+/**
+ * Lista as salas de reunião (recursos) que o usuário pode reservar ao criar eventos.
+ * @returns {Promise<{ id: string, nome: string, cor: string|null }[]>}
+ */
+export async function listarSalas() {
+  const { data } = await api.get('/api/agenda/salas')
+  return data.salas
 }
 
 /**

@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import {
   listarEventos,
+  listarSalas,
   criarEvento,
   atualizarEvento,
   removerEvento,
@@ -49,6 +50,26 @@ export async function getEventos(req: Request, res: Response) {
     }
     console.error('[agenda.controller] erro inesperado:', err);
     return res.status(500).json({ message: 'Erro interno ao carregar a agenda.' });
+  }
+}
+
+/**
+ * GET /api/agenda/salas  (protegida por authMiddleware)
+ * Lista as salas de reunião (recursos) que o usuário pode reservar.
+ */
+export async function getSalas(req: Request, res: Response) {
+  try {
+    if (!req.usuario) {
+      return res.status(401).json({ message: 'Usuário não autenticado.' });
+    }
+    const salas = await listarSalas(req.usuario.id);
+    return res.status(200).json({ salas });
+  } catch (err) {
+    if (err instanceof AppError) {
+      return res.status(err.statusCode).json({ message: err.message });
+    }
+    console.error('[agenda.controller] erro ao listar salas:', err);
+    return res.status(500).json({ message: 'Erro ao carregar as salas.' });
   }
 }
 
