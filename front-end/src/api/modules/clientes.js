@@ -18,3 +18,9 @@ export async function buscarCliente(id) {
   const { data } = await api.get(`/api/clientes/${id}`)
   return data // { cliente, metricas }
 }
+
+/** Prospecção por CNPJ: verifica se já é cliente; se não, puxa dados públicos. */
+export async function prospectarCnpj(cnpj) {
+  const { data } = await api.get('/api/clientes/prospeccao', { params: { cnpj } })
+  return data // { status, ... }
+}

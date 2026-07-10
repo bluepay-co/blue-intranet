@@ -23,7 +23,9 @@ import DashboardCXEquipe from '@/pages/metricas/DashboardCXEquipe'
 import DashboardPreVendas from '@/pages/metricas/DashboardPreVendas'
 import DashboardPreVendasEquipe from '@/pages/metricas/DashboardPreVendasEquipe'
 import LancamentoPreVendas from '@/pages/prevendas/LancamentoPreVendas'
+import ClientesLayout from '@/pages/clientes/ClientesLayout'
 import MeusClientes from '@/pages/clientes/MeusClientes'
+import Prospeccao from '@/pages/clientes/Prospeccao'
 import ClienteDetalhe from '@/pages/clientes/ClienteDetalhe'
 import RadarRisco from '@/pages/carteira/RadarRisco'
 import CrossSell from '@/pages/carteira/CrossSell'
@@ -183,10 +185,13 @@ function App() {
           path="clientes"
           element={
             <ProtectedRoute roles={['KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
-              <MeusClientes />
+              <ClientesLayout />
             </ProtectedRoute>
           }
-        />
+        >
+          <Route index element={<MeusClientes />} />
+          <Route path="prospeccao" element={<Prospeccao />} />
+        </Route>
         <Route
           path="clientes/:id"
           element={

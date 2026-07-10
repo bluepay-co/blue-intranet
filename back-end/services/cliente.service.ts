@@ -1,6 +1,14 @@
 import { consultaPool } from '../database/consulta-pool';
 import { FILTROS_BASE, MANAGER_ID_REMAPPED } from './metricas.service';
-import type { ClienteResumo, ClienteDetalhe, ClienteMetricas } from '../models/cliente.model';
+import { normalizarCnpj } from '../utils/cnpj';
+import { consultarReceita } from './prospeccao/receita.client';
+import { mapearSegmento } from './prospeccao/cnae-segmento';
+import type {
+  ClienteResumo,
+  ClienteDetalhe,
+  ClienteMetricas,
+  ProspeccaoResultado,
+} from '../models/cliente.model';
 
 /**
  * Domínio: Clientes de um vendedor (bluepay3_production, somente leitura).
@@ -192,5 +200,59 @@ export async function buscarMetricasCliente(clienteId: number): Promise<ClienteM
         mes: i + 1, atual: mAtual[i] ?? 0, anterior: mAnterior[i] ?? 0,
       })),
     },
+  };
+}
+
+/**
+ * Prospecção por CNPJ. Decide entre três status, sem vazar carteira alheia:
+ * 1. Já é cliente do vendedor logado  → MEU_CLIENTE (id da ficha existente).
+ * 2. É cliente de outro manager        → CLIENTE_DE_OUTRO (só nome comercial).
+ * 3. Não é cliente de ninguém          → DISPONIVEL (dados públicos da Receita).
+ *
+ * Segurança: o escopo vem do `managerId` do vendedor logado (nunca do request).
+ * O CNPJ é normalizado nos dois lados (a coluna `clients.cnpj` pode ter máscara).
+ */
+export async function prospectarCnpj(
+  managerId: number,
+  cnpj: string,
+): Promise<ProspeccaoResultado> {
+  const cnpjLimpo = normalizarCnpj(cnpj);
+
+  // Busca em toda a base de clientes (não escopada), trazendo só o mínimo +
+  // o manager remapeado para decidir a titularidade sem expor dados sensíveis.
+  const { rows } = await consultaPool.query<{
+    id: number;
+    commercial_name: string | null;
+    name: string | null;
+    mgr: number | null;
+  }>(
+    `SELECT c.id::int AS id, c.commercial_name, c.name, ${MANAGER_ID_REMAPPED} AS mgr
+       FROM clients c
+      WHERE regexp_replace(COALESCE(c.cnpj, ''), '\\D', '', 'g') = $1`,
+    [cnpjLimpo],
+  );
+
+  if (rows.length > 0) {
+    const meu = rows.find((r) => r.mgr === managerId);
+    if (meu) {
+      return { status: 'MEU_CLIENTE', clienteId: meu.id };
+    }
+    return { status: 'CLIENTE_DE_OUTRO', nomeComercial: rows[0]!.commercial_name ?? rows[0]!.name };
+  }
+
+  // Disponível para prospecção → dados públicos da Receita.
+  const receita = await consultarReceita(cnpjLimpo);
+  const segmento = mapearSegmento(receita?.cnaePrincipal?.codigo ?? null);
+
+  if (!receita) {
+    return { status: 'DISPONIVEL', cnpj: cnpjLimpo, segmento, receitaIndisponivel: true };
+  }
+
+  return {
+    status: 'DISPONIVEL',
+    cnpj: cnpjLimpo,
+    segmento,
+    receitaIndisponivel: false,
+    ...receita,
   };
 }
