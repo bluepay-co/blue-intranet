@@ -22,25 +22,35 @@ export default function ListaCanais() {
       .catch(() => setColaboradores([]))
   }, [])
 
-  const setores = canais.filter((c) => c.tipo === 'SETOR')
-  const privados = canais.filter((c) => c.tipo === 'PRIVADO')
-  const customizados = canais.filter((c) => c.tipo === 'CUSTOMIZADO')
+  const termo = busca.trim().toLowerCase()
+
+  // Nome exibido de um canal (setor/customizado usam `nome`; DM usa o outro usuário).
+  const nomeCanal = (c) =>
+    (c.tipo === 'PRIVADO' ? c.nome_outro_usuario : c.nome) ?? ''
+
+  const casaTermo = (texto) => !termo || (texto ?? '').toLowerCase().includes(termo)
+
+  const setores = canais.filter((c) => c.tipo === 'SETOR' && casaTermo(nomeCanal(c)))
+  const privados = canais.filter((c) => c.tipo === 'PRIVADO' && casaTermo(nomeCanal(c)))
+  const customizados = canais.filter((c) => c.tipo === 'CUSTOMIZADO' && casaTermo(nomeCanal(c)))
+  const temCustomizados = canais.some((c) => c.tipo === 'CUSTOMIZADO')
+  const buscando = termo.length > 0
 
   // Nomes com quem já existe DM — para não duplicar na seção "Colaboradores".
   const nomesComDM = useMemo(
-    () => new Set(privados.map((c) => c.nome_outro_usuario)),
-    [privados],
+    () => new Set(canais.filter((c) => c.tipo === 'PRIVADO').map((c) => c.nome_outro_usuario)),
+    [canais],
   )
 
   // Filtro client-side (instantâneo, sem depender de mínimo de caracteres).
   const colaboradoresFiltrados = useMemo(() => {
-    const termo = busca.trim().toLowerCase()
+    const t = busca.trim().toLowerCase()
     return colaboradores.filter((u) => {
       if (nomesComDM.has(u.nome)) return false
-      if (!termo) return true
+      if (!t) return true
       return (
-        u.nome.toLowerCase().includes(termo) ||
-        u.email?.toLowerCase().includes(termo)
+        u.nome.toLowerCase().includes(t) ||
+        u.email?.toLowerCase().includes(t)
       )
     })
   }, [colaboradores, busca, nomesComDM])
@@ -85,7 +95,7 @@ export default function ListaCanais() {
           </Button>
         </div>
         {customizados.map((c) => <ItemCanal key={c.id} canal={c} />)}
-        {customizados.length === 0 && (
+        {!temCustomizados && (
           <p className="px-2 text-xs text-muted-foreground">Nenhum canal ainda.</p>
         )}
       </section>
@@ -112,6 +122,17 @@ export default function ListaCanais() {
           ))}
         </section>
       )}
+
+      {/* Nenhum resultado para a busca */}
+      {buscando &&
+        setores.length === 0 &&
+        privados.length === 0 &&
+        customizados.length === 0 &&
+        colaboradoresFiltrados.length === 0 && (
+          <p className="px-2 py-4 text-center text-xs text-muted-foreground">
+            Nenhum resultado para “{busca.trim()}”.
+          </p>
+        )}
 
       <DialogCriarCanal aberto={dialogAberto} onFechar={() => setDialogAberto(false)} />
     </div>
