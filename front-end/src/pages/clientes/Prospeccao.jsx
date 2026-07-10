@@ -40,7 +40,8 @@ export default function Prospeccao() {
     try {
       setResultado(await prospectarCnpj(cnpj))
     } catch (err) {
-      if (err.response?.status === 400) setErro('CNPJ inválido.')
+      if (err.code === 'ECONNABORTED') setErro('A consulta demorou demais. Tente novamente em instantes.')
+      else if (err.response?.status === 400) setErro('CNPJ inválido.')
       else if (err.response?.status === 403) setErro('Seu cargo não tem acesso a esta área.')
       else if (err.response?.status === 404) setErro('Vendedor não encontrado no banco de produção.')
       else setErro('Erro ao consultar o CNPJ. Tente novamente.')

@@ -9,6 +9,12 @@ export function normalizarCnpj(valor: string | null | undefined): string {
   return (valor ?? '').replace(/\D/g, '');
 }
 
+/** Aplica a máscara 00.000.000/0000-00 (para casar com o formato salvo no banco). */
+export function formatarCnpj(valor: string | null | undefined): string {
+  const d = normalizarCnpj(valor).padStart(14, '0').slice(0, 14);
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+}
+
 /** Valida um CNPJ: 14 dígitos + dígitos verificadores (módulo 11). */
 export function cnpjValido(valor: string | null | undefined): boolean {
   const cnpj = normalizarCnpj(valor);

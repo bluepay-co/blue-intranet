@@ -21,6 +21,11 @@ export async function buscarCliente(id) {
 
 /** Prospecção por CNPJ: verifica se já é cliente; se não, puxa dados públicos. */
 export async function prospectarCnpj(cnpj) {
-  const { data } = await api.get('/api/clientes/prospeccao', { params: { cnpj } })
+  // Timeout local (a consulta cruza banco de produção + API externa da Receita).
+  // Garante que a tela nunca fique carregando indefinidamente.
+  const { data } = await api.get('/api/clientes/prospeccao', {
+    params: { cnpj },
+    timeout: 25000,
+  })
   return data // { status, ... }
 }
