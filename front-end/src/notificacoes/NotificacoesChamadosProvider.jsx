@@ -67,7 +67,12 @@ export function NotificacoesChamadosProvider({ children }) {
   // assinatura já notificada (evita repetir a notificação a cada ciclo de polling)
   const notificadosRef = useRef({})
 
+  // Todos os chamados relevantes (a T.I. recebe todos via resumo()).
   const naoVistos = chamados.filter((c) => temNovidade(c, vistos[c.id], userId)).length
+  // Apenas os chamados abertos pelo próprio usuário (badge de "Meus chamados").
+  const naoVistosMeus = chamados.filter(
+    (c) => c.autor_id === userId && temNovidade(c, vistos[c.id], userId),
+  ).length
 
   useEffect(() => {
     let ativo = true
@@ -132,7 +137,7 @@ export function NotificacoesChamadosProvider({ children }) {
   }
 
   return (
-    <NotificacoesChamadosContext.Provider value={{ naoVistos, marcarVisto }}>
+    <NotificacoesChamadosContext.Provider value={{ naoVistos, naoVistosMeus, marcarVisto }}>
       {children}
     </NotificacoesChamadosContext.Provider>
   )
