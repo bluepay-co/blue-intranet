@@ -1,8 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Loader2, RotateCw, RefreshCw, Search, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, RotateCw, RefreshCw, Search, X, Check, CalendarDays } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import PageHeader from '@/components/layout/PageHeader'
 import VisaoDia from '@/components/agenda/VisaoDia'
@@ -45,6 +53,7 @@ export default function Agenda() {
   const [tentativa, setTentativa] = useState(0)
   const [selecionado, setSelecionado] = useState(null)
   const [busca, setBusca] = useState('')
+  const [agendasOcultas, setAgendasOcultas] = useState(() => new Set())
   const [form, setForm] = useState({ aberto: false, tipo: 'evento', evento: null })
 
   // Janela de consulta conforme a visão atual.
@@ -78,15 +87,35 @@ export default function Agenda() {
     }
   }, [inicio, fim, tentativa])
 
+  // Agendas presentes nos eventos carregados (únicas por calendarioId), ordenadas por nome.
+  const agendas = useMemo(() => {
+    const mapa = new Map()
+    for (const ev of eventos) {
+      if (ev.calendarioId && !mapa.has(ev.calendarioId)) {
+        mapa.set(ev.calendarioId, { id: ev.calendarioId, nome: ev.calendario, cor: ev.cor })
+      }
+    }
+    return [...mapa.values()].sort((a, b) => (a.nome ?? '').localeCompare(b.nome ?? ''))
+  }, [eventos])
+
+  const alternarAgenda = (id) =>
+    setAgendasOcultas((prev) => {
+      const proximo = new Set(prev)
+      if (proximo.has(id)) proximo.delete(id)
+      else proximo.add(id)
+      return proximo
+    })
+
   const termo = busca.trim().toLowerCase()
   const eventosFiltrados = useMemo(() => {
-    if (!termo) return eventos
-    return eventos.filter((ev) =>
-      [ev.titulo, ev.local, ev.organizador, ...(ev.participantes ?? [])]
+    return eventos.filter((ev) => {
+      if (ev.calendarioId && agendasOcultas.has(ev.calendarioId)) return false
+      if (!termo) return true
+      return [ev.titulo, ev.local, ev.organizador, ...(ev.participantes ?? [])]
         .filter(Boolean)
-        .some((t) => t.toLowerCase().includes(termo)),
-    )
-  }, [eventos, termo])
+        .some((t) => t.toLowerCase().includes(termo))
+    })
+  }, [eventos, termo, agendasOcultas])
 
   const mapa = useMemo(() => agruparPorDia(eventosFiltrados), [eventosFiltrados])
 
@@ -193,6 +222,46 @@ export default function Agenda() {
               </button>
             )}
           </div>
+
+          {/* Filtro de agendas (mostrar/ocultar) */}
+          {agendas.length > 1 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <CalendarDays className="size-4" />
+                  Agendas
+                  {agendasOcultas.size > 0 && (
+                    <span className="rounded-full bg-brand-accent/15 px-1.5 text-xs font-medium text-brand-accent">
+                      {agendas.length - agendasOcultas.size}/{agendas.length}
+                    </span>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="max-h-80 min-w-[16rem] overflow-auto">
+                <DropdownMenuLabel>Mostrar agendas</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {agendas.map((ag) => {
+                  const visivel = !agendasOcultas.has(ag.id)
+                  return (
+                    <DropdownMenuItem
+                      key={ag.id}
+                      onSelect={(e) => {
+                        e.preventDefault()
+                        alternarAgenda(ag.id)
+                      }}
+                    >
+                      <span
+                        className="size-3 shrink-0 rounded-[4px] border"
+                        style={{ backgroundColor: visivel ? (ag.cor ?? 'var(--brand-accent)') : 'transparent' }}
+                      />
+                      <span className="min-w-0 flex-1 truncate">{ag.nome}</span>
+                      {visivel && <Check className="size-4 shrink-0 text-muted-foreground" />}
+                    </DropdownMenuItem>
+                  )
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
           {/* Atualizar */}
           <Button

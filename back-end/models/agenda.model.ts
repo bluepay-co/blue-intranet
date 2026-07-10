@@ -21,6 +21,18 @@ export interface EventoAgenda {
   status: string | null;
   /** Tipo do evento (espelha o eventType do Google). */
   tipo: TipoEvento;
+  /** Id da agenda de origem no Google (ex.: sala@resource.calendar.google.com). */
+  calendarioId: string;
+  /** Nome exibível da agenda de origem (summaryOverride ?? summary). */
+  calendario: string;
+  /** Cor (hex) da agenda de origem, vinda do calendarList. */
+  cor: string | null;
+  /** true apenas para a agenda principal — só ela é editável pela Intranet. */
+  agendaPrincipal: boolean;
+  /** Id (e-mail de recurso) da sala reservada no evento, quando houver. */
+  salaId: string | null;
+  /** Nome exibível da sala reservada, quando houver. */
+  salaNome: string | null;
 }
 
 /** Tipos de evento suportados (menu "Criar" do Google Agenda). */
@@ -38,6 +50,8 @@ export interface EntradaEvento {
   descricao?: string | null;
   participantes?: string[];
   comMeet?: boolean;
+  /** Sala de reunião a reservar (id/e-mail de recurso @resource.calendar.google.com). */
+  salaId?: string | null;
   /** Ausente/Foco: recusar automaticamente reuniões conflitantes. */
   recusarConflitos?: boolean;
   mensagemRecusa?: string | null;

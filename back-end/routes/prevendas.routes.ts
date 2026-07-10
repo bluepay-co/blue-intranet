@@ -4,6 +4,7 @@ import { roleMiddleware } from '../middleware/role.middleware';
 import { Role } from '../models/usuario.model';
 import {
   getMeuResumo,
+  getMinhasReunioes,
   getEquipe,
   postReuniao,
   putLigacoes,
@@ -20,6 +21,8 @@ const ACESSO = roleMiddleware(Role.PRE_VENDAS, Role.DIRETORIA, Role.DESENVOLVEDO
 // ── Leitura ────────────────────────────────────────────────────────────────
 // GET /api/prevendas/meu-resumo?mes=7&ano=2026
 prevendasRouter.get('/meu-resumo', ACESSO, getMeuResumo);
+// GET /api/prevendas/reunioes?mes=7&ano=2026  (detalhe estilo planilha)
+prevendasRouter.get('/reunioes', ACESSO, getMinhasReunioes);
 // GET /api/prevendas/equipe?mes=7&ano=2026
 prevendasRouter.get('/equipe', ACESSO, getEquipe);
 

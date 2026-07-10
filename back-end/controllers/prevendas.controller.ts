@@ -6,6 +6,7 @@ import {
   definirLigacoes,
   resumoDaSdr,
   resumoEquipe,
+  listarReunioes,
   buscarSdr,
 } from '../services/prevendas.service';
 
@@ -55,6 +56,24 @@ export async function getMeuResumo(req: Request, res: Response) {
     if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
     console.error('[prevendas.controller] getMeuResumo:', err);
     return res.status(500).json({ message: 'Erro ao buscar métricas de Pré-Vendas.' });
+  }
+}
+
+export async function getMinhasReunioes(req: Request, res: Response) {
+  try {
+    const id = req.usuario?.id;
+    if (!id) throw new AppError('Usuário não autenticado.', 401);
+
+    const sdr = await buscarSdr(id);
+    if (!sdr) return res.status(404).json({ message: 'Usuário não encontrado ou bloqueado.' });
+
+    const { mes, ano } = periodoDaQuery(req);
+    const reunioes = await listarReunioes(sdr.id, mes, ano);
+    return res.status(200).json(reunioes);
+  } catch (err) {
+    if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
+    console.error('[prevendas.controller] getMinhasReunioes:', err);
+    return res.status(500).json({ message: 'Erro ao buscar reuniões de Pré-Vendas.' });
   }
 }
 

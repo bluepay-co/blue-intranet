@@ -33,8 +33,19 @@ function tipoDoEvento(eventType: string | null | undefined): TipoEvento {
   }
 }
 
+/** Metadados de uma agenda do usuário (vindos do calendarList). */
+interface CalMeta {
+  id: string;
+  nome: string;
+  cor: string | null;
+  principal: boolean;
+}
+
+/** Agenda principal usada como padrão no CRUD (calendarId 'primary'). */
+const CAL_PRIMARIA: CalMeta = { id: 'primary', nome: 'Minha agenda', cor: null, principal: true };
+
 /** Normaliza um evento bruto do Google para o DTO da aplicação. */
-function mapearEvento(ev: calendar_v3.Schema$Event): EventoAgenda {
+function mapearEvento(ev: calendar_v3.Schema$Event, cal: CalMeta = CAL_PRIMARIA): EventoAgenda {
   const linkMeet =
     ev.hangoutLink ??
     ev.conferenceData?.entryPoints?.find((p) => p.entryPointType === 'video')?.uri ??
@@ -44,6 +55,9 @@ function mapearEvento(ev: calendar_v3.Schema$Event): EventoAgenda {
     .filter((a) => !a.resource) // ignora salas/recursos
     .map((a) => a.displayName ?? a.email ?? '')
     .filter((nome): nome is string => nome.length > 0);
+
+  // Sala reservada = primeiro attendee marcado como recurso.
+  const salaAttendee = (ev.attendees ?? []).find((a) => a.resource);
 
   return {
     id: ev.id ?? '',
@@ -59,7 +73,48 @@ function mapearEvento(ev: calendar_v3.Schema$Event): EventoAgenda {
     participantes,
     status: ev.status ?? null,
     tipo: tipoDoEvento(ev.eventType),
+    calendarioId: cal.id,
+    calendario: cal.nome,
+    cor: cal.cor,
+    agendaPrincipal: cal.principal,
+    salaId: salaAttendee?.email ?? null,
+    salaNome: salaAttendee?.displayName ?? salaAttendee?.email ?? null,
   };
+}
+
+/**
+ * Enumera as agendas que o usuário enxerga no Google (principal + "Outras agendas":
+ * salas de reunião, compartilhadas, aniversários, feriados, etc.).
+ */
+async function listarCalendarios(
+  calendar: calendar_v3.Calendar,
+): Promise<CalMeta[]> {
+  const resp = await calendar.calendarList.list({ maxResults: 250, showHidden: false });
+  return (resp.data.items ?? [])
+    .filter((c) => !c.deleted && c.id)
+    .map((c) => ({
+      id: c.id as string,
+      nome: c.summaryOverride ?? c.summary ?? c.id ?? '(Sem nome)',
+      cor: c.backgroundColor ?? null,
+      principal: c.primary === true,
+    }));
+}
+
+/**
+ * Lista as salas de reunião que o usuário enxerga (recursos do Workspace, com id no
+ * formato `...@resource.calendar.google.com`), para reserva ao criar eventos.
+ */
+export async function listarSalas(usuarioId: number): Promise<CalMeta[]> {
+  const auth = await criarClienteAutenticado(usuarioId);
+  const calendar = google.calendar({ version: 'v3', auth });
+  try {
+    const cals = await listarCalendarios(calendar);
+    return cals
+      .filter((c) => c.id.endsWith('@resource.calendar.google.com'))
+      .sort((a, b) => a.nome.localeCompare(b.nome));
+  } catch (err) {
+    lancarErroGoogle(err, 'agenda');
+  }
 }
 
 /**
@@ -114,15 +169,47 @@ export async function listarEventos(
   const calendar = google.calendar({ version: 'v3', auth: oauth });
 
   try {
-    const resp = await calendar.events.list({
-      calendarId: 'primary',
-      timeMin: inicio.toISOString(),
-      timeMax: fim.toISOString(),
-      singleEvents: true,
-      orderBy: 'startTime',
-      maxResults: 250,
+    // 1. Enumera todas as agendas que o usuário enxerga (principal + "Outras agendas":
+    //    salas de reunião, compartilhadas, aniversários, feriados, etc.).
+    const cals = await listarCalendarios(calendar);
+
+    // 2. Busca os eventos de cada agenda em paralelo. Uma agenda que falhe (ex.: sala
+    //    sem permissão de leitura) é ignorada, sem derrubar as demais.
+    const resultados = await Promise.allSettled(
+      cals.map((cal) =>
+        calendar.events.list({
+          calendarId: cal.id,
+          timeMin: inicio.toISOString(),
+          timeMax: fim.toISOString(),
+          singleEvents: true,
+          orderBy: 'startTime',
+          maxResults: 250,
+        }),
+      ),
+    );
+
+    // 3. Mescla os eventos com dedupe por iCalUID, preferindo a cópia da agenda principal:
+    //    evita ver a mesma reunião duplicada quando ela está na sua agenda E na sala.
+    const eventosBrutos = new Map<string, calendar_v3.Schema$Event & { _cal: CalMeta }>();
+    resultados.forEach((r, i) => {
+      const cal = cals[i]!;
+      if (r.status !== 'fulfilled') {
+        console.warn(`[agenda] falha ao ler a agenda "${cal.nome}" (${cal.id}):`, r.reason?.message ?? r.reason);
+        return;
+      }
+      for (const ev of r.value.data.items ?? []) {
+        const chave = ev.iCalUID ?? `${cal.id}:${ev.id}`;
+        const existente = eventosBrutos.get(chave);
+        if (!existente || (cal.principal && !existente._cal.principal)) {
+          eventosBrutos.set(chave, Object.assign(ev, { _cal: cal }));
+        }
+      }
     });
-    return (resp.data.items ?? []).map(mapearEvento);
+
+    // 4. Ordena o resultado final por início (orderBy do Google só ordena dentro de cada agenda).
+    return [...eventosBrutos.values()]
+      .map((ev) => mapearEvento(ev, ev._cal))
+      .sort((a, b) => (a.inicio ?? '').localeCompare(b.inicio ?? ''));
   } catch (err) {
     const e = err as {
       code?: number;
@@ -215,13 +302,21 @@ function montarRecurso(entrada: EntradaEvento): calendar_v3.Schema$Event {
     recurso.end = end;
   }
 
-  switch (entrada.tipo) {
+  // Reservar uma sala exige um evento normal com a sala como recurso; um "Local de
+  // trabalho" com sala escolhida vira, portanto, um evento (workingLocation não reserva sala).
+  const tipoEfetivo = entrada.salaId && entrada.tipo === 'local' ? 'evento' : entrada.tipo;
+
+  switch (tipoEfetivo) {
     case 'evento': {
       if (entrada.local != null) recurso.location = entrada.local;
       if (entrada.descricao != null) recurso.description = entrada.descricao;
-      if (entrada.participantes?.length) {
-        recurso.attendees = entrada.participantes.map((email) => ({ email }));
+      const attendees: calendar_v3.Schema$EventAttendee[] = (entrada.participantes ?? []).map(
+        (email) => ({ email }),
+      );
+      if (entrada.salaId) {
+        attendees.push({ email: entrada.salaId, resource: true });
       }
+      if (attendees.length) recurso.attendees = attendees;
       if (entrada.comMeet) {
         recurso.conferenceData = {
           createRequest: {
