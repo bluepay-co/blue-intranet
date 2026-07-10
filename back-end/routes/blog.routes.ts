@@ -5,6 +5,7 @@ import multer from 'multer';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { roleMiddleware } from '../middleware/role.middleware';
 import { Role } from '../models/usuario.model';
+import { AppError } from '../utils/app-error';
 import {
   getFeed,
   getAdminPosts,
@@ -28,10 +29,10 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith('image/')) return cb(null, true);
-    cb(new Error('Apenas imagens são permitidas.'));
+    cb(new AppError('Apenas imagens são permitidas.', 400));
   },
 });
 

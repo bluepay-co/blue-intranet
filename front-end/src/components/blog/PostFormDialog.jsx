@@ -22,6 +22,10 @@ import { urlImagem, criarPost, editarPost } from '@/api/modules/blog'
  * }} props
  *   `postEditando` null → modo criação; objeto → modo edição.
  */
+/** Limite de imagem alinhado ao backend (blog.routes.ts). */
+const MAX_IMAGEM_MB = 10
+const MAX_IMAGEM_BYTES = MAX_IMAGEM_MB * 1024 * 1024
+
 export default function PostFormDialog({ aberto, onFechar, postEditando, onSalvo }) {
   const [titulo, setTitulo]       = useState(postEditando?.titulo ?? '')
   const [conteudo, setConteudo]   = useState(postEditando?.conteudo ?? '')
@@ -39,6 +43,12 @@ export default function PostFormDialog({ aberto, onFechar, postEditando, onSalvo
   function selecionarImagem(e) {
     const file = e.target.files?.[0]
     if (!file) return
+    if (file.size > MAX_IMAGEM_BYTES) {
+      setErro(`A imagem excede o limite de ${MAX_IMAGEM_MB} MB.`)
+      if (inputRef.current) inputRef.current.value = ''
+      return
+    }
+    setErro('')
     setImagemFile(file)
     setPreviewUrl(URL.createObjectURL(file))
     setImagemUrlRaw(null)
@@ -89,20 +99,31 @@ export default function PostFormDialog({ aberto, onFechar, postEditando, onSalvo
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <Input
-            placeholder="Título"
-            value={titulo}
-            onChange={(e) => setTitulo(e.target.value)}
-            maxLength={200}
-          />
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-baseline justify-between">
+              <label htmlFor="post-titulo" className="text-sm font-medium">Título</label>
+              <span className="text-xs text-muted-foreground">{titulo.length}/200</span>
+            </div>
+            <Input
+              id="post-titulo"
+              placeholder="Título do post"
+              value={titulo}
+              onChange={(e) => setTitulo(e.target.value)}
+              maxLength={200}
+            />
+          </div>
 
-          <textarea
-            placeholder="Conteúdo do post…"
-            value={conteudo}
-            onChange={(e) => setConteudo(e.target.value)}
-            rows={7}
-            className="flex w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-          />
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="post-conteudo" className="text-sm font-medium">Conteúdo</label>
+            <textarea
+              id="post-conteudo"
+              placeholder="Escreva o conteúdo do post…"
+              value={conteudo}
+              onChange={(e) => setConteudo(e.target.value)}
+              rows={9}
+              className="flex w-full resize-y rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </div>
 
           {/* Upload de imagem */}
           {previewUrl ? (
@@ -123,7 +144,7 @@ export default function PostFormDialog({ aberto, onFechar, postEditando, onSalvo
               className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-input py-8 text-sm text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
             >
               <ImagePlus className="size-5" />
-              Adicionar imagem (opcional, máx. 5 MB)
+              Adicionar imagem (opcional, máx. {MAX_IMAGEM_MB} MB)
             </button>
           )}
           <input
