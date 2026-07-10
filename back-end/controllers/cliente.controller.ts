@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { AppError } from '../utils/app-error';
 import { buscarVendedorPorEmail } from '../services/metricas.service';
 import { normalizarCnpj, cnpjValido } from '../utils/cnpj';
+import { ehFalhaDeConexao } from '../utils/db';
 import {
   listarClientesDoVendedor,
   buscarClienteDoVendedor,
@@ -78,6 +79,12 @@ export async function getProspeccaoCnpj(req: Request, res: Response) {
     return res.status(200).json(resultado);
   } catch (err) {
     if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
+    if (ehFalhaDeConexao(err)) {
+      console.error('[cliente.controller] getProspeccaoCnpj (conexão):', (err as Error).message);
+      return res.status(503).json({
+        message: 'Banco de produção indisponível no momento (verifique a conexão/VPN).',
+      });
+    }
     console.error('[cliente.controller] getProspeccaoCnpj:', err);
     return res.status(500).json({ message: 'Erro ao prospectar o CNPJ.' });
   }

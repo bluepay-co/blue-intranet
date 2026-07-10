@@ -15,4 +15,7 @@ export const consultaPool = new Pool({
   options:  `-c search_path=${process.env.CONSULTA_DB_SCHEMA ?? 'public'},public`,
   ssl:      { rejectUnauthorized: false },
   max: 5,
+  // Falha rápido quando o banco de produção está inacessível (ex.: fora da VPN),
+  // em vez de pendurar a request indefinidamente esperando a conexão TCP.
+  connectionTimeoutMillis: 10000,
 });

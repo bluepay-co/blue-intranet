@@ -44,6 +44,7 @@ export default function Prospeccao() {
       else if (err.response?.status === 400) setErro('CNPJ inválido.')
       else if (err.response?.status === 403) setErro('Seu cargo não tem acesso a esta área.')
       else if (err.response?.status === 404) setErro('Vendedor não encontrado no banco de produção.')
+      else if (err.response?.status === 503) setErro('Banco de produção indisponível (verifique a VPN). Tente novamente.')
       else setErro('Erro ao consultar o CNPJ. Tente novamente.')
     } finally {
       setCarregando(false)
