@@ -24,8 +24,8 @@ export default function NavGroup({ item, onNavigate, collapsed = false }) {
           className={cn(
             'relative flex justify-center items-center rounded-lg px-2 py-1.5 text-sm font-medium transition-all',
             algumAtivo
-              ? 'bg-white/10 text-white'
-              : 'text-brand-foreground/65 hover:bg-white/5 hover:text-white',
+              ? 'bg-foreground/10 text-foreground'
+              : 'text-foreground/65 hover:bg-foreground/5 hover:text-foreground',
           )}
         >
           {algumAtivo && (
@@ -35,7 +35,7 @@ export default function NavGroup({ item, onNavigate, collapsed = false }) {
             <Icon
               className={cn(
                 'size-4 shrink-0 transition-colors',
-                algumAtivo ? 'text-brand-accent' : 'text-brand-foreground/50 group-hover:text-white',
+                algumAtivo ? 'text-brand-accent' : 'text-foreground/50 group-hover:text-foreground',
               )}
             />
           )}
@@ -52,7 +52,7 @@ export default function NavGroup({ item, onNavigate, collapsed = false }) {
         aria-expanded={aberto}
         className={cn(
           'group flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-all',
-          algumAtivo ? 'text-white' : 'text-brand-foreground/65 hover:bg-white/5 hover:text-white',
+          algumAtivo ? 'text-foreground' : 'text-foreground/65 hover:bg-foreground/5 hover:text-foreground',
         )}
       >
         {Icon && (
@@ -61,7 +61,7 @@ export default function NavGroup({ item, onNavigate, collapsed = false }) {
               'size-4 shrink-0 transition-colors',
               algumAtivo
                 ? 'text-brand-accent'
-                : 'text-brand-foreground/50 group-hover:text-white',
+                : 'text-foreground/50 group-hover:text-foreground',
             )}
           />
         )}
