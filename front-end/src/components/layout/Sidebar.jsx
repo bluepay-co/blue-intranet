@@ -5,6 +5,7 @@ import ThemeToggle from '@/components/ThemeToggle'
 import { useAuth } from '@/auth/auth-context'
 import { useNotificacoesBlog } from '@/notificacoes/notificacoes-blog'
 import { useNotificacoesChamados } from '@/notificacoes/notificacoes-chamados'
+import { useChat } from '@/chat/chat-context'
 import { secoesVisiveis } from './nav-items'
 import { rotuloRole } from '@/api/modules/usuarios'
 import NavItemLink from './NavItemLink'
@@ -18,6 +19,7 @@ export default function Sidebar({ className, onNavigate, collapsed = false, onTo
   const { usuario, logout } = useAuth()
   const { naoVistos } = useNotificacoesBlog()
   const { naoVistos: chamadosNaoVistos } = useNotificacoesChamados()
+  const { totalNaoLidos } = useChat()
   const secoes = secoesVisiveis(usuario?.role)
 
   return (
@@ -78,7 +80,9 @@ export default function Sidebar({ className, onNavigate, collapsed = false, onTo
                       ? naoVistos
                       : item.to === '/chamados' || item.to === '/ti/chamados'
                         ? chamadosNaoVistos
-                        : 0
+                        : item.to === '/chat'
+                          ? totalNaoLidos
+                          : 0
                   }
                   onNavigate={onNavigate}
                   collapsed={collapsed}
