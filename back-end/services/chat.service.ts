@@ -429,13 +429,28 @@ export async function marcarLido(canalId: number, usuarioId: number): Promise<vo
   );
 }
 
-/** Busca usuários por nome ou e-mail para iniciar uma conversa. */
+/**
+ * Lista colaboradores para iniciar uma conversa.
+ * - Sem `busca` (vazia): retorna todos os usuários ativos, exceto o solicitante.
+ * - Com `busca`: filtra por nome ou e-mail (substring, case-insensitive).
+ */
 export async function buscarUsuariosParaDM(
-  busca: string,
+  busca: string | undefined,
   solicitanteId: number,
 ): Promise<Array<{ id: number; nome: string; email: string; role: string }>> {
-  if (!busca || busca.trim().length < 2) {
-    throw new AppError('A busca deve ter pelo menos 2 caracteres.', 400);
+  const termo = busca?.trim() ?? '';
+
+  if (termo === '') {
+    const { rows } = await pool.query(
+      `SELECT id, nome, email, role
+       FROM usuarios
+       WHERE id <> $1
+         AND bloqueado = false
+       ORDER BY nome
+       LIMIT 100`,
+      [solicitanteId],
+    );
+    return rows;
   }
 
   const { rows } = await pool.query(
@@ -445,8 +460,8 @@ export async function buscarUsuariosParaDM(
        AND id <> $2
        AND bloqueado = false
      ORDER BY nome
-     LIMIT 10`,
-    [`%${busca.trim()}%`, solicitanteId],
+     LIMIT 100`,
+    [`%${termo}%`, solicitanteId],
   );
 
   return rows;

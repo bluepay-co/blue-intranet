@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -16,19 +16,29 @@ export default function DialogCriarCanal({ aberto, onFechar }) {
   const { criarCanal } = useChat()
   const [nome, setNome] = useState('')
   const [busca, setBusca] = useState('')
-  const [resultados, setResultados] = useState([])
+  const [colaboradores, setColaboradores] = useState([])
   const [selecionados, setSelecionados] = useState([])
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState('')
 
-  const pesquisar = useCallback(async (q) => {
-    setBusca(q)
-    if (q.length < 2) { setResultados([]); return }
-    try {
-      const users = await buscarUsuarios(q)
-      setResultados(users)
-    } catch { setResultados([]) }
-  }, [])
+  // Pré-carrega todos os colaboradores ao abrir o diálogo.
+  useEffect(() => {
+    if (!aberto) return
+    buscarUsuarios('')
+      .then(setColaboradores)
+      .catch(() => setColaboradores([]))
+  }, [aberto])
+
+  // Filtro client-side (mostra a lista de imediato e filtra ao digitar).
+  const resultados = useMemo(() => {
+    const termo = busca.trim().toLowerCase()
+    if (!termo) return colaboradores
+    return colaboradores.filter(
+      (u) =>
+        u.nome.toLowerCase().includes(termo) ||
+        u.email?.toLowerCase().includes(termo),
+    )
+  }, [colaboradores, busca])
 
   function toggleSelecionado(usuario) {
     setSelecionados((prev) =>
@@ -46,7 +56,6 @@ export default function DialogCriarCanal({ aberto, onFechar }) {
       await criarCanal(nome.trim(), selecionados.map((u) => u.id))
       setNome('')
       setBusca('')
-      setResultados([])
       setSelecionados([])
       onFechar()
     } catch {
@@ -75,7 +84,7 @@ export default function DialogCriarCanal({ aberto, onFechar }) {
           <Input
             placeholder="Buscar colaboradores…"
             value={busca}
-            onChange={(e) => pesquisar(e.target.value)}
+            onChange={(e) => setBusca(e.target.value)}
           />
 
           {resultados.length > 0 && (
