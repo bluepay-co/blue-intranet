@@ -10,6 +10,7 @@ import { prevendasRouter } from './prevendas.routes';
 import { clienteRouter } from './cliente.routes';
 import { carteiraRouter } from './carteira.routes';
 import { backofficeRouter } from './backoffice.routes';
+import { chatRouter } from './chat.routes';
 
 const router = Router();
 
@@ -46,5 +47,8 @@ router.use('/api/carteira', carteiraRouter);
 
 // Domínio: Chamados de Infra via BluePay Backoffice (API externa, proxy seguro)
 router.use('/api/backoffice/chamados', backofficeRouter);
+
+// Domínio: Chat interno (canais de setor/DM/customizados, mensagens em tempo real)
+router.use('/api/chat', chatRouter);
 
 export { router };

@@ -7,8 +7,6 @@ import ThemeToggle from '@/components/ThemeToggle'
 import { NotificacoesBlogProvider } from '@/notificacoes/NotificacoesBlogProvider'
 import { NotificacoesChamadosProvider } from '@/notificacoes/NotificacoesChamadosProvider'
 import ChatProvider from '@/chat/ChatProvider'
-import ChatFAB from '@/components/chat/ChatFAB'
-import ChatPainel from '@/components/chat/ChatPainel'
 import Sidebar from './Sidebar'
 
 export default function AppLayout() {
@@ -25,7 +23,7 @@ export default function AppLayout() {
         collapsed={collapsed}
         onToggle={() => setCollapsed(c => !c)}
         className={cn(
-          'hidden shrink-0 border-r border-white/5 md:flex transition-[width] duration-300',
+          'hidden shrink-0 border-r border-sidebar-border md:flex transition-[width] duration-300',
           collapsed ? 'w-16' : 'w-64',
         )}
       />
@@ -61,8 +59,6 @@ export default function AppLayout() {
         </main>
       </div>
     </div>
-    <ChatFAB />
-    <ChatPainel />
     </ChatProvider>
     </NotificacoesChamadosProvider>
     </NotificacoesBlogProvider>

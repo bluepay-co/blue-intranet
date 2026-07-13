@@ -13,8 +13,8 @@ export default function NavItemLink({ to, label, icon: Icon, end, onNavigate, ne
               ? 'justify-center px-2'
               : nested ? 'gap-3 pr-3 pl-9' : 'gap-3 px-3',
             isActive
-              ? 'bg-white/10 text-white'
-              : 'text-brand-foreground/65 hover:bg-white/5 hover:text-white',
+              ? 'bg-foreground/10 text-foreground'
+              : 'text-foreground/65 hover:bg-foreground/5 hover:text-foreground',
           )}
         >
           {/* Indicador ativo — barra lateral quando expandido, ponto embaixo quando colapsado */}
@@ -29,7 +29,7 @@ export default function NavItemLink({ to, label, icon: Icon, end, onNavigate, ne
             <Icon
               className={cn(
                 'size-4 shrink-0 transition-colors',
-                isActive ? 'text-brand-accent' : 'text-brand-foreground/50 group-hover:text-white',
+                isActive ? 'text-brand-accent' : 'text-foreground/50 group-hover:text-foreground',
               )}
             />
           )}

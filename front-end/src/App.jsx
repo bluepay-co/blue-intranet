@@ -3,6 +3,7 @@ import Login from '@/components/Login'
 import AppLayout from '@/components/layout/AppLayout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import Agenda from '@/pages/Agenda'
+import Chat from '@/pages/Chat'
 import Tarefas from '@/pages/Tarefas'
 import Usuarios from '@/pages/Usuarios'
 import Blog from '@/pages/Blog'
@@ -22,7 +23,9 @@ import DashboardCXEquipe from '@/pages/metricas/DashboardCXEquipe'
 import DashboardPreVendas from '@/pages/metricas/DashboardPreVendas'
 import DashboardPreVendasEquipe from '@/pages/metricas/DashboardPreVendasEquipe'
 import LancamentoPreVendas from '@/pages/prevendas/LancamentoPreVendas'
+import ClientesLayout from '@/pages/clientes/ClientesLayout'
 import MeusClientes from '@/pages/clientes/MeusClientes'
+import Prospeccao from '@/pages/clientes/Prospeccao'
 import ClienteDetalhe from '@/pages/clientes/ClienteDetalhe'
 import RadarRisco from '@/pages/carteira/RadarRisco'
 import CrossSell from '@/pages/carteira/CrossSell'
@@ -43,6 +46,7 @@ function App() {
       >
         <Route index element={<Navigate to="/metricas/comercial" replace />} />
         <Route path="agenda" element={<Agenda />} />
+        <Route path="chat" element={<Chat />} />
         <Route path="tarefas" element={<Tarefas />} />
         <Route path="blog" element={<Blog />} />
         <Route path="chamados" element={<Chamados />} />
@@ -181,10 +185,13 @@ function App() {
           path="clientes"
           element={
             <ProtectedRoute roles={['KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
-              <MeusClientes />
+              <ClientesLayout />
             </ProtectedRoute>
           }
-        />
+        >
+          <Route index element={<MeusClientes />} />
+          <Route path="prospeccao" element={<Prospeccao />} />
+        </Route>
         <Route
           path="clientes/:id"
           element={

@@ -1,6 +1,14 @@
 import { consultaPool } from '../database/consulta-pool';
 import { FILTROS_BASE, MANAGER_ID_REMAPPED } from './metricas.service';
-import type { ClienteResumo, ClienteDetalhe, ClienteMetricas } from '../models/cliente.model';
+import { normalizarCnpj, formatarCnpj } from '../utils/cnpj';
+import { consultarReceita } from './prospeccao/receita.client';
+import { mapearSegmento } from './prospeccao/cnae-segmento';
+import type {
+  ClienteResumo,
+  ClienteDetalhe,
+  ClienteMetricas,
+  ProspeccaoResultado,
+} from '../models/cliente.model';
 
 /**
  * Domínio: Clientes de um vendedor (bluepay3_production, somente leitura).
@@ -192,5 +200,100 @@ export async function buscarMetricasCliente(clienteId: number): Promise<ClienteM
         mes: i + 1, atual: mAtual[i] ?? 0, anterior: mAnterior[i] ?? 0,
       })),
     },
+  };
+}
+
+interface ClienteCnpjMatch {
+  id: number;
+  commercial_name: string | null;
+  name: string | null;
+  mgr: number | null;
+}
+
+/**
+ * Localiza clientes por CNPJ na base de produção, sem travar a request.
+ *
+ * A coluna `clients.cnpj` não tem formato garantido, então tentamos primeiro
+ * uma igualdade exata contra os dois formatos mais comuns (só dígitos e
+ * mascarado) — isso usa índice quando existe e é instantâneo. Só se nada casar
+ * caímos no `regexp_replace` (varredura), e ainda assim sob `statement_timeout`
+ * para nunca pendurar a conexão indefinidamente.
+ */
+async function buscarClientesPorCnpj(cnpjLimpo: string): Promise<ClienteCnpjMatch[]> {
+  const formatos = [cnpjLimpo, formatarCnpj(cnpjLimpo)];
+  const cliente = await consultaPool.connect();
+  try {
+    // Transação só para limitar o tempo via SET LOCAL (auto-reseta no COMMIT;
+    // não contamina a conexão devolvida ao pool). Evita loading infinito.
+    await cliente.query('BEGIN');
+    await cliente.query('SET LOCAL statement_timeout = 8000');
+
+    // 1) Match exato (rápido, index-friendly) contra formatos conhecidos.
+    const exato = await cliente.query<ClienteCnpjMatch>(
+      `SELECT c.id::int AS id, c.commercial_name, c.name, ${MANAGER_ID_REMAPPED} AS mgr
+         FROM clients c
+        WHERE c.cnpj = ANY($1::text[])`,
+      [formatos],
+    );
+    if (exato.rows.length > 0) {
+      await cliente.query('COMMIT');
+      return exato.rows;
+    }
+
+    // 2) Rede de segurança: normaliza no banco (cobre formatos incomuns).
+    const fuzzy = await cliente.query<ClienteCnpjMatch>(
+      `SELECT c.id::int AS id, c.commercial_name, c.name, ${MANAGER_ID_REMAPPED} AS mgr
+         FROM clients c
+        WHERE regexp_replace(COALESCE(c.cnpj, ''), '\\D', '', 'g') = $1`,
+      [cnpjLimpo],
+    );
+    await cliente.query('COMMIT');
+    return fuzzy.rows;
+  } catch (err) {
+    await cliente.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    cliente.release();
+  }
+}
+
+/**
+ * Prospecção por CNPJ. Decide entre três status, sem vazar carteira alheia:
+ * 1. Já é cliente do vendedor logado  → MEU_CLIENTE (id da ficha existente).
+ * 2. É cliente de outro manager        → CLIENTE_DE_OUTRO (só nome comercial).
+ * 3. Não é cliente de ninguém          → DISPONIVEL (dados públicos da Receita).
+ *
+ * Segurança: o escopo vem do `managerId` do vendedor logado (nunca do request).
+ * O CNPJ é normalizado nos dois lados (a coluna `clients.cnpj` pode ter máscara).
+ */
+export async function prospectarCnpj(
+  managerId: number,
+  cnpj: string,
+): Promise<ProspeccaoResultado> {
+  const cnpjLimpo = normalizarCnpj(cnpj);
+  const rows = await buscarClientesPorCnpj(cnpjLimpo);
+
+  if (rows.length > 0) {
+    const meu = rows.find((r) => r.mgr === managerId);
+    if (meu) {
+      return { status: 'MEU_CLIENTE', clienteId: meu.id };
+    }
+    return { status: 'CLIENTE_DE_OUTRO', nomeComercial: rows[0]!.commercial_name ?? rows[0]!.name };
+  }
+
+  // Disponível para prospecção → dados públicos da Receita.
+  const receita = await consultarReceita(cnpjLimpo);
+  const segmento = mapearSegmento(receita?.cnaePrincipal?.codigo ?? null);
+
+  if (!receita) {
+    return { status: 'DISPONIVEL', cnpj: cnpjLimpo, segmento, receitaIndisponivel: true };
+  }
+
+  return {
+    status: 'DISPONIVEL',
+    cnpj: cnpjLimpo,
+    segmento,
+    receitaIndisponivel: false,
+    ...receita,
   };
 }

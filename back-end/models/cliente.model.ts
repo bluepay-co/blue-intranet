@@ -74,3 +74,27 @@ export interface ClienteDetalheResposta {
   cliente: ClienteDetalhe;
   metricas: ClienteMetricas;
 }
+
+// ── Prospecção por CNPJ ───────────────────────────────────────────────────────
+
+/** Dados públicos da Receita normalizados (API externa de CNPJ). */
+export interface ReceitaDTO {
+  razaoSocial: string | null;
+  nomeFantasia: string | null;
+  situacaoCadastral: string | null;
+  porte: string | null;
+  cnaePrincipal: { codigo: string | null; descricao: string | null };
+  endereco: { cidade: string | null; uf: string | null };
+  aberturaEm: string | null;
+}
+
+/** Resultado da prospecção — união discriminada por `status`. */
+export type ProspeccaoResultado =
+  | { status: 'MEU_CLIENTE'; clienteId: number }
+  | { status: 'CLIENTE_DE_OUTRO'; nomeComercial: string | null }
+  | ({
+      status: 'DISPONIVEL';
+      cnpj: string;
+      segmento: string;
+      receitaIndisponivel: boolean;
+    } & Partial<ReceitaDTO>);

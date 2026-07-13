@@ -1,62 +1,68 @@
-import { useState, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Plus } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useChat } from '@/chat/chat-context'
-import { buscarUsuarios, abrirConversa } from '@/api/modules/chat'
+import { buscarUsuarios } from '@/api/modules/chat'
+import { rotuloRole } from '@/api/modules/usuarios'
 import ItemCanal from './ItemCanal'
 import DialogCriarCanal from './DialogCriarCanal'
 
-/** Lista de canais exibida no painel de chat quando nenhuma conversa está aberta. */
+/** Lista de canais + colaboradores para iniciar uma conversa. */
 export default function ListaCanais() {
   const { canais, abrirDM } = useChat()
   const [busca, setBusca] = useState('')
-  const [resultadosBusca, setResultadosBusca] = useState([])
+  const [colaboradores, setColaboradores] = useState([])
   const [dialogAberto, setDialogAberto] = useState(false)
 
-  const pesquisar = useCallback(async (q) => {
-    setBusca(q)
-    if (q.length < 2) { setResultadosBusca([]); return }
-    try {
-      const users = await buscarUsuarios(q)
-      setResultadosBusca(users)
-    } catch { setResultadosBusca([]) }
+  // Carrega todos os colaboradores de cara (GET sem filtro).
+  useEffect(() => {
+    buscarUsuarios('')
+      .then(setColaboradores)
+      .catch(() => setColaboradores([]))
   }, [])
 
-  const setores = canais.filter((c) => c.tipo === 'SETOR')
-  const privados = canais.filter((c) => c.tipo === 'PRIVADO')
-  const customizados = canais.filter((c) => c.tipo === 'CUSTOMIZADO')
+  const termo = busca.trim().toLowerCase()
+
+  // Nome exibido de um canal (setor/customizado usam `nome`; DM usa o outro usuário).
+  const nomeCanal = (c) =>
+    (c.tipo === 'PRIVADO' ? c.nome_outro_usuario : c.nome) ?? ''
+
+  const casaTermo = (texto) => !termo || (texto ?? '').toLowerCase().includes(termo)
+
+  const setores = canais.filter((c) => c.tipo === 'SETOR' && casaTermo(nomeCanal(c)))
+  const privados = canais.filter((c) => c.tipo === 'PRIVADO' && casaTermo(nomeCanal(c)))
+  const customizados = canais.filter((c) => c.tipo === 'CUSTOMIZADO' && casaTermo(nomeCanal(c)))
+  const temCustomizados = canais.some((c) => c.tipo === 'CUSTOMIZADO')
+  const buscando = termo.length > 0
+
+  // Nomes com quem já existe DM — para não duplicar na seção "Colaboradores".
+  const nomesComDM = useMemo(
+    () => new Set(canais.filter((c) => c.tipo === 'PRIVADO').map((c) => c.nome_outro_usuario)),
+    [canais],
+  )
+
+  // Filtro client-side (instantâneo, sem depender de mínimo de caracteres).
+  const colaboradoresFiltrados = useMemo(() => {
+    const t = busca.trim().toLowerCase()
+    return colaboradores.filter((u) => {
+      if (nomesComDM.has(u.nome)) return false
+      if (!t) return true
+      return (
+        u.nome.toLowerCase().includes(t) ||
+        u.email?.toLowerCase().includes(t)
+      )
+    })
+  }, [colaboradores, busca, nomesComDM])
 
   return (
     <div className="flex flex-col gap-3 overflow-y-auto flex-1 p-3">
-      {/* Busca de DM */}
-      <div className="relative">
-        <Input
-          placeholder="Iniciar conversa…"
-          value={busca}
-          onChange={(e) => pesquisar(e.target.value)}
-          className="pr-3"
-        />
-        {resultadosBusca.length > 0 && (
-          <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border bg-popover shadow-md">
-            {resultadosBusca.map((u) => (
-              <button
-                key={u.id}
-                type="button"
-                className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors"
-                onClick={() => {
-                  abrirDM(u.id)
-                  setBusca('')
-                  setResultadosBusca([])
-                }}
-              >
-                {u.nome}
-                <span className="ml-1 text-xs text-muted-foreground">{u.email}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Busca de colaboradores */}
+      <Input
+        placeholder="Buscar colaborador ou canal…"
+        value={busca}
+        onChange={(e) => setBusca(e.target.value)}
+      />
 
       {/* Canais de setor */}
       {setores.length > 0 && (
@@ -66,7 +72,7 @@ export default function ListaCanais() {
         </section>
       )}
 
-      {/* Mensagens diretas */}
+      {/* Mensagens diretas existentes */}
       {privados.length > 0 && (
         <section>
           <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Direto</p>
@@ -89,10 +95,44 @@ export default function ListaCanais() {
           </Button>
         </div>
         {customizados.map((c) => <ItemCanal key={c.id} canal={c} />)}
-        {customizados.length === 0 && (
+        {!temCustomizados && (
           <p className="px-2 text-xs text-muted-foreground">Nenhum canal ainda.</p>
         )}
       </section>
+
+      {/* Colaboradores — inicia DM direta */}
+      {colaboradoresFiltrados.length > 0 && (
+        <section>
+          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Colaboradores</p>
+          {colaboradoresFiltrados.map((u) => (
+            <Button
+              key={u.id}
+              variant="ghost"
+              className="w-full justify-start gap-2 px-2 py-2 text-left h-auto rounded-lg"
+              onClick={() => abrirDM(u.id)}
+            >
+              <span className="grid size-7 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold">
+                {(u.nome?.[0] ?? '?').toUpperCase()}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm">
+                {u.nome}
+                <span className="ml-1 text-xs text-muted-foreground">({rotuloRole(u.role)})</span>
+              </span>
+            </Button>
+          ))}
+        </section>
+      )}
+
+      {/* Nenhum resultado para a busca */}
+      {buscando &&
+        setores.length === 0 &&
+        privados.length === 0 &&
+        customizados.length === 0 &&
+        colaboradoresFiltrados.length === 0 && (
+          <p className="px-2 py-4 text-center text-xs text-muted-foreground">
+            Nenhum resultado para “{busca.trim()}”.
+          </p>
+        )}
 
       <DialogCriarCanal aberto={dialogAberto} onFechar={() => setDialogAberto(false)} />
     </div>

@@ -8,7 +8,7 @@ const ICONES = { PRIVADO: Lock, SETOR: Hash, CUSTOMIZADO: Users }
 
 /** Janela de conversa ativa: header + mensagens + input. */
 export default function JanelaMensagens() {
-  const { canalAtivo, canais, setCanalAtivo, fecharPainel } = useChat()
+  const { canalAtivo, canais, setCanalAtivo } = useChat()
   const canal = canais.find((c) => c.id === canalAtivo)
   const Icone = ICONES[canal?.tipo ?? 'SETOR'] ?? Hash
 
