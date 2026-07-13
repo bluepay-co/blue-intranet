@@ -5,6 +5,7 @@ import multer from 'multer';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { roleMiddleware } from '../middleware/role.middleware';
 import { Role } from '../models/usuario.model';
+import { AppError } from '../utils/app-error';
 import {
   postCriar,
   getMeus,
@@ -37,7 +38,7 @@ const upload = multer({
     if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
       return cb(null, true);
     }
-    cb(new Error('Apenas imagens ou PDF são permitidos.'));
+    cb(new AppError('Apenas imagens ou PDF são permitidos.', 400));
   },
 });
 

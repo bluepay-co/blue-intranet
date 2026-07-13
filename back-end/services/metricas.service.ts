@@ -316,14 +316,13 @@ export async function buscarMetricasCompletas(
     buscarTopClientesAno(vendedor.id, anoConsulta, 10),
   ]);
 
-  const primeiroNome = vendedor.nome.split(' ')[0] ?? '';
-  const meta = getMetaIndividual(primeiroNome, mesConsulta, anoConsulta);
+  const meta = getMetaIndividual(vendedor.nome, mesConsulta, anoConsulta, vendedor.id);
   mesAtual.meta     = meta;
   mesAtual.pct_meta = meta > 0 ? Math.round((mesAtual.receita / meta) * 1000) / 10 : 0;
 
   // Meta anual = soma das 12 metas mensais do vendedor no ano.
   let metaAnual = 0;
-  for (let m = 1; m <= 12; m++) metaAnual += getMetaIndividual(primeiroNome, m, anoConsulta);
+  for (let m = 1; m <= 12; m++) metaAnual += getMetaIndividual(vendedor.nome, m, anoConsulta, vendedor.id);
 
   const anual = {
     meta:           metaAnual,
@@ -612,9 +611,8 @@ async function buscarMembrosAnualEquipe(
   `, [managerIds, ano]);
   return rows.map((r: { managerId: number; qtdTickets: number; clientesAtivos: number; receita: number; tpv: number; taxaMedia: number; ticketMedio: number }) => {
     const nome = nomeMap.get(r.managerId) ?? 'Desconhecido';
-    const primeiroNome = nome.split(' ')[0] ?? '';
     let metaAnual = 0;
-    for (let m = 1; m <= 12; m++) metaAnual += getMetaIndividual(primeiroNome, m, ano);
+    for (let m = 1; m <= 12; m++) metaAnual += getMetaIndividual(nome, m, ano, r.managerId);
     return {
       vendedorId: r.managerId, nome, receita: r.receita, tpv: r.tpv,
       qtdTickets: r.qtdTickets, clientesAtivos: r.clientesAtivos,
@@ -748,8 +746,7 @@ export async function buscarMetricasEquipe(
   const membros: MetricasEquipeMembro[] = membrosRows.rows.map(
     (r: { managerId: number; qtdTickets: number; clientesAtivos: number; receita: number; tpv: number; taxaMedia: number; ticketMedio: number }) => {
       const nome          = nomeMap.get(r.managerId) ?? 'Desconhecido';
-      const primeiroNome  = nome.split(' ')[0] ?? '';
-      const meta          = getMetaIndividual(primeiroNome, mes, ano);
+      const meta          = getMetaIndividual(nome, mes, ano, r.managerId);
       return {
         vendedorId:     r.managerId,
         nome,

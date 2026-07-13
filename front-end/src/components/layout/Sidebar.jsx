@@ -18,7 +18,7 @@ function inicial(nome) {
 export default function Sidebar({ className, onNavigate, collapsed = false, onToggle }) {
   const { usuario, logout } = useAuth()
   const { naoVistos } = useNotificacoesBlog()
-  const { naoVistos: chamadosNaoVistos } = useNotificacoesChamados()
+  const { naoVistos: chamadosNaoVistos, naoVistosMeus: chamadosNaoVistosMeus } = useNotificacoesChamados()
   const { totalNaoLidos } = useChat()
   const secoes = secoesVisiveis(usuario?.role)
 
@@ -75,11 +75,13 @@ export default function Sidebar({ className, onNavigate, collapsed = false, onTo
                   badge={
                     item.to === '/blog'
                       ? naoVistos
-                      : item.to === '/chamados' || item.to === '/ti/chamados'
-                        ? chamadosNaoVistos
-                        : item.to === '/chat'
-                          ? totalNaoLidos
-                          : 0
+                      : item.to === '/chamados'
+                        ? chamadosNaoVistosMeus
+                        : item.to === '/ti/chamados'
+                          ? chamadosNaoVistos
+                          : item.to === '/chat'
+                            ? totalNaoLidos
+                            : 0
                   }
                   onNavigate={onNavigate}
                   collapsed={collapsed}
