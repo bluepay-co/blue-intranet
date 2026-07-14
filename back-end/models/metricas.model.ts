@@ -203,14 +203,6 @@ export interface TopClienteGeral {
   qtdTickets: number;
   tpv: number;
   receita: number;
-  taxa: number;
-}
-
-export interface FaixaTaxa {
-  faixa: string;
-  clientes: number;
-  tickets: number;
-  receita: number;
 }
 
 export interface ComparativoYTD {
@@ -233,7 +225,6 @@ export interface MetricasGerais {
   mixProduto: MixProduto[];
   evolucaoMensal: CrescimentoMoM[];
   topClientes: TopClienteGeral[];
-  faixasTaxa: FaixaTaxa[];
   ytd: ComparativoYTD[];
   novosClientesMes: NovosClientesMes[];
 }

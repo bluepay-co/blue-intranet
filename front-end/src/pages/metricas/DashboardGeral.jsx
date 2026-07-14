@@ -170,7 +170,7 @@ export default function DashboardGeral() {
       )}
 
       {dados && (() => {
-        const { resumo, hoje, retencao, mixProduto, evolucaoMensal, topClientes, faixasTaxa, ytd, novosClientesMes } = dados
+        const { resumo, hoje, retencao, mixProduto, evolucaoMensal, topClientes, ytd, novosClientesMes } = dados
         const ytdAtual    = ytd.find(y => y.ano === ano)
         const ytdAnterior = ytd.find(y => y.ano === ano - 1)
         const agora_ref   = new Date()
@@ -450,70 +450,38 @@ export default function DashboardGeral() {
               </Card>
             </div>
 
-            {/* Top Clientes + Faixas de Taxa */}
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Card className="overflow-hidden">
-                <CardHeader className="border-b bg-muted/30">
-                  <CardTitle>Top Clientes do Mês</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b text-xs text-muted-foreground">
-                        <th className="px-4 py-2 text-left font-medium">#</th>
-                        <th className="px-4 py-2 text-left font-medium">Cliente</th>
-                        <th className="px-4 py-2 text-right font-medium">Receita</th>
-                        <th className="px-4 py-2 text-right font-medium">TPV</th>
-                        <th className="px-4 py-2 text-right font-medium">Taxa</th>
+            {/* Top Clientes */}
+            <Card className="overflow-hidden">
+              <CardHeader className="border-b bg-muted/30">
+                <CardTitle>Top Clientes do Mês</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-xs text-muted-foreground">
+                      <th className="px-4 py-2 text-left font-medium">#</th>
+                      <th className="px-4 py-2 text-left font-medium">Cliente</th>
+                      <th className="px-4 py-2 text-right font-medium">Receita</th>
+                      <th className="px-4 py-2 text-right font-medium">TPV</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topClientes.map((c, i) => (
+                      <tr key={c.nome} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-2.5">
+                          <Badge variant="outline" className="w-6 h-6 flex items-center justify-center p-0 text-xs">
+                            {i + 1}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-2.5 max-w-[180px] truncate font-medium">{c.nome}</td>
+                        <td className="px-4 py-2.5 text-right text-primary font-semibold">{moeda(c.receita)}</td>
+                        <td className="px-4 py-2.5 text-right text-muted-foreground">{moeda(c.tpv)}</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {topClientes.map((c, i) => (
-                        <tr key={c.nome} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                          <td className="px-4 py-2.5">
-                            <Badge variant="outline" className="w-6 h-6 flex items-center justify-center p-0 text-xs">
-                              {i + 1}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-2.5 max-w-[180px] truncate font-medium">{c.nome}</td>
-                          <td className="px-4 py-2.5 text-right text-primary font-semibold">{moeda(c.receita)}</td>
-                          <td className="px-4 py-2.5 text-right text-muted-foreground">{moeda(c.tpv)}</td>
-                          <td className="px-4 py-2.5 text-right">{c.taxa.toFixed(2)}%</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </CardContent>
-              </Card>
-
-              <Card className="overflow-hidden">
-                <CardHeader className="border-b bg-muted/30">
-                  <CardTitle>Distribuição por Faixa de Taxa</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b text-xs text-muted-foreground">
-                        <th className="px-4 py-2 text-left font-medium">Faixa</th>
-                        <th className="px-4 py-2 text-right font-medium">Clientes</th>
-                        <th className="px-4 py-2 text-right font-medium">Transações</th>
-                        <th className="px-4 py-2 text-right font-medium">Receita</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {faixasTaxa.map(f => (
-                        <tr key={f.faixa} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                          <td className="px-4 py-2.5 text-muted-foreground">{f.faixa}</td>
-                          <td className="px-4 py-2.5 text-right font-medium">{numero(f.clientes)}</td>
-                          <td className="px-4 py-2.5 text-right text-muted-foreground">{numero(f.tickets)}</td>
-                          <td className="px-4 py-2.5 text-right text-primary font-semibold">{moeda(f.receita)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </CardContent>
-              </Card>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
 
             {/* Novos Clientes no Ano */}
             {novosClientesMes.length > 0 && (

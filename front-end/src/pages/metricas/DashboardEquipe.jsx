@@ -230,7 +230,6 @@ function TopClientesTabela({ titulo, clientes }) {
                 <th className="px-4 py-2 text-left font-medium">Cliente</th>
                 <th className="px-4 py-2 text-right font-medium">Receita</th>
                 <th className="px-4 py-2 text-right font-medium">TPV</th>
-                <th className="px-4 py-2 text-right font-medium">Taxa</th>
               </tr>
             </thead>
             <tbody>
@@ -242,7 +241,6 @@ function TopClientesTabela({ titulo, clientes }) {
                   <td className="px-4 py-2.5 max-w-[200px] truncate font-medium">{c.nome}</td>
                   <td className="px-4 py-2.5 text-right text-primary font-semibold">{moeda(c.receita)}</td>
                   <td className="px-4 py-2.5 text-right text-muted-foreground">{moeda(c.tpv)}</td>
-                  <td className="px-4 py-2.5 text-right">{(c.taxa ?? 0).toFixed(2)}%</td>
                 </tr>
               ))}
             </tbody>

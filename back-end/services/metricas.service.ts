@@ -6,7 +6,7 @@ import type {
   MetricasVendedor, TopCliente,
   MetricasEquipe, MetricasEquipeMembro, MetricasEquipeHoje,
   ResumoGeral, MetricasHojeGeral, RetencaoClientes, MixProduto,
-  CrescimentoMoM, TopClienteGeral, FaixaTaxa, ComparativoYTD,
+  CrescimentoMoM, TopClienteGeral, ComparativoYTD,
   NovosClientesMes, MetricasGerais,
   MetricasCXMes, MetricasCXHoje, MetricasCXHistorico,
   MetricasCXMixTipo, MetricasCXSla, MetricasCXBacklog,
@@ -511,8 +511,7 @@ async function buscarTopClientesEquipe(
       c.name                                        AS nome,
       COUNT(*)::int                                 AS "qtdTickets",
       COALESCE(SUM(t.excel_total_bonus), 0)::float  AS tpv,
-      COALESCE(SUM(t.excel_total_rate), 0)::float   AS receita,
-      COALESCE(AVG(t.excel_rate) * 100, 0)::float   AS taxa
+      COALESCE(SUM(t.excel_total_rate), 0)::float   AS receita
     FROM tickets t
     LEFT JOIN clients c ON c.id = t.client_id
     WHERE ${FILTROS_BASE}
@@ -529,7 +528,6 @@ async function buscarTopClientesEquipe(
     qtdTickets: r.qtdTickets,
     tpv:        r.tpv,
     receita:    r.receita,
-    taxa:       r.taxa,
   }));
 }
 
@@ -582,14 +580,13 @@ async function buscarTopClientesEquipeAno(managerIds: number[], ano: number, lim
   const { rows } = await consultaPool.query(`
     SELECT c.name AS nome, COUNT(*)::int AS "qtdTickets",
       COALESCE(SUM(t.excel_total_bonus), 0)::float AS tpv,
-      COALESCE(SUM(t.excel_total_rate), 0)::float  AS receita,
-      COALESCE(AVG(t.excel_rate) * 100, 0)::float   AS taxa
+      COALESCE(SUM(t.excel_total_rate), 0)::float  AS receita
     FROM tickets t LEFT JOIN clients c ON c.id = t.client_id
     WHERE ${FILTROS_BASE} AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
       AND EXTRACT(YEAR FROM t.invoice_payment_date) = $2
     GROUP BY c.name ORDER BY receita DESC LIMIT $3
   `, [managerIds, ano, limite]);
-  return rows.map(r => ({ nome: r.nome, qtdTickets: r.qtdTickets, tpv: r.tpv, receita: r.receita, taxa: r.taxa }));
+  return rows.map(r => ({ nome: r.nome, qtdTickets: r.qtdTickets, tpv: r.tpv, receita: r.receita }));
 }
 
 /** Ranking anual dos membros (agregados do ano + meta anual individual). */
@@ -1034,8 +1031,7 @@ async function buscarTopClientesGeral(mes: number, ano: number, limite = 10): Pr
       cl.name                                       AS nome,
       COUNT(*)::int                                 AS "qtdTickets",
       COALESCE(SUM(t.excel_total_bonus), 0)::float  AS tpv,
-      COALESCE(SUM(t.excel_total_rate), 0)::float   AS receita,
-      COALESCE(AVG(t.excel_rate) * 100, 0)::float   AS taxa
+      COALESCE(SUM(t.excel_total_rate), 0)::float   AS receita
     FROM tickets t
     JOIN clients cl ON cl.id = t.client_id
     WHERE t.status='done' AND t.invoice_status='received'
@@ -1053,39 +1049,6 @@ async function buscarTopClientesGeral(mes: number, ano: number, limite = 10): Pr
     qtdTickets: r.qtdTickets,
     tpv:        r.tpv,
     receita:    r.receita,
-    taxa:       r.taxa,
-  }));
-}
-
-async function buscarFaixasTaxa(mes: number, ano: number): Promise<FaixaTaxa[]> {
-  const { rows } = await consultaPool.query(`
-    SELECT
-      CASE
-        WHEN t.excel_rate < 0.005                             THEN 'Abaixo de 0.5%'
-        WHEN t.excel_rate >= 0.005 AND t.excel_rate < 0.01   THEN '0.5% a 1.0%'
-        WHEN t.excel_rate >= 0.01  AND t.excel_rate < 0.02   THEN '1.0% a 2.0%'
-        WHEN t.excel_rate >= 0.02  AND t.excel_rate < 0.03   THEN '2.0% a 3.0%'
-        WHEN t.excel_rate >= 0.03  AND t.excel_rate < 0.04   THEN '3.0% a 4.0%'
-        ELSE 'Acima de 4.0%'
-      END AS faixa,
-      COUNT(DISTINCT t.client_id)::int            AS clientes,
-      COUNT(*)::int                               AS tickets,
-      COALESCE(SUM(t.excel_total_rate), 0)::float AS receita
-    FROM tickets t
-    WHERE t.status='done' AND t.invoice_status='received'
-      AND t.excel_total_value > 0 AND t.kind <> 'virtual_batch_payment'
-      AND t.client_id NOT IN (43,44,333)
-      AND EXTRACT(MONTH FROM t.invoice_payment_date) = $1
-      AND EXTRACT(YEAR  FROM t.invoice_payment_date) = $2
-    GROUP BY faixa
-    ORDER BY MIN(t.excel_rate)
-  `, [mes, ano]);
-
-  return rows.map(r => ({
-    faixa:    r.faixa,
-    clientes: r.clientes,
-    tickets:  r.tickets,
-    receita:  r.receita,
   }));
 }
 
@@ -1155,7 +1118,6 @@ export async function buscarMetricasGerais(
     mixProduto,
     evolucaoMensal,
     topClientes,
-    faixasTaxa,
     ytd,
     novosClientesMes,
   ] = await Promise.all([
@@ -1165,12 +1127,11 @@ export async function buscarMetricasGerais(
     buscarMixProduto(mesRef, anoRef),
     buscarEvolucaoMensal(mesRef, anoRef, 6),
     buscarTopClientesGeral(mesRef, anoRef, 10),
-    buscarFaixasTaxa(mesRef, anoRef),
     buscarYTD(mesRef, anoRef),
     buscarNovosClientesMes(anoRef),
   ]);
 
-  return { resumo, hoje, retencao, mixProduto, evolucaoMensal, topClientes, faixasTaxa, ytd, novosClientesMes };
+  return { resumo, hoje, retencao, mixProduto, evolucaoMensal, topClientes, ytd, novosClientesMes };
 }
 
 // ── Métricas CX ─────────────────────────────────────────────────────────────
