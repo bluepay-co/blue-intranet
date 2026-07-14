@@ -19,6 +19,29 @@ export interface ClienteResumo {
   ultimaAtividade: string | null;
 }
 
+/** Página de "Meus Clientes" (paginado no banco, 20 por página por padrão). */
+export interface ClientesPaginados {
+  clientes: ClienteResumo[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+/** Resumo agregado da carteira inteira do vendedor (independe de filtros/página). */
+export interface ResumoCarteira {
+  total: number;
+  ativos: number;
+  risco: number;
+  receita: number;
+}
+
+/** Opções disponíveis para os filtros de "Meus Clientes" (dados de toda a carteira). */
+export interface FiltrosClientes {
+  ufs: string[];
+  cidades: { cidade: string; uf: string | null }[];
+  segmentos: string[];
+}
+
 /** Ficha completa do cliente. */
 export interface ClienteDetalhe {
   id: number;

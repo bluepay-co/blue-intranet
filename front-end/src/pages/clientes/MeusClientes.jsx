@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { listarClientes } from '@/api/modules/clientes'
 import { Card, CardContent } from '@/components/ui/card'
@@ -8,12 +8,15 @@ import { Input } from '@/components/ui/input'
 import PageHeader from '@/components/layout/PageHeader'
 import {
   AlertCircle, Loader2, RefreshCw, Search, ChevronRight,
-  Users, UserCheck, AlertTriangle, Wallet, X,
+  ChevronLeft, Users, UserCheck, AlertTriangle, Wallet, X,
 } from 'lucide-react'
 
-// Faixas de status por dias desde a última transação recebida.
+// Faixas de status por dias desde a última transação recebida (espelha a regra do backend).
 const DIAS_ATIVO = 30
 const DIAS_ATENCAO = 60
+const POR_PAGINA = 20
+// Debounce da busca por texto, para não disparar uma query a cada tecla digitada.
+const DEBOUNCE_BUSCA_MS = 400
 
 function moeda(v) {
   return new Intl.NumberFormat('pt-BR', {
@@ -60,77 +63,74 @@ const selectCls =
 export default function MeusClientes() {
   const navigate = useNavigate()
   const [clientes, setClientes] = useState([])
+  const [total, setTotal] = useState(0)
+  const [pagina, setPagina] = useState(1)
+  const [resumo, setResumo] = useState({ total: 0, ativos: 0, risco: 0, receita: 0 })
+  const [filtrosDisponiveis, setFiltrosDisponiveis] = useState({ ufs: [], cidades: [], segmentos: [] })
+
+  const [buscaInput, setBuscaInput] = useState('')
   const [busca, setBusca] = useState('')
   const [uf, setUf] = useState('')
   const [cidade, setCidade] = useState('')
   const [segmento, setSegmento] = useState('')
   const [status, setStatus] = useState('')
+
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
+
+  // Debounce: só propaga a busca digitada para a query depois de parar de digitar.
+  useEffect(() => {
+    const t = setTimeout(() => { setBusca(buscaInput); setPagina(1) }, DEBOUNCE_BUSCA_MS)
+    return () => clearTimeout(t)
+  }, [buscaInput])
+
+  const [carregouUmaVez, setCarregouUmaVez] = useState(false)
 
   const carregar = useCallback(async () => {
     setErro('')
     setCarregando(true)
     try {
-      setClientes(await listarClientes())
+      const data = await listarClientes({
+        busca: busca || undefined,
+        uf: uf || undefined,
+        cidade: cidade || undefined,
+        segmento: segmento || undefined,
+        status: status || undefined,
+        page: pagina,
+        limit: POR_PAGINA,
+      })
+      setClientes(data.clientes)
+      setTotal(data.total)
+      setResumo(data.resumo)
+      setFiltrosDisponiveis(data.filtros)
     } catch (e) {
       if (e.response?.status === 404) setErro('Você não possui clientes no banco de produção.')
       else if (e.response?.status === 403) setErro('Seu cargo não tem acesso a esta área.')
       else setErro('Erro ao carregar os clientes. Tente novamente.')
     } finally {
       setCarregando(false)
+      setCarregouUmaVez(true)
     }
-  }, [])
+  }, [busca, uf, cidade, segmento, status, pagina])
 
   useEffect(() => { carregar() }, [carregar])
 
-  // Opções dos filtros (distintas), com cidades em cascata pela UF.
-  const ufs = useMemo(
-    () => [...new Set(clientes.map((c) => c.uf).filter(Boolean))].sort(),
-    [clientes],
-  )
-  const segmentos = useMemo(
-    () => [...new Set(clientes.map((c) => c.segmento).filter(Boolean))].sort(),
-    [clientes],
-  )
-  const cidades = useMemo(
-    () => [...new Set(clientes.filter((c) => !uf || c.uf === uf).map((c) => c.cidade).filter(Boolean))].sort(),
-    [clientes, uf],
-  )
-
-  const filtrados = useMemo(() => {
-    const termo = busca.trim().toLowerCase()
-    return clientes.filter((c) => {
-      if (uf && c.uf !== uf) return false
-      if (cidade && c.cidade !== cidade) return false
-      if (segmento && c.segmento !== segmento) return false
-      if (status && statusCliente(c.ultimaAtividade).chave !== status) return false
-      if (termo && !(
-        c.nome?.toLowerCase().includes(termo) ||
-        c.nomeComercial?.toLowerCase().includes(termo) ||
-        c.cnpj?.toLowerCase().includes(termo) ||
-        c.cidade?.toLowerCase().includes(termo)
-      )) return false
-      return true
-    })
-  }, [clientes, busca, uf, cidade, segmento, status])
-
-  // Resumo (sobre a carteira inteira).
-  const resumo = useMemo(() => {
-    let ativos = 0, risco = 0, receita = 0
-    for (const c of clientes) {
-      const s = statusCliente(c.ultimaAtividade).chave
-      if (s === 'ativo') ativos++
-      else if (s === 'risco') risco++
-      receita += c.receita ?? 0
-    }
-    return { total: clientes.length, ativos, risco, receita }
-  }, [clientes])
-
   const temFiltro = uf || cidade || segmento || status || busca
-  function limpar() { setBusca(''); setUf(''); setCidade(''); setSegmento(''); setStatus('') }
+  function limpar() {
+    setBuscaInput(''); setBusca(''); setUf(''); setCidade(''); setSegmento(''); setStatus('')
+    setPagina(1)
+  }
+  function aoMudarFiltro(setter) {
+    return (valor) => { setter(valor); setPagina(1) }
+  }
 
-  if (carregando && clientes.length === 0) {
+  const cidadesDaUf = uf
+    ? filtrosDisponiveis.cidades.filter((c) => c.uf === uf)
+    : filtrosDisponiveis.cidades
+
+  const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA))
+
+  if (carregando && !carregouUmaVez) {
     return (
       <div className="grid place-items-center py-24">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
@@ -142,7 +142,7 @@ export default function MeusClientes() {
     <div className="space-y-6">
       <PageHeader
         title="Meus Clientes"
-        subtitle={`${numero(clientes.length)} cliente${clientes.length === 1 ? '' : 's'} na sua carteira`}
+        subtitle={`${numero(resumo.total)} cliente${resumo.total === 1 ? '' : 's'} na sua carteira`}
       >
         <Button variant="outline" size="icon" className="h-8 w-8" onClick={carregar} disabled={carregando} title="Atualizar">
           <RefreshCw className={`size-4 ${carregando ? 'animate-spin' : ''}`} />
@@ -169,25 +169,25 @@ export default function MeusClientes() {
         <div className="relative min-w-[220px] flex-1">
           <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
+            value={buscaInput}
+            onChange={(e) => setBuscaInput(e.target.value)}
             placeholder="Buscar por nome, CNPJ ou cidade…"
             className="h-9 pl-8"
           />
         </div>
-        <select className={selectCls} value={uf} onChange={(e) => { setUf(e.target.value); setCidade('') }}>
+        <select className={selectCls} value={uf} onChange={(e) => { aoMudarFiltro(setUf)(e.target.value); setCidade('') }}>
           <option value="">Estado (UF)</option>
-          {ufs.map((u) => <option key={u} value={u}>{u}</option>)}
+          {filtrosDisponiveis.ufs.map((u) => <option key={u} value={u}>{u}</option>)}
         </select>
-        <select className={selectCls} value={cidade} onChange={(e) => setCidade(e.target.value)}>
+        <select className={selectCls} value={cidade} onChange={(e) => aoMudarFiltro(setCidade)(e.target.value)}>
           <option value="">Cidade</option>
-          {cidades.map((c) => <option key={c} value={c}>{c}</option>)}
+          {cidadesDaUf.map((c) => <option key={c.cidade} value={c.cidade}>{c.cidade}</option>)}
         </select>
-        <select className={selectCls} value={segmento} onChange={(e) => setSegmento(e.target.value)}>
+        <select className={selectCls} value={segmento} onChange={(e) => aoMudarFiltro(setSegmento)(e.target.value)}>
           <option value="">Segmento</option>
-          {segmentos.map((s) => <option key={s} value={s}>{s}</option>)}
+          {filtrosDisponiveis.segmentos.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
-        <select className={selectCls} value={status} onChange={(e) => setStatus(e.target.value)}>
+        <select className={selectCls} value={status} onChange={(e) => aoMudarFiltro(setStatus)(e.target.value)}>
           <option value="">Status</option>
           <option value="ativo">Ativo</option>
           <option value="atencao">Atenção</option>
@@ -203,7 +203,7 @@ export default function MeusClientes() {
       {/* Tabela */}
       <Card className="overflow-hidden">
         <CardContent className="p-0">
-          {filtrados.length === 0 ? (
+          {clientes.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
               {temFiltro ? 'Nenhum cliente encontrado com esses filtros.' : 'Nenhum cliente na carteira.'}
             </p>
@@ -216,14 +216,12 @@ export default function MeusClientes() {
                     <th className="px-4 py-2.5 text-left font-medium">CNPJ</th>
                     <th className="px-4 py-2.5 text-left font-medium">Cidade/UF</th>
                     <th className="px-4 py-2.5 text-left font-medium">Segmento</th>
-                    <th className="px-4 py-2.5 text-right font-medium">Receita gerada</th>
-                    <th className="px-4 py-2.5 text-right font-medium">Transações</th>
                     <th className="px-4 py-2.5 text-left font-medium">Status</th>
                     <th className="px-2 py-2.5"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtrados.map((c) => {
+                  {clientes.map((c) => {
                     const st = statusCliente(c.ultimaAtividade)
                     return (
                       <tr
@@ -244,8 +242,6 @@ export default function MeusClientes() {
                         <td className="px-4 py-2.5">
                           {c.segmento ? <Badge variant="outline" className="font-normal">{c.segmento}</Badge> : '—'}
                         </td>
-                        <td className="px-4 py-2.5 text-right font-semibold text-primary whitespace-nowrap">{moeda(c.receita)}</td>
-                        <td className="px-4 py-2.5 text-right whitespace-nowrap">{numero(c.qtdTickets)}</td>
                         <td className="px-4 py-2.5">
                           <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${st.cls}`} title={`Última atividade: ${dataCurta(c.ultimaAtividade)}`}>
                             {st.label}
@@ -261,6 +257,31 @@ export default function MeusClientes() {
           )}
         </CardContent>
       </Card>
+
+      {/* Paginação */}
+      {total > 0 && (
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>
+            Página {pagina} de {totalPaginas} · {numero(total)} cliente{total === 1 ? '' : 's'}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline" size="sm" className="h-8 gap-1"
+              disabled={pagina <= 1 || carregando}
+              onClick={() => setPagina((p) => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="size-4" /> Anterior
+            </Button>
+            <Button
+              variant="outline" size="sm" className="h-8 gap-1"
+              disabled={pagina >= totalPaginas || carregando}
+              onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
+            >
+              Próxima <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

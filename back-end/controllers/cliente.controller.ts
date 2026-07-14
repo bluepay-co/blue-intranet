@@ -5,10 +5,16 @@ import { normalizarCnpj, cnpjValido } from '../utils/cnpj';
 import { ehFalhaDeConexao } from '../utils/db';
 import {
   listarClientesDoVendedor,
+  buscarResumoCarteira,
+  buscarFiltrosClientes,
   buscarClienteDoVendedor,
   buscarMetricasCliente,
   prospectarCnpj as prospectarCnpjService,
 } from '../services/cliente.service';
+
+function paramTexto(v: unknown): string | undefined {
+  return typeof v === 'string' && v.trim() ? v : undefined;
+}
 
 export async function getMeusClientes(req: Request, res: Response) {
   try {
@@ -20,9 +26,24 @@ export async function getMeusClientes(req: Request, res: Response) {
       return res.status(404).json({ message: 'Vendedor não encontrado no banco de produção.' });
     }
 
-    const busca = typeof req.query.busca === 'string' ? req.query.busca : undefined;
-    const clientes = await listarClientesDoVendedor(vendedor.id, busca);
-    return res.status(200).json({ clientes });
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 20;
+
+    const [pagina, resumo, filtros] = await Promise.all([
+      listarClientesDoVendedor(vendedor.id, {
+        busca: paramTexto(req.query.busca),
+        uf: paramTexto(req.query.uf),
+        cidade: paramTexto(req.query.cidade),
+        segmento: paramTexto(req.query.segmento),
+        status: paramTexto(req.query.status),
+        page,
+        limit,
+      }),
+      buscarResumoCarteira(vendedor.id),
+      buscarFiltrosClientes(vendedor.id),
+    ]);
+
+    return res.status(200).json({ ...pagina, resumo, filtros });
   } catch (err) {
     if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
     console.error('[cliente.controller] getMeusClientes:', err);

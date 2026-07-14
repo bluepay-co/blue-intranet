@@ -8,6 +8,9 @@ import type {
   ClienteDetalhe,
   ClienteMetricas,
   ProspeccaoResultado,
+  ClientesPaginados,
+  ResumoCarteira,
+  FiltrosClientes,
 } from '../models/cliente.model';
 
 /**
@@ -17,28 +20,59 @@ import type {
  * então um vendedor nunca acessa cliente de outro.
  */
 
-/** Lista todos os clientes do vendedor, com receita/atividade agregadas. */
+/** Classificação de status por dias desde a última atividade (mesma regra do front). */
+const STATUS_CASE = `
+  CASE
+    WHEN agg."ultimaAtividade" IS NULL THEN 'risco'
+    WHEN CURRENT_DATE - agg."ultimaAtividade"::date <= 30 THEN 'ativo'
+    WHEN CURRENT_DATE - agg."ultimaAtividade"::date <= 60 THEN 'atencao'
+    ELSE 'risco'
+  END
+`;
+
+const AGG_CLIENTES_CTE = `
+  WITH agg AS (
+    SELECT
+      t.client_id,
+      COALESCE(SUM(t.excel_total_rate), 0)::float  AS receita,
+      COALESCE(SUM(t.excel_total_bonus), 0)::float AS tpv,
+      COUNT(*)::int                                AS "qtdTickets",
+      COALESCE(AVG(t.excel_rate) * 100, 0)::float  AS "taxaMedia",
+      MAX(t.invoice_payment_date)                  AS "ultimaAtividade"
+    FROM tickets t
+    JOIN clients c ON c.id = t.client_id
+    WHERE ${FILTROS_BASE}
+      AND ${MANAGER_ID_REMAPPED} = $1
+    GROUP BY t.client_id
+  )
+`;
+
+interface FiltrosListaClientes {
+  busca?: string | undefined;
+  uf?: string | undefined;
+  cidade?: string | undefined;
+  segmento?: string | undefined;
+  status?: string | undefined;
+  page?: number | undefined;
+  limit?: number | undefined;
+}
+
+/** Lista paginada dos clientes do vendedor, com receita/atividade agregadas. */
 export async function listarClientesDoVendedor(
   managerId: number,
-  busca?: string,
-): Promise<ClienteResumo[]> {
-  const termo = busca?.trim() ? busca.trim() : null;
+  filtros: FiltrosListaClientes = {},
+): Promise<ClientesPaginados> {
+  const termo = filtros.busca?.trim() ? filtros.busca.trim() : null;
+  const uf = filtros.uf?.trim() ? filtros.uf.trim() : null;
+  const cidade = filtros.cidade?.trim() ? filtros.cidade.trim() : null;
+  const segmento = filtros.segmento?.trim() ? filtros.segmento.trim() : null;
+  const status = filtros.status?.trim() ? filtros.status.trim() : null;
+  const page = Math.max(1, Math.trunc(filtros.page ?? 1));
+  const limit = Math.min(100, Math.max(1, Math.trunc(filtros.limit ?? 20)));
+  const offset = (page - 1) * limit;
 
   const { rows } = await consultaPool.query(`
-    WITH agg AS (
-      SELECT
-        t.client_id,
-        COALESCE(SUM(t.excel_total_rate), 0)::float  AS receita,
-        COALESCE(SUM(t.excel_total_bonus), 0)::float AS tpv,
-        COUNT(*)::int                                AS "qtdTickets",
-        COALESCE(AVG(t.excel_rate) * 100, 0)::float  AS "taxaMedia",
-        MAX(t.invoice_payment_date)                  AS "ultimaAtividade"
-      FROM tickets t
-      JOIN clients c ON c.id = t.client_id
-      WHERE ${FILTROS_BASE}
-        AND ${MANAGER_ID_REMAPPED} = $1
-      GROUP BY t.client_id
-    )
+    ${AGG_CLIENTES_CTE}
     SELECT
       c.id::int                      AS id,
       c.name                         AS nome,
@@ -51,7 +85,8 @@ export async function listarClientesDoVendedor(
       COALESCE(agg.tpv, 0)::float         AS tpv,
       COALESCE(agg."qtdTickets", 0)::int  AS "qtdTickets",
       COALESCE(agg."taxaMedia", 0)::float AS "taxaMedia",
-      agg."ultimaAtividade"          AS "ultimaAtividade"
+      agg."ultimaAtividade"          AS "ultimaAtividade",
+      COUNT(*) OVER()::int           AS "totalCount"
     FROM clients c
     LEFT JOIN agg      ON agg.client_id = c.id
     LEFT JOIN segments s ON s.id = c.segment_id
@@ -62,10 +97,63 @@ export async function listarClientesDoVendedor(
         OR c.cnpj ILIKE '%' || $2 || '%'
         OR c.commercial_name ILIKE '%' || $2 || '%'
       )
+      AND ($3::text IS NULL OR c.address_uf = $3)
+      AND ($4::text IS NULL OR c.address_city = $4)
+      AND ($5::text IS NULL OR s.name = $5)
+      AND ($6::text IS NULL OR ${STATUS_CASE} = $6)
     ORDER BY COALESCE(agg.receita, 0) DESC, c.name ASC
-  `, [managerId, termo]);
+    LIMIT $7 OFFSET $8
+  `, [managerId, termo, uf, cidade, segmento, status, limit, offset]);
 
-  return rows as ClienteResumo[];
+  const total = rows[0]?.totalCount ?? 0;
+  const clientes = rows.map(({ totalCount, ...resto }) => resto) as ClienteResumo[];
+  return { clientes, total, page, limit };
+}
+
+/** Resumo agregado da carteira inteira do vendedor (independe de filtros/página). */
+export async function buscarResumoCarteira(managerId: number): Promise<ResumoCarteira> {
+  const { rows } = await consultaPool.query(`
+    ${AGG_CLIENTES_CTE}
+    SELECT
+      COUNT(*)::int AS total,
+      COUNT(*) FILTER (WHERE ${STATUS_CASE} = 'ativo')::int AS ativos,
+      COUNT(*) FILTER (WHERE ${STATUS_CASE} = 'risco')::int AS risco,
+      COALESCE(SUM(COALESCE(agg.receita, 0)), 0)::float AS receita
+    FROM clients c
+    LEFT JOIN agg ON agg.client_id = c.id
+    WHERE ${MANAGER_ID_REMAPPED} = $1
+  `, [managerId]);
+
+  const r = rows[0] ?? { total: 0, ativos: 0, risco: 0, receita: 0 };
+  return { total: r.total, ativos: r.ativos, risco: r.risco, receita: r.receita };
+}
+
+/** Opções distintas de UF/cidade/segmento entre os clientes do vendedor (para os filtros). */
+export async function buscarFiltrosClientes(managerId: number): Promise<FiltrosClientes> {
+  const [ufs, cidades, segmentos] = await Promise.all([
+    consultaPool.query(`
+      SELECT DISTINCT c.address_uf AS uf FROM clients c
+      WHERE ${MANAGER_ID_REMAPPED} = $1 AND c.address_uf IS NOT NULL
+      ORDER BY uf
+    `, [managerId]),
+    consultaPool.query(`
+      SELECT DISTINCT c.address_city AS cidade, c.address_uf AS uf FROM clients c
+      WHERE ${MANAGER_ID_REMAPPED} = $1 AND c.address_city IS NOT NULL
+      ORDER BY cidade
+    `, [managerId]),
+    consultaPool.query(`
+      SELECT DISTINCT s.name AS segmento FROM clients c
+      JOIN segments s ON s.id = c.segment_id
+      WHERE ${MANAGER_ID_REMAPPED} = $1 AND s.name IS NOT NULL
+      ORDER BY segmento
+    `, [managerId]),
+  ]);
+
+  return {
+    ufs: ufs.rows.map((r: { uf: string }) => r.uf),
+    cidades: cidades.rows.map((r: { cidade: string; uf: string | null }) => ({ cidade: r.cidade, uf: r.uf })),
+    segmentos: segmentos.rows.map((r: { segmento: string }) => r.segmento),
+  };
 }
 
 /** Ficha do cliente — retorna null se o cliente não pertence ao vendedor. */
