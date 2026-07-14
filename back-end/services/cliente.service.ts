@@ -361,8 +361,19 @@ async function buscarClientesPorCnpj(cnpjLimpo: string): Promise<ClienteCnpjMatc
  * 2. É cliente de outro manager        → CLIENTE_DE_OUTRO (só nome comercial).
  * 3. Não é cliente de ninguém          → DISPONIVEL (dados públicos da Receita).
  *
- * Segurança: o escopo vem do `managerId` do vendedor logado (nunca do request).
- * O CNPJ é normalizado nos dois lados (a coluna `clients.cnpj` pode ter máscara).
+ * IMPORTANTE — `buscarClientesPorCnpj` NÃO filtra por manager_id: ela busca o
+ * CNPJ contra TODA a base de clientes (`clients`), de QUALQUER vendedor da
+ * empresa. Isso é proposital e não pode ser "otimizado" para escopar só o
+ * vendedor logado: o objetivo da checagem é impedir que um CNPJ que já é
+ * cliente de outro vendedor (ex.: um cliente do André Camargo) apareça como
+ * "disponível" para outra pessoa prospectar, evitando conflito/canibalização
+ * de carteira dentro da empresa. Só depois de confirmar que o CNPJ não
+ * pertence a NINGUÉM na empresa é que caímos na consulta à Receita Federal.
+ *
+ * Segurança: o `managerId` do vendedor logado só é usado para decidir se o
+ * match encontrado é MEU_CLIENTE ou CLIENTE_DE_OUTRO — nunca para restringir
+ * a busca em si. O CNPJ é normalizado nos dois lados (a coluna `clients.cnpj`
+ * pode ter máscara).
  */
 export async function prospectarCnpj(
   managerId: number,
@@ -376,6 +387,7 @@ export async function prospectarCnpj(
     if (meu) {
       return { status: 'MEU_CLIENTE', clienteId: meu.id };
     }
+    console.info(`[prospeccao] CNPJ ${cnpjLimpo} bloqueado para manager ${managerId}: já é cliente do manager ${rows[0]!.mgr}.`);
     return { status: 'CLIENTE_DE_OUTRO', nomeComercial: rows[0]!.commercial_name ?? rows[0]!.name };
   }
 

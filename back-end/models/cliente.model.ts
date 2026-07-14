@@ -107,9 +107,24 @@ export interface ReceitaDTO {
   razaoSocial: string | null;
   nomeFantasia: string | null;
   situacaoCadastral: string | null;
+  dataSituacaoCadastral: string | null;
   porte: string | null;
+  naturezaJuridica: string | null;
+  capitalSocial: number | null;
   cnaePrincipal: { codigo: string | null; descricao: string | null };
-  endereco: { cidade: string | null; uf: string | null };
+  cnaesSecundarios: { codigo: string | null; descricao: string | null }[];
+  endereco: {
+    logradouro: string | null;
+    numero: string | null;
+    complemento: string | null;
+    bairro: string | null;
+    cep: string | null;
+    cidade: string | null;
+    uf: string | null;
+  };
+  telefone: string | null;
+  email: string | null;
+  socios: { nome: string | null; qualificacao: string | null }[];
   aberturaEm: string | null;
 }
 

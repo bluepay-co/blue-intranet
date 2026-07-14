@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { roleMiddleware } from '../middleware/role.middleware';
+import { prospeccaoRateLimit } from '../middleware/prospeccao-rate-limit.middleware';
 import { Role } from '../models/usuario.model';
 import { getMeusClientes, getClienteDetalhe, getProspeccaoCnpj } from '../controllers/cliente.controller';
 
@@ -16,7 +17,7 @@ clienteRouter.get('/', ACESSO, getMeusClientes);
 
 // GET /api/clientes/prospeccao?cnpj=00000000000000  — prospecção por CNPJ
 // Registrar ANTES de '/:id' para o Express não casar "prospeccao" como id.
-clienteRouter.get('/prospeccao', ACESSO, getProspeccaoCnpj);
+clienteRouter.get('/prospeccao', ACESSO, prospeccaoRateLimit, getProspeccaoCnpj);
 
 // GET /api/clientes/:id  — ficha + métricas de um cliente (escopo do vendedor)
 clienteRouter.get('/:id', ACESSO, getClienteDetalhe);
