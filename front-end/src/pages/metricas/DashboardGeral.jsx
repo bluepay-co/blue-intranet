@@ -82,6 +82,17 @@ function TooltipReceita({ active, payload }) {
   )
 }
 
+function TooltipNovosClientes({ active, payload }) {
+  if (!active || !payload?.length) return null
+  const d = payload[0]?.payload
+  return (
+    <div className="rounded-xl border bg-background px-3.5 py-2.5 text-sm shadow-xl space-y-1">
+      <p className="font-semibold text-foreground">{MESES[(d.mes ?? 1) - 1]}</p>
+      <p className="text-primary font-medium">{numero(d.quantidade)} novos clientes</p>
+    </div>
+  )
+}
+
 function TooltipYoY({ active, payload, label }) {
   if (!active || !payload?.length) return null
   const r2026 = payload.find(p => p.dataKey === 'r2026')?.value
@@ -501,7 +512,7 @@ export default function DashboardGeral() {
                       <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="currentColor" className="stroke-border/30" />
                       <XAxis dataKey="mes" tickFormatter={m => MESES[m - 1]} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
                       <YAxis allowDecimals={false} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                      <Tooltip formatter={v => [numero(v), 'Novos clientes']} labelFormatter={m => MESES[m - 1]} />
+                      <Tooltip content={<TooltipNovosClientes />} cursor={{ fill: 'currentColor', className: 'fill-muted/40' }} />
                       <Bar dataKey="quantidade" fill="url(#gradBarNovos)" radius={[5, 5, 0, 0]} />
                     </BarChart>
                   </ChartContainer>
