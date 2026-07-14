@@ -6,8 +6,12 @@ import { AppError } from '../utils/app-error';
  * Usa fetch global (Node 18+); nada de expor credenciais no front.
  */
 
-const BASE = process.env.BACKOFFICE_API_URL ?? 'https://tickets.stg.blueoffice.tech/api/v1';
+const BASE = process.env.BACKOFFICE_API_URL;
 const TOKEN = process.env.BACKOFFICE_API_TOKEN ?? '';
+
+if (!BASE) {
+  throw new Error('BACKOFFICE_API_URL não configurada. Defina no .env antes de subir o servidor.');
+}
 
 interface Opts {
   method?: string;
