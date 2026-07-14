@@ -229,6 +229,14 @@ export async function buscarMetricasCliente(clienteId: number): Promise<ClienteM
           WHERE EXTRACT(YEAR FROM t.invoice_payment_date)  = EXTRACT(YEAR FROM NOW())
             AND EXTRACT(MONTH FROM t.invoice_payment_date) = EXTRACT(MONTH FROM NOW())
         ), 0)::float AS "receitaMes",
+        COALESCE(SUM(t.excel_total_bonus) FILTER (
+          WHERE EXTRACT(YEAR FROM t.invoice_payment_date)  = EXTRACT(YEAR FROM NOW())
+            AND EXTRACT(MONTH FROM t.invoice_payment_date) = EXTRACT(MONTH FROM NOW())
+        ), 0)::float AS "tpvMes",
+        COUNT(*) FILTER (
+          WHERE EXTRACT(YEAR FROM t.invoice_payment_date)  = EXTRACT(YEAR FROM NOW())
+            AND EXTRACT(MONTH FROM t.invoice_payment_date) = EXTRACT(MONTH FROM NOW())
+        )::int AS "qtdTicketsMes",
         MIN(t.invoice_payment_date) AS "primeiroTicket",
         MAX(t.invoice_payment_date) AS "ultimoTicket"
       FROM tickets t
@@ -276,6 +284,8 @@ export async function buscarMetricasCliente(clienteId: number): Promise<ClienteM
     taxaMedia:      r?.taxaMedia ?? 0,
     receitaAno:     r?.receitaAno ?? 0,
     receitaMes:     r?.receitaMes ?? 0,
+    tpvMes:         r?.tpvMes ?? 0,
+    qtdTicketsMes:  r?.qtdTicketsMes ?? 0,
     primeiroTicket: r?.primeiroTicket ?? null,
     ultimoTicket:   r?.ultimoTicket ?? null,
     evolucao:       evolucao.rows.map((e: { ano: number; mes: number; receita: number }) => ({
