@@ -5,8 +5,6 @@ import {
   buscarVendedorPorEmail,
   buscarMetricasEquipe,
   buscarMetricasGerais,
-  buscarMetricasCXCompletas,
-  buscarMetricasCXEquipe,
 } from '../services/metricas.service';
 import { AppError } from '../utils/app-error';
 import { pool } from '../database/pool';
@@ -114,44 +112,5 @@ export async function metricasGerais(req: Request, res: Response) {
     if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
     console.error('[metricas.controller] metricasGerais:', err);
     return res.status(500).json({ message: 'Erro ao buscar métricas gerais.' });
-  }
-}
-
-export async function meuResumoCX(req: Request, res: Response) {
-  try {
-    const emailJwt = req.usuario?.email;
-    if (!emailJwt) throw new AppError('Usuário não autenticado.', 401);
-
-    const agora = new Date();
-    const mes = req.query.mes ? Number(req.query.mes) : agora.getMonth() + 1;
-    const ano = req.query.ano ? Number(req.query.ano) : agora.getFullYear();
-
-    const dados = await buscarMetricasCXCompletas(emailJwt, mes, ano);
-    if (!dados) {
-      return res.status(404).json({ message: 'Usuário não encontrado no banco de produção.' });
-    }
-    return res.status(200).json(dados);
-  } catch (err) {
-    if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
-    console.error('[metricas.controller] meuResumoCX:', err);
-    return res.status(500).json({ message: 'Erro ao buscar métricas CX.' });
-  }
-}
-
-export async function equipeResumoCX(req: Request, res: Response) {
-  try {
-    const agora = new Date();
-    const mes = req.query.mes ? Number(req.query.mes) : agora.getMonth() + 1;
-    const ano = req.query.ano ? Number(req.query.ano) : agora.getFullYear();
-
-    const dados = await buscarMetricasCXEquipe(mes, ano);
-    if (!dados) {
-      return res.status(404).json({ message: 'Nenhum dado de equipe CX encontrado.' });
-    }
-    return res.status(200).json(dados);
-  } catch (err) {
-    if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
-    console.error('[metricas.controller] equipeResumoCX:', err);
-    return res.status(500).json({ message: 'Erro ao buscar métricas da equipe CX.' });
   }
 }

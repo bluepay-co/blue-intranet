@@ -10,7 +10,6 @@ import {
   postCriar,
   getMeus,
   getTodos,
-  getChamadosCX,
   getChamadosProdutos,
   getResumo,
   getChamado,
@@ -51,7 +50,6 @@ chamadosRouter.use(authMiddleware);
 chamadosRouter.get('/resumo', getResumo);
 chamadosRouter.get('/admin/todos', roleMiddleware(Role.TI, Role.DESENVOLVEDOR), getTodos);
 chamadosRouter.get('/admin/dashboard', roleMiddleware(Role.TI, Role.DESENVOLVEDOR), getDashboard);
-chamadosRouter.get('/cx/todos', roleMiddleware(Role.CX, Role.DESENVOLVEDOR), getChamadosCX);
 chamadosRouter.get('/produtos/todos', roleMiddleware(Role.PRODUTOS, Role.DESENVOLVEDOR), getChamadosProdutos);
 
 // ── Colaborador (dono) + acesso compartilhado com T.I. ────────────────────────

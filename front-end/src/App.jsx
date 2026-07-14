@@ -12,14 +12,11 @@ import Chamados from '@/pages/Chamados'
 import ChamadoDetalhe from '@/pages/ChamadoDetalhe'
 import ChamadosTI from '@/pages/ti/ChamadosTI'
 import DashboardTI from '@/pages/ti/DashboardTI'
-import ChamadosCX from '@/pages/cx/ChamadosCX'
 import ChamadosProdutos from '@/pages/produtos/ChamadosProdutos'
 import DashboardPessoal from '@/pages/metricas/DashboardPessoal'
 import DashboardEquipe from '@/pages/metricas/DashboardEquipe'
 import DashboardGeral from '@/pages/metricas/DashboardGeral'
 import DashboardComercialLayout from '@/pages/metricas/DashboardComercialLayout'
-import DashboardCX from '@/pages/metricas/DashboardCX'
-import DashboardCXEquipe from '@/pages/metricas/DashboardCXEquipe'
 import DashboardPreVendas from '@/pages/metricas/DashboardPreVendas'
 import DashboardPreVendasEquipe from '@/pages/metricas/DashboardPreVendasEquipe'
 import LancamentoPreVendas from '@/pages/prevendas/LancamentoPreVendas'
@@ -77,14 +74,6 @@ function App() {
           }
         />
         <Route
-          path="cx/chamados"
-          element={
-            <ProtectedRoute roles={['CX', 'DESENVOLVEDOR']}>
-              <ChamadosCX />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="produtos/chamados"
           element={
             <ProtectedRoute roles={['PRODUTOS', 'DESENVOLVEDOR']}>
@@ -138,22 +127,6 @@ function App() {
           element={
             <ProtectedRoute roles={['KAM', 'DESENVOLVEDOR']}>
               <DashboardEquipe />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="metricas/cx"
-          element={
-            <ProtectedRoute roles={['CX', 'DESENVOLVEDOR']}>
-              <DashboardCX />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="metricas/cx/equipe"
-          element={
-            <ProtectedRoute roles={['CX', 'DESENVOLVEDOR']}>
-              <DashboardCXEquipe />
             </ProtectedRoute>
           }
         />
