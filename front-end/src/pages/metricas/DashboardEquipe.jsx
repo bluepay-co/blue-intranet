@@ -160,7 +160,7 @@ function ComparativoAnoAno({ yoy }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Comparativo Ano × Ano — Receita da Equipe</CardTitle>
+        <CardTitle>YoY — Comparativo Ano × Ano — Receita da Equipe</CardTitle>
       </CardHeader>
       <CardContent>
         {dados.length === 0 ? (

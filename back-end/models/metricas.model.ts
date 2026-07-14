@@ -227,6 +227,8 @@ export interface MetricasGerais {
   topClientes: TopClienteGeral[];
   ytd: ComparativoYTD[];
   novosClientesMes: NovosClientesMes[];
+  /** Receita mensal da empresa inteira no ano filtrado (array[12], Jan–Dez), para o comparativo Ano × Ano. */
+  receitaMensalAno: number[];
 }
 
 // ── Métricas CX ─────────────────────────────────────────────────────────────

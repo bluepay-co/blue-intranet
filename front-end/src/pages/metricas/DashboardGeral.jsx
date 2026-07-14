@@ -112,6 +112,25 @@ function TooltipYoY({ active, payload, label }) {
   )
 }
 
+function TooltipYTD({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  const y2026 = payload.find(p => p.dataKey === 'ytd2026')?.value
+  const y2025 = payload.find(p => p.dataKey === 'ytd2025')?.value
+  const delta = y2025 && y2026 ? Math.round(((y2026 - y2025) / y2025) * 1000) / 10 : null
+  return (
+    <div className="rounded-xl border bg-background px-3.5 py-2.5 text-sm shadow-xl space-y-1 min-w-[180px]">
+      <p className="font-semibold text-foreground">Jan → {MESES[(label ?? 1) - 1]}</p>
+      {y2026 != null && <p className="text-primary font-medium">2026: {moeda(y2026)}</p>}
+      {y2025 != null && <p className="text-muted-foreground">2025: {moeda(y2025)}</p>}
+      {delta !== null && (
+        <p className={`text-xs font-semibold ${delta >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+          YTD: {pct(delta)}
+        </p>
+      )}
+    </div>
+  )
+}
+
 export default function DashboardGeral() {
   const agora = new Date()
   const [mes, setMes] = useState(agora.getMonth() + 1)
@@ -181,23 +200,39 @@ export default function DashboardGeral() {
       )}
 
       {dados && (() => {
-        const { resumo, hoje, retencao, mixProduto, evolucaoMensal, topClientes, ytd, novosClientesMes } = dados
+        const { resumo, hoje, retencao, mixProduto, evolucaoMensal, topClientes, ytd, novosClientesMes, receitaMensalAno } = dados
         const ytdAtual    = ytd.find(y => y.ano === ano)
         const ytdAnterior = ytd.find(y => y.ano === ano - 1)
         const agora_ref   = new Date()
         const ehMesAtual  = mes === agora_ref.getMonth() + 1 && ano === agora_ref.getFullYear()
 
-        // Dados YoY — combina evolucaoMensal (2026) com realizado2025 estático
+        // Dados YoY — combina receitaMensalAno (ano inteiro, não só a janela de 6 meses de evolucaoMensal) com realizado2025 estático
         const dadosYoY = Array.from({ length: 12 }, (_, i) => {
           const m = i + 1
-          const item2026 = evolucaoMensal.find(h => h.mes === m && h.ano === ano)
-          const val2025  = getRealizadoEquipe2025('GERAL', m)
+          const val2026 = receitaMensalAno?.[i] ?? 0
+          const val2025 = getRealizadoEquipe2025('GERAL', m)
           return {
             mes:   m,
-            r2026: item2026?.receita ?? null,
+            r2026: val2026 > 0 ? val2026 : null,
             r2025: val2025 > 0 ? val2025 : null,
           }
         }).filter(d => d.r2026 !== null || d.r2025 !== null)
+
+        // Dados YTD acumulado — mesma fonte do YoY, mas somando mês a mês.
+        // A linha de 2026 para no mês filtrado (meses futuros não têm dado ainda);
+        // a de 2025 (ano fechado) segue somando até dezembro.
+        let acc2026 = 0, acc2025 = 0
+        const dadosYTD = Array.from({ length: 12 }, (_, i) => {
+          const m = i + 1
+          const ehFuturo = ano === agora_ref.getFullYear() && m > mes
+          acc2025 += getRealizadoEquipe2025('GERAL', m)
+          if (!ehFuturo) acc2026 += receitaMensalAno?.[i] ?? 0
+          return {
+            mes: m,
+            ytd2026: ehFuturo ? null : acc2026,
+            ytd2025: acc2025,
+          }
+        })
 
         return (
           <>
@@ -290,41 +325,80 @@ export default function DashboardGeral() {
               <KpiCard icon={RefreshCw}  cor="bg-teal-500/10 text-teal-600"       valor={`${retencao.taxaRetencao}%`}           rotulo={`Retenção · ${numero(retencao.recorrentes)} recorrentes`} />
             </div>
 
-            {/* Evolução Mensal + YTD */}
+            {/* Evolução Mensal */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Evolução Mensal — Receita</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer className="h-64">
+                  <BarChart data={evolucaoMensal} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="gradBarGeral" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={CORES_GRAFICO[0]} stopOpacity={1} />
+                        <stop offset="100%" stopColor={CORES_GRAFICO[0]} stopOpacity={0.7} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="currentColor" className="stroke-border/30" />
+                    <XAxis dataKey="mes" tickFormatter={m => MESES[m - 1]} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                    <YAxis tickFormatter={v => moeda(v)} tick={{ fontSize: 11 }} width={110} tickLine={false} axisLine={false} />
+                    <Tooltip content={<TooltipReceita />} cursor={{ fill: 'currentColor', className: 'fill-muted/40' }} />
+                    <Bar dataKey="receita" radius={[5, 5, 0, 0]}>
+                      {evolucaoMensal.map((entry, i) => (
+                        <Cell
+                          key={i}
+                          fill={entry.mes === mes && entry.ano === ano
+                            ? 'url(#gradBarGeral)'
+                            : `${CORES_GRAFICO[0]}44`}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
+            {/* YTD — gráfico de receita acumulada + card resumo */}
             <div className="grid gap-4 lg:grid-cols-3">
               <Card className="lg:col-span-2">
                 <CardHeader>
-                  <CardTitle>Evolução Mensal — Receita</CardTitle>
+                  <CardTitle>YTD — Receita Acumulada</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ChartContainer className="h-64">
-                    <BarChart data={evolucaoMensal} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="gradBarGeral" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor={CORES_GRAFICO[0]} stopOpacity={1} />
-                          <stop offset="100%" stopColor={CORES_GRAFICO[0]} stopOpacity={0.7} />
-                        </linearGradient>
-                      </defs>
+                  <ChartContainer className="h-72">
+                    <LineChart data={dadosYTD} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="currentColor" className="stroke-border/30" />
                       <XAxis dataKey="mes" tickFormatter={m => MESES[m - 1]} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
                       <YAxis tickFormatter={v => moeda(v)} tick={{ fontSize: 11 }} width={110} tickLine={false} axisLine={false} />
-                      <Tooltip content={<TooltipReceita />} cursor={{ fill: 'currentColor', className: 'fill-muted/40' }} />
-                      <Bar dataKey="receita" radius={[5, 5, 0, 0]}>
-                        {evolucaoMensal.map((entry, i) => (
-                          <Cell
-                            key={i}
-                            fill={entry.mes === mes && entry.ano === ano
-                              ? 'url(#gradBarGeral)'
-                              : `${CORES_GRAFICO[0]}44`}
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
+                      <Tooltip content={<TooltipYTD />} />
+                      <Legend
+                        formatter={v => v === 'ytd2026' ? '2026 (atual)' : '2025 (realizado)'}
+                        wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="ytd2025"
+                        stroke={`${CORES_GRAFICO[0]}88`}
+                        strokeWidth={2}
+                        strokeDasharray="5 4"
+                        dot={false}
+                        connectNulls
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="ytd2026"
+                        stroke={CORES_GRAFICO[0]}
+                        strokeWidth={2.5}
+                        dot={{ r: 3.5, fill: CORES_GRAFICO[0], strokeWidth: 0 }}
+                        activeDot={{ r: 5 }}
+                        connectNulls
+                      />
+                    </LineChart>
                   </ChartContainer>
                 </CardContent>
               </Card>
 
-              {/* YTD */}
+              {/* YTD — resumo em card */}
               <Card>
                 <CardHeader>
                   <CardTitle>YTD — Jan → {MESES[mes - 1]}</CardTitle>
@@ -359,7 +433,7 @@ export default function DashboardGeral() {
             {dadosYoY.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Comparativo Ano × Ano — Receita Total</CardTitle>
+                  <CardTitle>YoY — Comparativo Ano × Ano — Receita Total</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ChartContainer className="h-72">

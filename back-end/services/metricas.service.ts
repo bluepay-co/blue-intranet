@@ -1025,6 +1025,25 @@ async function buscarEvolucaoMensal(mes: number, ano: number, meses: number = 6)
   });
 }
 
+/** Receita mensal da empresa inteira num ano (array[12]) — alimenta o comparativo Ano × Ano. */
+async function buscarReceitaMensalAnoGeral(ano: number): Promise<number[]> {
+  const { rows } = await consultaPool.query(`
+    SELECT
+      EXTRACT(MONTH FROM t.invoice_payment_date)::int AS mes,
+      COALESCE(SUM(t.excel_total_rate), 0)::float     AS receita
+    FROM tickets t
+    LEFT JOIN clients c ON c.id = t.client_id
+    WHERE ${FILTROS_BASE}
+      AND EXTRACT(YEAR FROM t.invoice_payment_date) = $1
+    GROUP BY mes
+    ORDER BY mes
+  `, [ano]);
+
+  const arr = new Array<number>(12).fill(0);
+  for (const r of rows) arr[r.mes - 1] = r.receita;
+  return arr;
+}
+
 async function buscarTopClientesGeral(mes: number, ano: number, limite = 10): Promise<TopClienteGeral[]> {
   const { rows } = await consultaPool.query(`
     SELECT
@@ -1120,6 +1139,7 @@ export async function buscarMetricasGerais(
     topClientes,
     ytd,
     novosClientesMes,
+    receitaMensalAno,
   ] = await Promise.all([
     buscarResumoGeral(mesRef, anoRef),
     buscarHojeGeral(mesRef, anoRef),
@@ -1129,9 +1149,10 @@ export async function buscarMetricasGerais(
     buscarTopClientesGeral(mesRef, anoRef, 10),
     buscarYTD(mesRef, anoRef),
     buscarNovosClientesMes(anoRef),
+    buscarReceitaMensalAnoGeral(anoRef),
   ]);
 
-  return { resumo, hoje, retencao, mixProduto, evolucaoMensal, topClientes, ytd, novosClientesMes };
+  return { resumo, hoje, retencao, mixProduto, evolucaoMensal, topClientes, ytd, novosClientesMes, receitaMensalAno };
 }
 
 // ── Métricas CX ─────────────────────────────────────────────────────────────
