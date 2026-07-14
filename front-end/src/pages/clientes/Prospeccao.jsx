@@ -22,6 +22,11 @@ function Campo({ label, children }) {
   )
 }
 
+function moeda(v) {
+  if (v == null) return null
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v)
+}
+
 export default function Prospeccao() {
   const navigate = useNavigate()
   const [cnpj, setCnpj] = useState('')
@@ -146,24 +151,60 @@ export default function Prospeccao() {
                 Dados da Receita indisponíveis no momento. Tente novamente mais tarde.
               </div>
             ) : (
-              <div className="grid gap-4 border-t pt-4 sm:grid-cols-2 lg:grid-cols-3">
-                <Campo label="CNPJ">{formatarCnpj(resultado.cnpj)}</Campo>
-                <Campo label="Situação cadastral">{resultado.situacaoCadastral}</Campo>
-                <Campo label="Porte">{resultado.porte}</Campo>
-                <Campo label="CNAE principal">
-                  {resultado.cnaePrincipal?.codigo
-                    ? `${resultado.cnaePrincipal.codigo}${resultado.cnaePrincipal.descricao ? ' — ' + resultado.cnaePrincipal.descricao : ''}`
-                    : '—'}
-                </Campo>
-                <Campo label="Cidade/UF">
-                  {resultado.endereco?.cidade
-                    ? `${resultado.endereco.cidade}${resultado.endereco.uf ? '/' + resultado.endereco.uf : ''}`
-                    : '—'}
-                </Campo>
-                <Campo label="Abertura">
-                  {resultado.aberturaEm ? new Date(resultado.aberturaEm).toLocaleDateString('pt-BR') : '—'}
-                </Campo>
-              </div>
+              <>
+                <div className="grid gap-4 border-t pt-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <Campo label="CNPJ">{formatarCnpj(resultado.cnpj)}</Campo>
+                  <Campo label="Situação cadastral">
+                    {resultado.situacaoCadastral}
+                    {resultado.dataSituacaoCadastral && (
+                      <span className="ml-1 font-normal text-muted-foreground">
+                        (desde {new Date(resultado.dataSituacaoCadastral).toLocaleDateString('pt-BR')})
+                      </span>
+                    )}
+                  </Campo>
+                  <Campo label="Porte">{resultado.porte}</Campo>
+                  <Campo label="Natureza jurídica">{resultado.naturezaJuridica}</Campo>
+                  <Campo label="Capital social">{moeda(resultado.capitalSocial)}</Campo>
+                  <Campo label="Abertura">
+                    {resultado.aberturaEm ? new Date(resultado.aberturaEm).toLocaleDateString('pt-BR') : '—'}
+                  </Campo>
+                  <Campo label="CNAE principal">
+                    {resultado.cnaePrincipal?.codigo
+                      ? `${resultado.cnaePrincipal.codigo}${resultado.cnaePrincipal.descricao ? ' — ' + resultado.cnaePrincipal.descricao : ''}`
+                      : '—'}
+                  </Campo>
+                  <Campo label="Telefone">{resultado.telefone}</Campo>
+                  <Campo label="E-mail">{resultado.email}</Campo>
+                </div>
+
+                <div className="grid gap-4 border-t pt-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <Campo label="Endereço">
+                    {resultado.endereco?.logradouro
+                      ? `${resultado.endereco.logradouro}${resultado.endereco.numero ? ', ' + resultado.endereco.numero : ''}`
+                      : '—'}
+                  </Campo>
+                  <Campo label="Bairro">{resultado.endereco?.bairro}</Campo>
+                  <Campo label="Cidade/UF">
+                    {resultado.endereco?.cidade
+                      ? `${resultado.endereco.cidade}${resultado.endereco.uf ? '/' + resultado.endereco.uf : ''}`
+                      : '—'}
+                  </Campo>
+                  <Campo label="CEP">{resultado.endereco?.cep}</Campo>
+                </div>
+
+                {resultado.socios?.length > 0 && (
+                  <div className="border-t pt-4">
+                    <p className="mb-2 text-xs text-muted-foreground">Quadro societário</p>
+                    <div className="flex flex-wrap gap-2">
+                      {resultado.socios.map((s, i) => (
+                        <Badge key={i} variant="outline" className="font-normal">
+                          {s.nome}{s.qualificacao ? ` · ${s.qualificacao}` : ''}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

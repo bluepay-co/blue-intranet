@@ -160,7 +160,7 @@ function ComparativoAnoAno({ yoy }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Comparativo Ano × Ano — Receita da Equipe</CardTitle>
+        <CardTitle>YoY — Comparativo Ano × Ano — Receita da Equipe</CardTitle>
       </CardHeader>
       <CardContent>
         {dados.length === 0 ? (
@@ -230,7 +230,6 @@ function TopClientesTabela({ titulo, clientes }) {
                 <th className="px-4 py-2 text-left font-medium">Cliente</th>
                 <th className="px-4 py-2 text-right font-medium">Receita</th>
                 <th className="px-4 py-2 text-right font-medium">TPV</th>
-                <th className="px-4 py-2 text-right font-medium">Taxa</th>
               </tr>
             </thead>
             <tbody>
@@ -242,7 +241,6 @@ function TopClientesTabela({ titulo, clientes }) {
                   <td className="px-4 py-2.5 max-w-[200px] truncate font-medium">{c.nome}</td>
                   <td className="px-4 py-2.5 text-right text-primary font-semibold">{moeda(c.receita)}</td>
                   <td className="px-4 py-2.5 text-right text-muted-foreground">{moeda(c.tpv)}</td>
-                  <td className="px-4 py-2.5 text-right">{(c.taxa ?? 0).toFixed(2)}%</td>
                 </tr>
               ))}
             </tbody>
@@ -254,7 +252,7 @@ function TopClientesTabela({ titulo, clientes }) {
 }
 
 /** Ranking dos membros da equipe (mês ou ano). */
-function RankingTabela({ titulo, membros, mostrarHoje }) {
+function RankingTabela({ titulo, membros, mostrarHoje, ocultarSigilosas }) {
   return (
     <Card className="overflow-hidden">
       <CardHeader className="border-b bg-muted/30">
@@ -274,10 +272,10 @@ function RankingTabela({ titulo, membros, mostrarHoje }) {
                   <th className="px-4 py-2 text-right font-medium">Meta</th>
                   <th className="px-4 py-2 text-right font-medium">% Meta</th>
                   <th className="px-4 py-2 text-right font-medium">TPV</th>
-                  <th className="px-4 py-2 text-right font-medium">Taxa</th>
-                  <th className="px-4 py-2 text-right font-medium">Ticket Médio</th>
-                  <th className="px-4 py-2 text-right font-medium">Transações</th>
-                  <th className="px-4 py-2 text-right font-medium">Clientes</th>
+                  {!ocultarSigilosas && <th className="px-4 py-2 text-right font-medium">Taxa</th>}
+                  {!ocultarSigilosas && <th className="px-4 py-2 text-right font-medium">Ticket Médio</th>}
+                  {!ocultarSigilosas && <th className="px-4 py-2 text-right font-medium">Transações</th>}
+                  {!ocultarSigilosas && <th className="px-4 py-2 text-right font-medium">Clientes</th>}
                   {mostrarHoje && <th className="px-4 py-2 text-right font-medium">Hoje</th>}
                 </tr>
               </thead>
@@ -298,10 +296,10 @@ function RankingTabela({ titulo, membros, mostrarHoje }) {
                       ) : '—'}
                     </td>
                     <td className="px-4 py-2.5 text-right text-muted-foreground">{moeda(m.tpv)}</td>
-                    <td className="px-4 py-2.5 text-right">{(m.taxaMedia ?? 0).toFixed(2)}%</td>
-                    <td className="px-4 py-2.5 text-right">{moeda(m.ticketMedio)}</td>
-                    <td className="px-4 py-2.5 text-right">{numero(m.qtdTickets)}</td>
-                    <td className="px-4 py-2.5 text-right">{numero(m.clientesAtivos)}</td>
+                    {!ocultarSigilosas && <td className="px-4 py-2.5 text-right">{(m.taxaMedia ?? 0).toFixed(2)}%</td>}
+                    {!ocultarSigilosas && <td className="px-4 py-2.5 text-right">{moeda(m.ticketMedio)}</td>}
+                    {!ocultarSigilosas && <td className="px-4 py-2.5 text-right">{numero(m.qtdTickets)}</td>}
+                    {!ocultarSigilosas && <td className="px-4 py-2.5 text-right">{numero(m.clientesAtivos)}</td>}
                     {mostrarHoje && (
                       <td className="px-4 py-2.5 text-right">
                         <span className="text-primary font-semibold">{moeda(m.receitaHoje)}</span>
@@ -587,7 +585,7 @@ export default function DashboardEquipe({ equipeFixa }) {
                 </div>
 
                 <TopClientesTabela titulo="Top Clientes da Equipe" clientes={topClientes} />
-                <RankingTabela titulo={`Ranking da Equipe — ${MESES[mes - 1]}/${ano}`} membros={membros} mostrarHoje={ehMesAtual} />
+                <RankingTabela titulo={`Ranking da Equipe — ${MESES[mes - 1]}/${ano}`} membros={membros} mostrarHoje={ehMesAtual} ocultarSigilosas={!!equipeFixa} />
               </div>
             )}
 
@@ -661,7 +659,7 @@ export default function DashboardEquipe({ equipeFixa }) {
 
                 {/* Top Clientes do Ano + Ranking Anual */}
                 <TopClientesTabela titulo="Top Clientes do Ano" clientes={anual.topClientes} />
-                <RankingTabela titulo={`Ranking da Equipe — ${ano}`} membros={anual.membros} mostrarHoje={false} />
+                <RankingTabela titulo={`Ranking da Equipe — ${ano}`} membros={anual.membros} mostrarHoje={false} ocultarSigilosas={!!equipeFixa} />
               </div>
             )}
           </>

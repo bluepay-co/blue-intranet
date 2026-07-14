@@ -125,12 +125,6 @@ export async function dashboard() {
   return data
 }
 
-/** Lista todos os chamados do time CX, com filtro opcional por nome do colaborador. */
-export async function listarCx(filtros = {}) {
-  const { data } = await api.get('/api/chamados/cx/todos', { params: filtros })
-  return data.chamados
-}
-
 /** Lista chamados do CX para o time de Produtos, com filtro opcional por colaborador. */
 export async function listarProdutos(filtros = {}) {
   const { data } = await api.get('/api/chamados/produtos/todos', { params: filtros })
@@ -138,27 +132,9 @@ export async function listarProdutos(filtros = {}) {
 }
 
 // ── Fluxo CX/Produtos — permanece no banco da intranet (não migrou) ─────────────
-
-/** Abre um chamado do CX (banco da intranet). */
-export async function criarChamadoCx(payload) {
-  const form = new FormData()
-  form.append('titulo', payload.titulo)
-  form.append('descricao', payload.descricao)
-  form.append('categoria', payload.categoria)
-  form.append('criticidade', payload.criticidade)
-  if (payload.anexo) form.append('anexo', payload.anexo)
-  if (payload.identificadorUrl) form.append('identificadorUrl', payload.identificadorUrl)
-  const { data } = await api.post('/api/chamados', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
-  return data.chamado
-}
-
-/** Edita título/descrição de um chamado do CX (banco). */
-export async function editarChamadoCx(id, payload) {
-  const { data } = await api.put(`/api/chamados/${id}`, { titulo: payload.titulo, descricao: payload.descricao })
-  return data.chamado
-}
+// Abertura/edição pelo CX foi removida (o time CX não usa mais o portal); o que
+// resta aqui é só o necessário para o time de Produtos visualizar/responder os
+// chamados que já existem (ficha, comentário, status).
 
 /** Busca a ficha de um chamado do CX (banco). */
 export async function buscarChamadoCx(id) {

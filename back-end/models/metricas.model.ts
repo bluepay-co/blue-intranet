@@ -203,14 +203,6 @@ export interface TopClienteGeral {
   qtdTickets: number;
   tpv: number;
   receita: number;
-  taxa: number;
-}
-
-export interface FaixaTaxa {
-  faixa: string;
-  clientes: number;
-  tickets: number;
-  receita: number;
 }
 
 export interface ComparativoYTD {
@@ -233,62 +225,9 @@ export interface MetricasGerais {
   mixProduto: MixProduto[];
   evolucaoMensal: CrescimentoMoM[];
   topClientes: TopClienteGeral[];
-  faixasTaxa: FaixaTaxa[];
   ytd: ComparativoYTD[];
   novosClientesMes: NovosClientesMes[];
+  /** Receita mensal da empresa inteira no ano filtrado (array[12], Jan–Dez), para o comparativo Ano × Ano. */
+  receitaMensalAno: number[];
 }
 
-// ── Métricas CX ─────────────────────────────────────────────────────────────
-
-export interface MetricasCXMes {
-  mes: number; ano: number;
-  qtdTickets: number; clientesAtivos: number;
-  volume: number; tpv: number; receita: number;
-  taxaMedia: number; ticketMedio: number; cancelamentos: number;
-}
-
-export interface MetricasCXHoje {
-  qtdTickets: number; volume: number; receita: number; tpv: number; cartoesHoje: number;
-}
-
-export interface MetricasCXHistorico {
-  mes: number; ano: number;
-  qtdTickets: number; clientesAtivos: number; volume: number; receita: number; tpv: number;
-}
-
-export interface MetricasCXMixTipo {
-  tipo: string; qtd: number; volume: number; receita: number; percentual: number;
-}
-
-export interface MetricasCXSla {
-  tipo: string; qtd: number; mediaMinutos: number; medianaMinutos: number;
-}
-
-export interface MetricasCXBacklog {
-  total: number; bankDeposit: number; cardDeposit: number;
-  virtualDeposit: number; cardRegistration: number; maisAntigo: string | null;
-}
-
-export interface MetricasCXCompletas {
-  userId: number; nome: string; email: string;
-  mesAtual: MetricasCXMes; hoje: MetricasCXHoje;
-  historico: MetricasCXHistorico[]; mixTipo: MetricasCXMixTipo[];
-  sla: MetricasCXSla[]; cartoesNoMes: number; backlog: MetricasCXBacklog;
-}
-
-export interface MetricasCXMembroEquipe {
-  userId: number; nome: string;
-  qtdTickets: number; volume: number; receita: number; tpv: number;
-  taxaMedia: number; clientesAtivos: number;
-}
-
-export interface MetricasCXEquipe {
-  mes: number; ano: number;
-  totalQtdTickets: number; totalVolume: number; totalReceita: number; totalTpv: number;
-  taxaMedia: number; ticketMedio: number; totalClientesAtivos: number; totalCancelamentos: number;
-  hoje: MetricasCXHoje;
-  historico: MetricasCXHistorico[];
-  mixTipo: MetricasCXMixTipo[];
-  sla: MetricasCXSla[];
-  membros: MetricasCXMembroEquipe[];
-}

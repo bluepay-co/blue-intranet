@@ -8,6 +8,9 @@ import type {
   ClienteDetalhe,
   ClienteMetricas,
   ProspeccaoResultado,
+  ClientesPaginados,
+  ResumoCarteira,
+  FiltrosClientes,
 } from '../models/cliente.model';
 
 /**
@@ -17,28 +20,59 @@ import type {
  * então um vendedor nunca acessa cliente de outro.
  */
 
-/** Lista todos os clientes do vendedor, com receita/atividade agregadas. */
+/** Classificação de status por dias desde a última atividade (mesma regra do front). */
+const STATUS_CASE = `
+  CASE
+    WHEN agg."ultimaAtividade" IS NULL THEN 'risco'
+    WHEN CURRENT_DATE - agg."ultimaAtividade"::date <= 30 THEN 'ativo'
+    WHEN CURRENT_DATE - agg."ultimaAtividade"::date <= 60 THEN 'atencao'
+    ELSE 'risco'
+  END
+`;
+
+const AGG_CLIENTES_CTE = `
+  WITH agg AS (
+    SELECT
+      t.client_id,
+      COALESCE(SUM(t.excel_total_rate), 0)::float  AS receita,
+      COALESCE(SUM(t.excel_total_bonus), 0)::float AS tpv,
+      COUNT(*)::int                                AS "qtdTickets",
+      COALESCE(AVG(t.excel_rate) * 100, 0)::float  AS "taxaMedia",
+      MAX(t.invoice_payment_date)                  AS "ultimaAtividade"
+    FROM tickets t
+    JOIN clients c ON c.id = t.client_id
+    WHERE ${FILTROS_BASE}
+      AND ${MANAGER_ID_REMAPPED} = $1
+    GROUP BY t.client_id
+  )
+`;
+
+interface FiltrosListaClientes {
+  busca?: string | undefined;
+  uf?: string | undefined;
+  cidade?: string | undefined;
+  segmento?: string | undefined;
+  status?: string | undefined;
+  page?: number | undefined;
+  limit?: number | undefined;
+}
+
+/** Lista paginada dos clientes do vendedor, com receita/atividade agregadas. */
 export async function listarClientesDoVendedor(
   managerId: number,
-  busca?: string,
-): Promise<ClienteResumo[]> {
-  const termo = busca?.trim() ? busca.trim() : null;
+  filtros: FiltrosListaClientes = {},
+): Promise<ClientesPaginados> {
+  const termo = filtros.busca?.trim() ? filtros.busca.trim() : null;
+  const uf = filtros.uf?.trim() ? filtros.uf.trim() : null;
+  const cidade = filtros.cidade?.trim() ? filtros.cidade.trim() : null;
+  const segmento = filtros.segmento?.trim() ? filtros.segmento.trim() : null;
+  const status = filtros.status?.trim() ? filtros.status.trim() : null;
+  const page = Math.max(1, Math.trunc(filtros.page ?? 1));
+  const limit = Math.min(100, Math.max(1, Math.trunc(filtros.limit ?? 20)));
+  const offset = (page - 1) * limit;
 
   const { rows } = await consultaPool.query(`
-    WITH agg AS (
-      SELECT
-        t.client_id,
-        COALESCE(SUM(t.excel_total_rate), 0)::float  AS receita,
-        COALESCE(SUM(t.excel_total_bonus), 0)::float AS tpv,
-        COUNT(*)::int                                AS "qtdTickets",
-        COALESCE(AVG(t.excel_rate) * 100, 0)::float  AS "taxaMedia",
-        MAX(t.invoice_payment_date)                  AS "ultimaAtividade"
-      FROM tickets t
-      JOIN clients c ON c.id = t.client_id
-      WHERE ${FILTROS_BASE}
-        AND ${MANAGER_ID_REMAPPED} = $1
-      GROUP BY t.client_id
-    )
+    ${AGG_CLIENTES_CTE}
     SELECT
       c.id::int                      AS id,
       c.name                         AS nome,
@@ -51,7 +85,8 @@ export async function listarClientesDoVendedor(
       COALESCE(agg.tpv, 0)::float         AS tpv,
       COALESCE(agg."qtdTickets", 0)::int  AS "qtdTickets",
       COALESCE(agg."taxaMedia", 0)::float AS "taxaMedia",
-      agg."ultimaAtividade"          AS "ultimaAtividade"
+      agg."ultimaAtividade"          AS "ultimaAtividade",
+      COUNT(*) OVER()::int           AS "totalCount"
     FROM clients c
     LEFT JOIN agg      ON agg.client_id = c.id
     LEFT JOIN segments s ON s.id = c.segment_id
@@ -62,10 +97,63 @@ export async function listarClientesDoVendedor(
         OR c.cnpj ILIKE '%' || $2 || '%'
         OR c.commercial_name ILIKE '%' || $2 || '%'
       )
+      AND ($3::text IS NULL OR c.address_uf = $3)
+      AND ($4::text IS NULL OR c.address_city = $4)
+      AND ($5::text IS NULL OR s.name = $5)
+      AND ($6::text IS NULL OR ${STATUS_CASE} = $6)
     ORDER BY COALESCE(agg.receita, 0) DESC, c.name ASC
-  `, [managerId, termo]);
+    LIMIT $7 OFFSET $8
+  `, [managerId, termo, uf, cidade, segmento, status, limit, offset]);
 
-  return rows as ClienteResumo[];
+  const total = rows[0]?.totalCount ?? 0;
+  const clientes = rows.map(({ totalCount, ...resto }) => resto) as ClienteResumo[];
+  return { clientes, total, page, limit };
+}
+
+/** Resumo agregado da carteira inteira do vendedor (independe de filtros/página). */
+export async function buscarResumoCarteira(managerId: number): Promise<ResumoCarteira> {
+  const { rows } = await consultaPool.query(`
+    ${AGG_CLIENTES_CTE}
+    SELECT
+      COUNT(*)::int AS total,
+      COUNT(*) FILTER (WHERE ${STATUS_CASE} = 'ativo')::int AS ativos,
+      COUNT(*) FILTER (WHERE ${STATUS_CASE} = 'risco')::int AS risco,
+      COALESCE(SUM(COALESCE(agg.receita, 0)), 0)::float AS receita
+    FROM clients c
+    LEFT JOIN agg ON agg.client_id = c.id
+    WHERE ${MANAGER_ID_REMAPPED} = $1
+  `, [managerId]);
+
+  const r = rows[0] ?? { total: 0, ativos: 0, risco: 0, receita: 0 };
+  return { total: r.total, ativos: r.ativos, risco: r.risco, receita: r.receita };
+}
+
+/** Opções distintas de UF/cidade/segmento entre os clientes do vendedor (para os filtros). */
+export async function buscarFiltrosClientes(managerId: number): Promise<FiltrosClientes> {
+  const [ufs, cidades, segmentos] = await Promise.all([
+    consultaPool.query(`
+      SELECT DISTINCT c.address_uf AS uf FROM clients c
+      WHERE ${MANAGER_ID_REMAPPED} = $1 AND c.address_uf IS NOT NULL
+      ORDER BY uf
+    `, [managerId]),
+    consultaPool.query(`
+      SELECT DISTINCT c.address_city AS cidade, c.address_uf AS uf FROM clients c
+      WHERE ${MANAGER_ID_REMAPPED} = $1 AND c.address_city IS NOT NULL
+      ORDER BY cidade
+    `, [managerId]),
+    consultaPool.query(`
+      SELECT DISTINCT s.name AS segmento FROM clients c
+      JOIN segments s ON s.id = c.segment_id
+      WHERE ${MANAGER_ID_REMAPPED} = $1 AND s.name IS NOT NULL
+      ORDER BY segmento
+    `, [managerId]),
+  ]);
+
+  return {
+    ufs: ufs.rows.map((r: { uf: string }) => r.uf),
+    cidades: cidades.rows.map((r: { cidade: string; uf: string | null }) => ({ cidade: r.cidade, uf: r.uf })),
+    segmentos: segmentos.rows.map((r: { segmento: string }) => r.segmento),
+  };
 }
 
 /** Ficha do cliente — retorna null se o cliente não pertence ao vendedor. */
@@ -141,6 +229,14 @@ export async function buscarMetricasCliente(clienteId: number): Promise<ClienteM
           WHERE EXTRACT(YEAR FROM t.invoice_payment_date)  = EXTRACT(YEAR FROM NOW())
             AND EXTRACT(MONTH FROM t.invoice_payment_date) = EXTRACT(MONTH FROM NOW())
         ), 0)::float AS "receitaMes",
+        COALESCE(SUM(t.excel_total_bonus) FILTER (
+          WHERE EXTRACT(YEAR FROM t.invoice_payment_date)  = EXTRACT(YEAR FROM NOW())
+            AND EXTRACT(MONTH FROM t.invoice_payment_date) = EXTRACT(MONTH FROM NOW())
+        ), 0)::float AS "tpvMes",
+        COUNT(*) FILTER (
+          WHERE EXTRACT(YEAR FROM t.invoice_payment_date)  = EXTRACT(YEAR FROM NOW())
+            AND EXTRACT(MONTH FROM t.invoice_payment_date) = EXTRACT(MONTH FROM NOW())
+        )::int AS "qtdTicketsMes",
         MIN(t.invoice_payment_date) AS "primeiroTicket",
         MAX(t.invoice_payment_date) AS "ultimoTicket"
       FROM tickets t
@@ -188,6 +284,8 @@ export async function buscarMetricasCliente(clienteId: number): Promise<ClienteM
     taxaMedia:      r?.taxaMedia ?? 0,
     receitaAno:     r?.receitaAno ?? 0,
     receitaMes:     r?.receitaMes ?? 0,
+    tpvMes:         r?.tpvMes ?? 0,
+    qtdTicketsMes:  r?.qtdTicketsMes ?? 0,
     primeiroTicket: r?.primeiroTicket ?? null,
     ultimoTicket:   r?.ultimoTicket ?? null,
     evolucao:       evolucao.rows.map((e: { ano: number; mes: number; receita: number }) => ({
@@ -263,8 +361,19 @@ async function buscarClientesPorCnpj(cnpjLimpo: string): Promise<ClienteCnpjMatc
  * 2. É cliente de outro manager        → CLIENTE_DE_OUTRO (só nome comercial).
  * 3. Não é cliente de ninguém          → DISPONIVEL (dados públicos da Receita).
  *
- * Segurança: o escopo vem do `managerId` do vendedor logado (nunca do request).
- * O CNPJ é normalizado nos dois lados (a coluna `clients.cnpj` pode ter máscara).
+ * IMPORTANTE — `buscarClientesPorCnpj` NÃO filtra por manager_id: ela busca o
+ * CNPJ contra TODA a base de clientes (`clients`), de QUALQUER vendedor da
+ * empresa. Isso é proposital e não pode ser "otimizado" para escopar só o
+ * vendedor logado: o objetivo da checagem é impedir que um CNPJ que já é
+ * cliente de outro vendedor (ex.: um cliente do André Camargo) apareça como
+ * "disponível" para outra pessoa prospectar, evitando conflito/canibalização
+ * de carteira dentro da empresa. Só depois de confirmar que o CNPJ não
+ * pertence a NINGUÉM na empresa é que caímos na consulta à Receita Federal.
+ *
+ * Segurança: o `managerId` do vendedor logado só é usado para decidir se o
+ * match encontrado é MEU_CLIENTE ou CLIENTE_DE_OUTRO — nunca para restringir
+ * a busca em si. O CNPJ é normalizado nos dois lados (a coluna `clients.cnpj`
+ * pode ter máscara).
  */
 export async function prospectarCnpj(
   managerId: number,
@@ -278,6 +387,7 @@ export async function prospectarCnpj(
     if (meu) {
       return { status: 'MEU_CLIENTE', clienteId: meu.id };
     }
+    console.info(`[prospeccao] CNPJ ${cnpjLimpo} bloqueado para manager ${managerId}: já é cliente do manager ${rows[0]!.mgr}.`);
     return { status: 'CLIENTE_DE_OUTRO', nomeComercial: rows[0]!.commercial_name ?? rows[0]!.name };
   }
 

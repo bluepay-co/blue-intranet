@@ -108,7 +108,7 @@ function ComparativoAnoAno({ yoy }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Comparativo Ano × Ano — Receita do Cliente</CardTitle>
+        <CardTitle>YoY — Comparativo Ano × Ano — Receita do Cliente</CardTitle>
       </CardHeader>
       <CardContent>
         {dados.length === 0 ? (
@@ -203,6 +203,35 @@ export default function ClienteDetalhe() {
       >
         {cliente.segmento && <Badge variant="outline">{cliente.segmento}</Badge>}
       </PageHeader>
+
+      {/* Mês atual */}
+      <Card className="border-l-4 border-l-primary bg-primary/[0.03]">
+        <CardContent className="py-4 px-5">
+          <div className="flex flex-wrap items-center gap-6">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="relative flex size-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-60" />
+                <span className="relative inline-flex size-2 rounded-full bg-primary" />
+              </span>
+              <span className="text-xs font-bold uppercase tracking-widest text-primary">Mês</span>
+            </div>
+            <div className="flex flex-wrap gap-6 sm:gap-8 sm:divide-x sm:divide-border">
+              <div className="sm:pr-8">
+                <p className="text-xs text-muted-foreground mb-0.5">Receita</p>
+                <p className="text-base font-bold text-primary">{moeda(metricas.receitaMes)}</p>
+              </div>
+              <div className="sm:pl-8 sm:pr-8">
+                <p className="text-xs text-muted-foreground mb-0.5">TPV</p>
+                <p className="text-base font-bold">{moeda(metricas.tpvMes)}</p>
+              </div>
+              <div className="sm:pl-8">
+                <p className="text-xs text-muted-foreground mb-0.5">Transações</p>
+                <p className="text-base font-bold">{numero(metricas.qtdTicketsMes)}</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* KPIs de receita */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

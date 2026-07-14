@@ -182,10 +182,6 @@ async function listarChamadosPorRole(role: Role, filtros: { busca?: string } = {
   return rows;
 }
 
-export async function listarChamadosCX(filtros: { busca?: string } = {}): Promise<ChamadoLista[]> {
-  return listarChamadosPorRole(Role.CX, filtros);
-}
-
 /** Lista chamados do CX para o time de Produtos (mesma fonte de dados). */
 export async function listarChamadosProdutos(filtros: { busca?: string } = {}): Promise<ChamadoLista[]> {
   return listarChamadosPorRole(Role.CX, filtros);

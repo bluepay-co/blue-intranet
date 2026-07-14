@@ -5,12 +5,14 @@ import api from '@/api/api'
  * O backend escopa tudo pelo vendedor logado — cada um vê só os próprios clientes.
  */
 
-/** Lista os clientes do vendedor logado (busca opcional por nome/CNPJ). */
-export async function listarClientes(busca) {
-  const params = {}
-  if (busca) params.busca = busca
-  const { data } = await api.get('/api/clientes', { params })
-  return data.clientes
+/**
+ * Lista paginada dos clientes do vendedor logado (20 por página por padrão).
+ * `filtros` aceita: busca, uf, cidade, segmento, status, page, limit.
+ * Retorna { clientes, total, page, limit, resumo, filtros }.
+ */
+export async function listarClientes(filtros = {}) {
+  const { data } = await api.get('/api/clientes', { params: filtros })
+  return data
 }
 
 /** Ficha + métricas de um cliente do vendedor. */

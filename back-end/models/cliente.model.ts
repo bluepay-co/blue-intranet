@@ -19,6 +19,29 @@ export interface ClienteResumo {
   ultimaAtividade: string | null;
 }
 
+/** Página de "Meus Clientes" (paginado no banco, 20 por página por padrão). */
+export interface ClientesPaginados {
+  clientes: ClienteResumo[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+/** Resumo agregado da carteira inteira do vendedor (independe de filtros/página). */
+export interface ResumoCarteira {
+  total: number;
+  ativos: number;
+  risco: number;
+  receita: number;
+}
+
+/** Opções disponíveis para os filtros de "Meus Clientes" (dados de toda a carteira). */
+export interface FiltrosClientes {
+  ufs: string[];
+  cidades: { cidade: string; uf: string | null }[];
+  segmentos: string[];
+}
+
 /** Ficha completa do cliente. */
 export interface ClienteDetalhe {
   id: number;
@@ -58,6 +81,8 @@ export interface ClienteMetricas {
   taxaMedia: number;
   receitaAno: number;
   receitaMes: number;
+  tpvMes: number;
+  qtdTicketsMes: number;
   primeiroTicket: string | null;
   ultimoTicket: string | null;
   evolucao: { mes: number; ano: number; receita: number }[];
@@ -82,9 +107,24 @@ export interface ReceitaDTO {
   razaoSocial: string | null;
   nomeFantasia: string | null;
   situacaoCadastral: string | null;
+  dataSituacaoCadastral: string | null;
   porte: string | null;
+  naturezaJuridica: string | null;
+  capitalSocial: number | null;
   cnaePrincipal: { codigo: string | null; descricao: string | null };
-  endereco: { cidade: string | null; uf: string | null };
+  cnaesSecundarios: { codigo: string | null; descricao: string | null }[];
+  endereco: {
+    logradouro: string | null;
+    numero: string | null;
+    complemento: string | null;
+    bairro: string | null;
+    cep: string | null;
+    cidade: string | null;
+    uf: string | null;
+  };
+  telefone: string | null;
+  email: string | null;
+  socios: { nome: string | null; qualificacao: string | null }[];
   aberturaEm: string | null;
 }
 

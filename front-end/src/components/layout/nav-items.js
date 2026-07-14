@@ -42,15 +42,6 @@ export const NAV_SECTIONS = [
     ],
   },
   {
-    label: 'Customer Experience',
-    roles: ['CX', 'DESENVOLVEDOR'],
-    items: [
-      { to: '/cx/chamados',        label: 'Chamados',          icon: Headset    },
-      { to: '/metricas/cx',        label: 'Dashboard Pessoal', icon: TrendingUp },
-      { to: '/metricas/cx/equipe', label: 'Dashboard Equipe',  icon: Users      },
-    ],
-  },
-  {
     label: 'Produtos',
     roles: ['PRODUTOS', 'DESENVOLVEDOR'],
     items: [

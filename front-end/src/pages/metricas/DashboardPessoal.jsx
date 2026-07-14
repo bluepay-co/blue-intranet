@@ -108,7 +108,7 @@ function ComparativoAnoAno({ yoy }) {
   if (dados.length === 0) {
     return (
       <Card>
-        <CardHeader><CardTitle>Comparativo Ano × Ano — Receita</CardTitle></CardHeader>
+        <CardHeader><CardTitle>YoY — Comparativo Ano × Ano — Receita</CardTitle></CardHeader>
         <CardContent>
           <p className="py-8 text-center text-sm text-muted-foreground">Sem dados para comparar neste período.</p>
         </CardContent>
@@ -119,7 +119,7 @@ function ComparativoAnoAno({ yoy }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Comparativo Ano × Ano — Receita</CardTitle>
+        <CardTitle>YoY — Comparativo Ano × Ano — Receita</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer className="h-64">
