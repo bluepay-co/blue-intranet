@@ -15,9 +15,12 @@ export async function listarClientes(filtros = {}) {
   return data
 }
 
-/** Ficha + métricas de um cliente do vendedor. */
-export async function buscarCliente(id) {
-  const { data } = await api.get(`/api/clientes/${id}`)
+/** Ficha + métricas de um cliente do vendedor. `mes`/`ano` filtram as métricas "do mês". */
+export async function buscarCliente(id, mes, ano) {
+  const params = {}
+  if (mes) params.mes = mes
+  if (ano) params.ano = ano
+  const { data } = await api.get(`/api/clientes/${id}`, { params })
   return data // { cliente, metricas }
 }
 

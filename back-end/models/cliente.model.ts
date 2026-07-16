@@ -83,6 +83,8 @@ export interface ClienteMetricas {
   receitaMes: number;
   tpvMes: number;
   qtdTicketsMes: number;
+  ticketMedioMes: number;
+  taxaMediaMes: number;
   primeiroTicket: string | null;
   ultimoTicket: string | null;
   evolucao: { mes: number; ano: number; receita: number }[];

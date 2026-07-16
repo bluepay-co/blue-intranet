@@ -23,7 +23,9 @@ import LancamentoPreVendas from '@/pages/prevendas/LancamentoPreVendas'
 import ClientesLayout from '@/pages/clientes/ClientesLayout'
 import MeusClientes from '@/pages/clientes/MeusClientes'
 import Prospeccao from '@/pages/clientes/Prospeccao'
+import ClienteDetalheLayout from '@/pages/clientes/ClienteDetalheLayout'
 import ClienteDetalhe from '@/pages/clientes/ClienteDetalhe'
+import ClienteDetalheMes from '@/pages/clientes/ClienteDetalheMes'
 import RadarRisco from '@/pages/carteira/RadarRisco'
 import CrossSell from '@/pages/carteira/CrossSell'
 
@@ -169,10 +171,13 @@ function App() {
           path="clientes/:id"
           element={
             <ProtectedRoute roles={['KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
-              <ClienteDetalhe />
+              <ClienteDetalheLayout />
             </ProtectedRoute>
           }
-        />
+        >
+          <Route index element={<ClienteDetalhe />} />
+          <Route path="mes" element={<ClienteDetalheMes />} />
+        </Route>
         <Route
           path="carteira/risco"
           element={

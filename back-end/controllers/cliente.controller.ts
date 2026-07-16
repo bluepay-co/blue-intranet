@@ -72,7 +72,16 @@ export async function getClienteDetalhe(req: Request, res: Response) {
       return res.status(404).json({ message: 'Cliente não encontrado ou sem acesso.' });
     }
 
-    const metricas = await buscarMetricasCliente(clienteId);
+    const mes = req.query.mes ? Number(req.query.mes) : undefined;
+    const ano = req.query.ano ? Number(req.query.ano) : undefined;
+    if (mes !== undefined && (!Number.isInteger(mes) || mes < 1 || mes > 12)) {
+      throw new AppError('Mês inválido.', 400);
+    }
+    if (ano !== undefined && (!Number.isInteger(ano) || ano < 2000 || ano > 2100)) {
+      throw new AppError('Ano inválido.', 400);
+    }
+
+    const metricas = await buscarMetricasCliente(clienteId, mes, ano);
     return res.status(200).json({ cliente, metricas });
   } catch (err) {
     if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
