@@ -608,6 +608,101 @@ async function buscarMembrosAnualEquipe(
   });
 }
 
+/**
+ * Ranking enxuto de membros para um conjunto de roles, sem o restante das
+ * agregações de `buscarMetricasEquipe` (retenção, mix de produto, histórico,
+ * anual etc.) — usado para compor rankings combinados (ex.: IS + KAM) sem
+ * pagar o custo das outras queries.
+ */
+export async function buscarRankingMembros(
+  roles: string[],
+  mes: number,
+  ano: number
+): Promise<MetricasEquipeMembro[]> {
+  const { rows: usuariosIntranet } = await pool.query(
+    `SELECT email FROM blue_intranet.usuarios WHERE role = ANY($1::text[]) AND bloqueado = false`,
+    [roles]
+  );
+  if (usuariosIntranet.length === 0) return [];
+
+  const emails = usuariosIntranet.map((u: { email: string }) => u.email);
+
+  const { rows: vendedoresProd } = await consultaPool.query(
+    `SELECT id, name AS nome FROM users WHERE email = ANY($1::text[])`,
+    [emails]
+  );
+  if (vendedoresProd.length === 0) return [];
+
+  const managerIds = vendedoresProd.map((v: { id: number }) => v.id);
+  const nomeMap = new Map<number, string>(
+    vendedoresProd.map((v: { id: number; nome: string }) => [v.id, v.nome])
+  );
+
+  const [membrosRows, hojeMembroRows] = await Promise.all([
+    consultaPool.query(`
+      SELECT
+        ${MANAGER_ID_REMAPPED}                         AS "managerId",
+        COUNT(*)::int                                  AS "qtdTickets",
+        COUNT(DISTINCT t.client_id)::int               AS "clientesAtivos",
+        COALESCE(SUM(t.excel_total_rate), 0)::float    AS receita,
+        COALESCE(SUM(t.excel_total_bonus), 0)::float   AS tpv,
+        COALESCE(AVG(t.excel_rate) * 100, 0)::float    AS "taxaMedia",
+        CASE WHEN COUNT(*) = 0 THEN 0
+             ELSE (COALESCE(SUM(t.excel_total_rate), 0) / COUNT(*))::float
+        END AS "ticketMedio"
+      FROM tickets t
+      LEFT JOIN clients c ON c.id = t.client_id
+      WHERE ${FILTROS_BASE}
+        AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+        AND EXTRACT(MONTH FROM t.invoice_payment_date) = $2
+        AND EXTRACT(YEAR  FROM t.invoice_payment_date) = $3
+      GROUP BY ${MANAGER_ID_REMAPPED}
+      ORDER BY receita DESC
+    `, [managerIds, mes, ano]),
+
+    consultaPool.query(`
+      SELECT
+        ${MANAGER_ID_REMAPPED}                         AS "managerId",
+        COUNT(*)::int                                  AS "ticketsHoje",
+        COALESCE(SUM(t.excel_total_rate), 0)::float    AS "receitaHoje"
+      FROM tickets t
+      LEFT JOIN clients c ON c.id = t.client_id
+      WHERE ${FILTROS_BASE}
+        AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+        AND DATE(t.invoice_payment_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') = CURRENT_DATE
+      GROUP BY ${MANAGER_ID_REMAPPED}
+    `, [managerIds]),
+  ]);
+
+  const hojeMembroMap = new Map<number, { receitaHoje: number; ticketsHoje: number }>(
+    hojeMembroRows.rows.map((r: { managerId: number; receitaHoje: number; ticketsHoje: number }) => [
+      r.managerId,
+      { receitaHoje: r.receitaHoje, ticketsHoje: r.ticketsHoje },
+    ])
+  );
+
+  return membrosRows.rows.map(
+    (r: { managerId: number; qtdTickets: number; clientesAtivos: number; receita: number; tpv: number; taxaMedia: number; ticketMedio: number }) => {
+      const nome = nomeMap.get(r.managerId) ?? 'Desconhecido';
+      const meta = getMetaIndividual(nome, mes, ano, r.managerId);
+      return {
+        vendedorId:     r.managerId,
+        nome,
+        receita:        r.receita,
+        tpv:            r.tpv,
+        qtdTickets:     r.qtdTickets,
+        clientesAtivos: r.clientesAtivos,
+        taxaMedia:      r.taxaMedia,
+        ticketMedio:    r.ticketMedio,
+        receitaHoje:    hojeMembroMap.get(r.managerId)?.receitaHoje ?? 0,
+        ticketsHoje:    hojeMembroMap.get(r.managerId)?.ticketsHoje ?? 0,
+        meta,
+        pct_meta:       meta > 0 ? Math.round((r.receita / meta) * 1000) / 10 : 0,
+      };
+    }
+  );
+}
+
 export async function buscarMetricasEquipe(
   roles: string[],
   mes: number,
@@ -1128,6 +1223,7 @@ export async function buscarMetricasGerais(
     ytd,
     novosClientesMes,
     receitaMensalAno,
+    rankingComercial,
   ] = await Promise.all([
     buscarResumoGeral(mesRef, anoRef),
     buscarHojeGeral(mesRef, anoRef),
@@ -1138,7 +1234,8 @@ export async function buscarMetricasGerais(
     buscarYTD(mesRef, anoRef),
     buscarNovosClientesMes(anoRef),
     buscarReceitaMensalAnoGeral(anoRef),
+    buscarRankingMembros(['INSIGHT_SALES', 'KAM'], mesRef, anoRef),
   ]);
 
-  return { resumo, hoje, retencao, mixProduto, evolucaoMensal, topClientes, ytd, novosClientesMes, receitaMensalAno };
+  return { resumo, hoje, retencao, mixProduto, evolucaoMensal, topClientes, ytd, novosClientesMes, receitaMensalAno, rankingComercial };
 }

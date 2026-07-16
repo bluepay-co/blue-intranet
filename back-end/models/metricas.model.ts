@@ -229,5 +229,7 @@ export interface MetricasGerais {
   novosClientesMes: NovosClientesMes[];
   /** Receita mensal da empresa inteira no ano filtrado (array[12], Jan–Dez), para o comparativo Ano × Ano. */
   receitaMensalAno: number[];
+  /** Ranking combinado de vendedores de Inside Sales + KAM, ordenado por receita. */
+  rankingComercial: MetricasEquipeMembro[];
 }
 

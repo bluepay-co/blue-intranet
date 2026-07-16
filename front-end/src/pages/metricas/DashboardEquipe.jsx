@@ -212,45 +212,6 @@ function ComparativoCard({ titulo, subtitulo, linhas }) {
   )
 }
 
-/** Tabela de Top Clientes (mês ou ano). */
-function TopClientesTabela({ titulo, clientes }) {
-  return (
-    <Card className="overflow-hidden">
-      <CardHeader className="border-b bg-muted/30">
-        <CardTitle>{titulo}</CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        {(!clientes || clientes.length === 0) ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">Nenhum cliente neste período.</p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-xs text-muted-foreground">
-                <th className="px-4 py-2 text-left font-medium">#</th>
-                <th className="px-4 py-2 text-left font-medium">Cliente</th>
-                <th className="px-4 py-2 text-right font-medium">Receita</th>
-                <th className="px-4 py-2 text-right font-medium">TPV</th>
-              </tr>
-            </thead>
-            <tbody>
-              {clientes.map((c, i) => (
-                <tr key={c.nome} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-2.5">
-                    <Badge variant="outline" className="w-6 h-6 flex items-center justify-center p-0 text-xs">{i + 1}</Badge>
-                  </td>
-                  <td className="px-4 py-2.5 max-w-[200px] truncate font-medium">{c.nome}</td>
-                  <td className="px-4 py-2.5 text-right text-primary font-semibold">{moeda(c.receita)}</td>
-                  <td className="px-4 py-2.5 text-right text-muted-foreground">{moeda(c.tpv)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
 /** Ranking dos membros da equipe (mês ou ano). */
 function RankingTabela({ titulo, membros, mostrarHoje, ocultarSigilosas }) {
   return (
@@ -398,7 +359,7 @@ export default function DashboardEquipe({ equipeFixa }) {
         const {
           totalReceita, totalTpv, totalTickets, taxaMedia, ticketMedio,
           meta_equipe, pct_meta_equipe, mesAnterior, hoje, retencao,
-          mixProduto, historicoMensal, topClientes, membros, anual,
+          mixProduto, historicoMensal, membros, anual,
         } = dados
 
         const agora_ref  = new Date()
@@ -584,7 +545,6 @@ export default function DashboardEquipe({ equipeFixa }) {
                   )}
                 </div>
 
-                <TopClientesTabela titulo="Top Clientes da Equipe" clientes={topClientes} />
                 <RankingTabela titulo={`Ranking da Equipe — ${MESES[mes - 1]}/${ano}`} membros={membros} mostrarHoje={ehMesAtual} ocultarSigilosas={!!equipeFixa} />
               </div>
             )}
@@ -657,8 +617,7 @@ export default function DashboardEquipe({ equipeFixa }) {
                 {/* Comparativo Ano × Ano */}
                 <ComparativoAnoAno yoy={anual.yoy} />
 
-                {/* Top Clientes do Ano + Ranking Anual */}
-                <TopClientesTabela titulo="Top Clientes do Ano" clientes={anual.topClientes} />
+                {/* Ranking Anual */}
                 <RankingTabela titulo={`Ranking da Equipe — ${ano}`} membros={anual.membros} mostrarHoje={false} ocultarSigilosas={!!equipeFixa} />
               </div>
             )}
