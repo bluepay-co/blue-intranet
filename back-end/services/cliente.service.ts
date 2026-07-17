@@ -11,6 +11,7 @@ import type {
   ClientesPaginados,
   ResumoCarteira,
   FiltrosClientes,
+  GrupoEconomico,
 } from '../models/cliente.model';
 
 /**
@@ -154,6 +155,68 @@ export async function buscarFiltrosClientes(managerId: number): Promise<FiltrosC
     cidades: cidades.rows.map((r: { cidade: string; uf: string | null }) => ({ cidade: r.cidade, uf: r.uf })),
     segmentos: segmentos.rows.map((r: { segmento: string }) => r.segmento),
   };
+}
+
+interface ClienteGrupoRow extends ClienteResumo {
+  grupoId: number;
+  grupoNome: string;
+}
+
+/**
+ * Agrupa os clientes da carteira do vendedor pelo grupo econômico oficial
+ * (`clients.economic_group_id` → `economic_groups`, cadastro real mantido no
+ * banco de produção — não é uma heurística). Só retorna grupos com 2+
+ * clientes na carteira do vendedor (um cliente isolado não forma "grupo").
+ */
+export async function buscarGruposEconomicos(managerId: number): Promise<GrupoEconomico[]> {
+  const { rows } = await consultaPool.query(`
+    ${AGG_CLIENTES_CTE}
+    SELECT
+      c.id::int                      AS id,
+      c.name                         AS nome,
+      c.commercial_name              AS "nomeComercial",
+      c.cnpj,
+      c.address_city                 AS cidade,
+      c.address_uf                   AS uf,
+      s.name                         AS segmento,
+      COALESCE(agg.receita, 0)::float     AS receita,
+      COALESCE(agg.tpv, 0)::float         AS tpv,
+      COALESCE(agg."qtdTickets", 0)::int  AS "qtdTickets",
+      COALESCE(agg."taxaMedia", 0)::float AS "taxaMedia",
+      agg."ultimaAtividade"          AS "ultimaAtividade",
+      c.economic_group_id::int       AS "grupoId",
+      eg.name                        AS "grupoNome"
+    FROM clients c
+    LEFT JOIN agg      ON agg.client_id = c.id
+    LEFT JOIN segments s ON s.id = c.segment_id
+    JOIN economic_groups eg ON eg.id = c.economic_group_id
+    WHERE ${MANAGER_ID_REMAPPED} = $1
+  `, [managerId]);
+
+  const porGrupo = new Map<number, { nome: string; clientes: ClienteResumo[] }>();
+  for (const r of rows as ClienteGrupoRow[]) {
+    const { grupoId, grupoNome, ...cliente } = r;
+    const entrada = porGrupo.get(grupoId) ?? { nome: grupoNome, clientes: [] };
+    entrada.clientes.push(cliente);
+    porGrupo.set(grupoId, entrada);
+  }
+
+  const grupos: GrupoEconomico[] = [];
+  for (const [id, { nome, clientes }] of porGrupo) {
+    if (clientes.length < 2) continue;
+    clientes.sort((a, b) => b.receita - a.receita);
+    grupos.push({
+      id,
+      nome,
+      clientes,
+      receitaTotal: clientes.reduce((acc, c) => acc + c.receita, 0),
+      tpvTotal: clientes.reduce((acc, c) => acc + c.tpv, 0),
+      qtdClientes: clientes.length,
+    });
+  }
+
+  grupos.sort((a, b) => b.receitaTotal - a.receitaTotal);
+  return grupos;
 }
 
 /** Ficha do cliente — retorna null se o cliente não pertence ao vendedor. */

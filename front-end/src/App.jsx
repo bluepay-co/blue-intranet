@@ -23,6 +23,7 @@ import LancamentoPreVendas from '@/pages/prevendas/LancamentoPreVendas'
 import ClientesLayout from '@/pages/clientes/ClientesLayout'
 import MeusClientes from '@/pages/clientes/MeusClientes'
 import Prospeccao from '@/pages/clientes/Prospeccao'
+import GrupoEconomico from '@/pages/clientes/GrupoEconomico'
 import ClienteDetalheLayout from '@/pages/clientes/ClienteDetalheLayout'
 import ClienteDetalhe from '@/pages/clientes/ClienteDetalhe'
 import ClienteDetalheMes from '@/pages/clientes/ClienteDetalheMes'
@@ -166,6 +167,7 @@ function App() {
         >
           <Route index element={<MeusClientes />} />
           <Route path="prospeccao" element={<Prospeccao />} />
+          <Route path="grupo-economico" element={<GrupoEconomico />} />
         </Route>
         <Route
           path="clientes/:id"

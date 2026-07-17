@@ -24,6 +24,12 @@ export async function buscarCliente(id, mes, ano) {
   return data // { cliente, metricas }
 }
 
+/** Clientes da carteira agrupados por raiz de CNPJ (grupos com 2+ clientes). */
+export async function buscarGruposEconomicos() {
+  const { data } = await api.get('/api/clientes/grupo-economico')
+  return data // { grupos }
+}
+
 /** Prospecção por CNPJ: verifica se já é cliente; se não, puxa dados públicos. */
 export async function prospectarCnpj(cnpj) {
   // Timeout local (a consulta cruza banco de produção + API externa da Receita).

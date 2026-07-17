@@ -2,8 +2,9 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 
 const ABAS = [
-  { to: '/clientes',            label: 'Meus Clientes', end: true },
-  { to: '/clientes/prospeccao', label: 'Prospecção',    end: false },
+  { to: '/clientes',                    label: 'Meus Clientes',   end: true },
+  { to: '/clientes/prospeccao',         label: 'Prospecção',      end: false },
+  { to: '/clientes/grupo-economico',    label: 'Grupo Econômico', end: false },
 ]
 
 export default function ClientesLayout() {

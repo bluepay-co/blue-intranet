@@ -9,6 +9,7 @@ import {
   buscarFiltrosClientes,
   buscarClienteDoVendedor,
   buscarMetricasCliente,
+  buscarGruposEconomicos,
   prospectarCnpj as prospectarCnpjService,
 } from '../services/cliente.service';
 
@@ -48,6 +49,25 @@ export async function getMeusClientes(req: Request, res: Response) {
     if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
     console.error('[cliente.controller] getMeusClientes:', err);
     return res.status(500).json({ message: 'Erro ao buscar clientes.' });
+  }
+}
+
+export async function getGruposEconomicos(req: Request, res: Response) {
+  try {
+    const email = req.usuario?.email;
+    if (!email) throw new AppError('Usuário não autenticado.', 401);
+
+    const vendedor = await buscarVendedorPorEmail(email);
+    if (!vendedor) {
+      return res.status(404).json({ message: 'Vendedor não encontrado no banco de produção.' });
+    }
+
+    const grupos = await buscarGruposEconomicos(vendedor.id);
+    return res.status(200).json({ grupos });
+  } catch (err) {
+    if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
+    console.error('[cliente.controller] getGruposEconomicos:', err);
+    return res.status(500).json({ message: 'Erro ao buscar grupos econômicos.' });
   }
 }
 
