@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import PageHeader from '@/components/layout/PageHeader'
 import {
   AlertCircle, Loader2, RefreshCw, Search, ChevronRight,
-  ChevronLeft, Users, UserCheck, AlertTriangle, Wallet, X,
+  ChevronLeft, Users, UserCheck, X,
 } from 'lucide-react'
 
 // Faixas de status por dias desde a última transação recebida (espelha a regra do backend).
@@ -18,11 +18,6 @@ const POR_PAGINA = 20
 // Debounce da busca por texto, para não disparar uma query a cada tecla digitada.
 const DEBOUNCE_BUSCA_MS = 400
 
-function moeda(v) {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0,
-  }).format(v ?? 0)
-}
 function numero(v) {
   return new Intl.NumberFormat('pt-BR').format(v ?? 0)
 }
@@ -157,11 +152,9 @@ export default function MeusClientes() {
       )}
 
       {/* Cards de resumo */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard icon={Users}        cor="bg-blue-500/10 text-blue-600"       valor={numero(resumo.total)}  rotulo="Total de clientes" />
-        <KpiCard icon={UserCheck}    cor="bg-emerald-500/10 text-emerald-600" valor={numero(resumo.ativos)} rotulo={`Ativos (últimos ${DIAS_ATIVO} dias)`} />
-        <KpiCard icon={AlertTriangle} cor="bg-red-500/10 text-red-600"        valor={numero(resumo.risco)}  rotulo={`Em risco (+${DIAS_ATENCAO} dias sem movimento)`} />
-        <KpiCard icon={Wallet}       cor="bg-violet-500/10 text-violet-600"   valor={moeda(resumo.receita)} rotulo="Receita da carteira" />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <KpiCard icon={Users}     cor="bg-blue-500/10 text-blue-600"       valor={numero(resumo.total)}  rotulo="Total de clientes" />
+        <KpiCard icon={UserCheck} cor="bg-emerald-500/10 text-emerald-600" valor={numero(resumo.ativos)} rotulo={`Ativos (últimos ${DIAS_ATIVO} dias)`} />
       </div>
 
       {/* Busca + filtros */}
