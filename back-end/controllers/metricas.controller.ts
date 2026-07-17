@@ -49,7 +49,7 @@ export async function visaoGeral(req: Request, res: Response) {
       });
     }
 
-    const visao = await buscarVisaoGeralMes(vendedor.id, mes, ano);
+    const visao = await buscarVisaoGeralMes(vendedor.id, vendedor.nome, mes, ano);
     return res.status(200).json(visao);
   } catch (err) {
     if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });

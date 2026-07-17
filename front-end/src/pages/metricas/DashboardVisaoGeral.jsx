@@ -12,7 +12,7 @@ import { gradeDoMes, diasDaSemana, chaveDia, mesmoMes, fmt, capitalizar } from '
 import { BarChart, Bar, LineChart, Line, Legend, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts'
 import {
   Wallet, Users, UserPlus, RefreshCw, AlertCircle, Loader2,
-  ChevronLeft, ChevronRight, ChevronDown, Sparkles, BarChart3, TrendingUp, TrendingDown,
+  ChevronLeft, ChevronRight, Target, BarChart3, TrendingUp, TrendingDown,
   CalendarRange,
 } from 'lucide-react'
 
@@ -157,76 +157,27 @@ function ComparativoMensalDiario({ serie, mesAtualLabel, mesAnteriorLabel }) {
 }
 
 /**
- * Card de resumo de uma semana do mês, no mesmo estilo do card de Previsão
- * (borda de destaque + ícone). Expande ao clicar para mostrar TPV, clientes
- * novos/que faturaram e a receita dia a dia daquela semana — tudo derivado
- * de `dados.semanas`/`dados.dias`, sem nenhuma chamada extra ao backend.
+ * Tile compacto de resumo da semana — mesmo padrão visual dos KPIs do topo
+ * da página (card neutro, sem destaque de borda repetido). Clicar abre o
+ * detalhe (TPV, clientes, dia a dia) num Dialog, reaproveitando o mesmo
+ * padrão já usado no clique de um dia do calendário.
  */
-function ResumoSemanalCard({ numeroSemana, semana, diasDaSemanaAtual, diasPorChave, mes, ano, expandida, onToggle }) {
-  const dataMesRef = new Date(ano, mes - 1, 1)
+function SemanaMiniCard({ numeroSemana, semana, onClick }) {
   return (
-    <Card className="overflow-hidden border-l-4 border-l-primary bg-primary/[0.03]">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
-      >
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-            <CalendarRange className="size-5" />
+    <button type="button" onClick={onClick} className="cursor-pointer text-left">
+      <Card className="h-full cursor-pointer transition-colors hover:border-primary/50">
+        <CardContent className="py-3.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Semana {numeroSemana}</span>
+            <CalendarRange className="size-3.5 shrink-0 text-muted-foreground" />
           </div>
-          <div className="min-w-0">
-            <p className="text-xs text-muted-foreground">
-              Semana {numeroSemana} · {fmt.diaMes.format(parseDia(semana.inicio))} a {fmt.diaMes.format(parseDia(semana.fim))}
-            </p>
-            <p className="truncate text-lg font-bold text-primary">{moeda(semana.receita)}</p>
-          </div>
-        </div>
-        <ChevronDown className={cn('size-4 shrink-0 text-muted-foreground transition-transform', expandida && 'rotate-180')} />
-      </button>
-
-      {expandida && (
-        <div className="space-y-4 border-t px-5 py-4">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div>
-              <p className="text-xs text-muted-foreground mb-0.5">TPV</p>
-              <p className="text-sm font-semibold">{moeda(semana.tpv)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-0.5">Clientes novos</p>
-              <p className="text-sm font-semibold">{numero(semana.clientesNovos)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-0.5">Clientes que faturaram</p>
-              <p className="text-sm font-semibold">{numero(semana.clientesAtivos)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-0.5">Transações</p>
-              <p className="text-sm font-semibold">{numero(semana.qtdTickets)}</p>
-            </div>
-          </div>
-
-          <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2">Receita dia a dia</p>
-            <div className="grid grid-cols-7 gap-1.5">
-              {diasDaSemanaAtual.map((data) => {
-                const dentroDoMes = mesmoMes(data, dataMesRef)
-                const receitaDia = dentroDoMes ? (diasPorChave.get(chaveDia(data))?.receita ?? 0) : null
-                return (
-                  <div key={data.toISOString()} className={cn('rounded-md border px-1 py-1.5 text-center', !dentroDoMes && 'opacity-30')}>
-                    <p className="text-[10px] text-muted-foreground">{capitalizar(fmt.diaSemanaCurto.format(data)).slice(0, 3)}</p>
-                    <p className="text-xs font-medium">{data.getDate()}</p>
-                    <p className="text-[10px] font-semibold text-primary">
-                      {receitaDia ? moedaCompacta(receitaDia) : '—'}
-                    </p>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-    </Card>
+          <p className="mt-1 truncate text-lg font-bold text-primary">{moeda(semana.receita)}</p>
+          <p className="text-[11px] text-muted-foreground">
+            {fmt.diaMes.format(parseDia(semana.inicio))} – {fmt.diaMes.format(parseDia(semana.fim))}
+          </p>
+        </CardContent>
+      </Card>
+    </button>
   )
 }
 
@@ -319,7 +270,7 @@ export default function DashboardVisaoGeral() {
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
   const [diaSelecionado, setDiaSelecionado] = useState(null)
-  const [semanasExpandidas, setSemanasExpandidas] = useState(() => new Set())
+  const [semanaSelecionada, setSemanaSelecionada] = useState(null)
 
   const anoAnterior = ano - 1
 
@@ -410,13 +361,8 @@ export default function DashboardVisaoGeral() {
     return linhas
   }, [dados, dadosAnterior, diasPorChave, mes, ano, anoAnterior])
 
-  function alternarSemana(chave) {
-    setSemanasExpandidas((atual) => {
-      const novo = new Set(atual)
-      if (novo.has(chave)) novo.delete(chave)
-      else novo.add(chave)
-      return novo
-    })
+  function abrirSemana(numeroSemana, semana, dias7) {
+    setSemanaSelecionada({ numeroSemana, semana, dias7 })
   }
 
   /** Receita por dia ÚTIL do mês (pula sáb/dom), com variação vs. o dia útil anterior. */
@@ -506,22 +452,55 @@ export default function DashboardVisaoGeral() {
             <KpiCard icon={Users}     cor="bg-violet-500/10 text-violet-600"  valor={numero(dados.resumoMes.clientesAtivos)} rotulo="Clientes que faturaram" />
           </div>
 
-          {/* Previsão de fechamento — só no mês corrente */}
-          {dados.previsao && (
-            <Card className="border-l-4 border-l-primary bg-primary/[0.03]">
-              <CardContent className="flex flex-wrap items-center gap-4 py-4 px-5">
-                <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                  <Sparkles className="size-5" />
+          {/* Meta do mês — % já batido e quanto falta */}
+          {dados.resumoMes.meta > 0 && (
+            <Card>
+              <CardContent className="flex items-center gap-4 py-4 px-5">
+                <div className={cn(
+                  'grid size-10 shrink-0 place-items-center rounded-lg',
+                  dados.resumoMes.pctMeta >= 100 ? 'bg-emerald-500/10 text-emerald-600'
+                    : dados.resumoMes.pctMeta >= 70 ? 'bg-amber-500/10 text-amber-600'
+                    : 'bg-red-500/10 text-red-500',
+                )}>
+                  <Target className="size-5" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    No ritmo atual (dia {dados.previsao.diasDecorridos} de {dados.previsao.diasTotais}), a previsão é fechar o mês em
-                  </p>
-                  <p className="text-lg font-bold text-primary">{moeda(dados.previsao.receitaProjetada)}</p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                    <p className="text-lg font-bold">{dados.resumoMes.pctMeta.toFixed(1)}% da meta batida</p>
+                    <p className="text-sm text-muted-foreground">
+                      {dados.resumoMes.metaEmAberto === 0 ? 'Meta batida!' : `faltam ${moeda(dados.resumoMes.metaEmAberto)}`}
+                    </p>
+                  </div>
+                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={cn(
+                        'h-full rounded-full transition-all',
+                        dados.resumoMes.pctMeta >= 100 ? 'bg-emerald-500'
+                          : dados.resumoMes.pctMeta >= 70 ? 'bg-amber-500'
+                          : 'bg-red-500',
+                      )}
+                      style={{ width: `${Math.min(dados.resumoMes.pctMeta, 100)}%` }}
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>
           )}
+
+          {/* Resumo semanal — Semana 1, 2, 3... clicável, abre o detalhe dia a dia */}
+          <div>
+            <h2 className="text-sm font-medium text-muted-foreground mb-2">Resumo Semanal</h2>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+              {semanasDoMes.map(({ dias7, semana }, i) => (
+                <SemanaMiniCard
+                  key={semana.inicio}
+                  numeroSemana={i + 1}
+                  semana={semana}
+                  onClick={() => abrirSemana(i + 1, semana, dias7)}
+                />
+              ))}
+            </div>
+          </div>
 
           {/* Receita por semana */}
           <Card>
@@ -548,23 +527,6 @@ export default function DashboardVisaoGeral() {
               )}
             </CardContent>
           </Card>
-
-          {/* Resumo semanal — Semana 1, 2, 3... clicável, expande com detalhe dia a dia */}
-          <div className="space-y-3">
-            {semanasDoMes.map(({ dias7, semana }, i) => (
-              <ResumoSemanalCard
-                key={semana.inicio}
-                numeroSemana={i + 1}
-                semana={semana}
-                diasDaSemanaAtual={dias7}
-                diasPorChave={diasPorChave}
-                mes={mes}
-                ano={ano}
-                expandida={semanasExpandidas.has(semana.inicio)}
-                onToggle={() => alternarSemana(semana.inicio)}
-              />
-            ))}
-          </div>
 
           {/* Receita diária vs. o mesmo mês no ano anterior */}
           <ComparativoMensalDiario
@@ -739,6 +701,60 @@ export default function DashboardVisaoGeral() {
                   </div>
                 </div>
               )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!semanaSelecionada} onOpenChange={(v) => !v && setSemanaSelecionada(null)}>
+        <DialogContent>
+          {semanaSelecionada && (
+            <>
+              <DialogHeader>
+                <DialogTitle>
+                  Semana {semanaSelecionada.numeroSemana} · {fmt.diaMes.format(parseDia(semanaSelecionada.semana.inicio))} a {fmt.diaMes.format(parseDia(semanaSelecionada.semana.fim))}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Receita</p>
+                  <p className="text-lg font-bold text-primary">{moeda(semanaSelecionada.semana.receita)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">TPV</p>
+                  <p className="text-lg font-bold">{moeda(semanaSelecionada.semana.tpv)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Clientes novos</p>
+                  <p className="text-lg font-bold">{numero(semanaSelecionada.semana.clientesNovos)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Clientes que faturaram</p>
+                  <p className="text-lg font-bold">{numero(semanaSelecionada.semana.clientesAtivos)}</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground border-t pt-3">
+                {numero(semanaSelecionada.semana.qtdTickets)} transaç{semanaSelecionada.semana.qtdTickets === 1 ? 'ão' : 'ões'} nesta semana
+              </p>
+
+              <div className="min-w-0 border-t pt-3">
+                <p className="text-xs font-medium text-muted-foreground mb-2">Receita dia a dia</p>
+                <div className="grid grid-cols-7 gap-1.5">
+                  {semanaSelecionada.dias7.map((data) => {
+                    const dentroDoMes = mesmoMes(data, new Date(ano, mes - 1, 1))
+                    const receitaDia = dentroDoMes ? (diasPorChave.get(chaveDia(data))?.receita ?? 0) : null
+                    return (
+                      <div key={data.toISOString()} className={cn('rounded-md border px-1 py-1.5 text-center', !dentroDoMes && 'opacity-30')}>
+                        <p className="text-[10px] text-muted-foreground">{capitalizar(fmt.diaSemanaCurto.format(data)).slice(0, 3)}</p>
+                        <p className="text-xs font-medium">{data.getDate()}</p>
+                        <p className="text-[10px] font-semibold text-primary">
+                          {receitaDia ? moedaCompacta(receitaDia) : '—'}
+                        </p>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
             </>
           )}
         </DialogContent>

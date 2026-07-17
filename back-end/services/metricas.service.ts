@@ -8,7 +8,7 @@ import type {
   ResumoGeral, MetricasHojeGeral, RetencaoClientes, MixProduto,
   CrescimentoMoM, TopClienteGeral, ComparativoYTD,
   NovosClientesMes, MetricasGerais,
-  VisaoGeral, VisaoGeralDia, VisaoGeralSemana, VisaoGeralPrevisao, VisaoGeralResumoMes, VisaoGeralCliente,
+  VisaoGeral, VisaoGeralDia, VisaoGeralSemana, VisaoGeralResumoMes, VisaoGeralCliente,
   VisaoGeralDiaCliente,
 } from '../models/metricas.model';
 
@@ -138,7 +138,15 @@ function acumularVisaoGeral(acc: AcumuladorVisaoGeral, linha: LinhaTicketDia): v
   if (linha.ehPrimeiroDia) acc.clientesNovos.add(linha.clientId);
 }
 
-function finalizarVisaoGeral(acc: AcumuladorVisaoGeral): VisaoGeralResumoMes {
+interface TotaisVisaoGeral {
+  receita: number;
+  tpv: number;
+  qtdTickets: number;
+  clientesAtivos: number;
+  clientesNovos: number;
+}
+
+function finalizarVisaoGeral(acc: AcumuladorVisaoGeral): TotaisVisaoGeral {
   return {
     receita: acc.receita,
     tpv: acc.tpv,
@@ -167,10 +175,9 @@ function semanaDoDia(diaISO: string): { inicio: string; fim: string } {
 }
 
 /**
- * Visão Geral (Fase 1): novos clientes/receita por dia e por semana, mais
- * previsão de fechamento do mês por ritmo diário. "Cliente novo" = primeira
- * transação válida daquele cliente com ESSE vendedor (mesma definição de
- * `clientesNovos` em `buscarMetricasMes`).
+ * Visão Geral (Fase 1): novos clientes/receita por dia e por semana. "Cliente
+ * novo" = primeira transação válida daquele cliente com ESSE vendedor (mesma
+ * definição de `clientesNovos` em `buscarMetricasMes`).
  *
  * Precisão: busca as linhas CRUAS de ticket (não pré-agregadas por dia em
  * SQL) e faz uma única passada em JS acumulando dia/semana/mês ao mesmo
@@ -186,11 +193,11 @@ function semanaDoDia(diaISO: string): { inicio: string; fim: string } {
  */
 export async function buscarVisaoGeralMes(
   managerId: number,
+  nome: string,
   mes: number,
   ano: number
 ): Promise<VisaoGeral> {
-  const [ticketsResult, hojeResult] = await Promise.all([
-    consultaPool.query(`
+  const ticketsResult = await consultaPool.query(`
       WITH primeira AS (
         SELECT t.client_id, MIN(t.invoice_payment_date) AS primeiro
         FROM tickets t
@@ -217,9 +224,7 @@ export async function buscarVisaoGeralMes(
         AND ${MANAGER_ID_REMAPPED} = $1
         AND EXTRACT(YEAR  FROM (t.invoice_payment_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')) = $2
         AND EXTRACT(MONTH FROM (t.invoice_payment_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')) = $3
-    `, [managerId, ano, mes]),
-    consultaPool.query(`SELECT TO_CHAR(NOW() AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD') AS hoje`),
-  ]);
+    `, [managerId, ano, mes]);
 
   const linhas = ticketsResult.rows as LinhaTicketDia[];
 
@@ -274,7 +279,11 @@ export async function buscarVisaoGeralMes(
     .map(({ inicio, fim, acc }) => ({ inicio, fim, ...finalizarVisaoGeral(acc) }))
     .sort((a, b) => a.inicio.localeCompare(b.inicio));
 
-  const resumoMes: VisaoGeralResumoMes = finalizarVisaoGeral(doMes);
+  const totaisMes = finalizarVisaoGeral(doMes);
+  const meta = getMetaIndividual(nome, mes, ano, managerId);
+  const pctMeta = meta > 0 ? Math.round((totaisMes.receita / meta) * 1000) / 10 : 0;
+  const metaEmAberto = Math.max(0, meta - totaisMes.receita);
+  const resumoMes: VisaoGeralResumoMes = { ...totaisMes, meta, pctMeta, metaEmAberto };
 
   const clientesDoMes: VisaoGeralCliente[] = Array.from(porCliente.entries())
     .map(([clienteId, c]) => ({
@@ -292,27 +301,7 @@ export async function buscarVisaoGeralMes(
     }))
     .sort((a, b) => b.receita - a.receita);
 
-  const hojeSP: string = hojeResult.rows[0]?.hoje ?? '';
-  const [hojeAno, hojeMes] = hojeSP.split('-').map(Number);
-
-  let previsao: VisaoGeralPrevisao | null = null;
-  if (hojeAno === ano && hojeMes === mes) {
-    const diasDecorridos = Number(hojeSP.slice(8, 10));
-    const diasTotais = new Date(ano, mes, 0).getDate();
-    const acumuladoAteHoje = dias
-      .filter((d) => d.dia <= hojeSP)
-      .reduce((acc, d) => ({ receita: acc.receita + d.receita, tpv: acc.tpv + d.tpv }), { receita: 0, tpv: 0 });
-    const ritmoReceita = diasDecorridos > 0 ? acumuladoAteHoje.receita / diasDecorridos : 0;
-    const ritmoTpv = diasDecorridos > 0 ? acumuladoAteHoje.tpv / diasDecorridos : 0;
-    previsao = {
-      diasDecorridos,
-      diasTotais,
-      receitaProjetada: ritmoReceita * diasTotais,
-      tpvProjetado: ritmoTpv * diasTotais,
-    };
-  }
-
-  return { mes, ano, resumoMes, semanas, dias, previsao, clientesDoMes, clientesNovosDoMes };
+  return { mes, ano, resumoMes, semanas, dias, clientesDoMes, clientesNovosDoMes };
 }
 
 export async function buscarMetricasHoje(
