@@ -54,3 +54,18 @@ export async function getMetricasGerais(mes, ano) {
   const { data } = await api.get('/api/metricas/geral', { params })
   return data
 }
+
+/**
+ * Visão Geral do vendedor logado: receita/clientes novos por dia e por
+ * semana, mais previsão de fechamento do mês (só quando é o mês corrente).
+ * @param {number} [mes]
+ * @param {number} [ano]
+ * @returns {Promise<VisaoGeral>}
+ */
+export async function getVisaoGeral(mes, ano) {
+  const params = {}
+  if (mes) params.mes = mes
+  if (ano) params.ano = ano
+  const { data } = await api.get('/api/metricas/visao-geral', { params })
+  return data
+}

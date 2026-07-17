@@ -17,6 +17,7 @@ import DashboardPessoal from '@/pages/metricas/DashboardPessoal'
 import DashboardEquipe from '@/pages/metricas/DashboardEquipe'
 import DashboardGeral from '@/pages/metricas/DashboardGeral'
 import DashboardComercialLayout from '@/pages/metricas/DashboardComercialLayout'
+import DashboardVisaoGeral from '@/pages/metricas/DashboardVisaoGeral'
 import DashboardPreVendas from '@/pages/metricas/DashboardPreVendas'
 import DashboardPreVendasEquipe from '@/pages/metricas/DashboardPreVendasEquipe'
 import LancamentoPreVendas from '@/pages/prevendas/LancamentoPreVendas'
@@ -114,6 +115,14 @@ function App() {
           element={
             <ProtectedRoute roles={['VENDAS', 'KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
               <DashboardPessoal />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="metricas/visao-geral"
+          element={
+            <ProtectedRoute roles={['KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
+              <DashboardVisaoGeral />
             </ProtectedRoute>
           }
         />

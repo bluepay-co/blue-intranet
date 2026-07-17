@@ -233,3 +233,65 @@ export interface MetricasGerais {
   rankingComercial: MetricasEquipeMembro[];
 }
 
+// ── Visão Geral (Inside Sales / KAM) ────────────────────────────────────
+
+export interface VisaoGeralDia {
+  dia: string; // 'YYYY-MM-DD' (fuso America/Sao_Paulo)
+  receita: number;
+  tpv: number;
+  qtdTickets: number;
+  clientesAtivos: number;
+  clientesNovos: number;
+}
+
+export interface VisaoGeralSemana {
+  inicio: string; // 'YYYY-MM-DD', domingo
+  fim: string;    // 'YYYY-MM-DD', sábado
+  receita: number;
+  tpv: number;
+  qtdTickets: number;
+  clientesAtivos: number;
+  clientesNovos: number;
+}
+
+/** Projeção de fechamento do mês por ritmo diário — só existe para o mês corrente. */
+export interface VisaoGeralPrevisao {
+  diasDecorridos: number;
+  diasTotais: number;
+  receitaProjetada: number;
+  tpvProjetado: number;
+}
+
+export interface VisaoGeralResumoMes {
+  receita: number;
+  tpv: number;
+  qtdTickets: number;
+  clientesAtivos: number;
+  clientesNovos: number;
+}
+
+/** Linha de cliente na Visão Geral — mesmo padrão visual do Ranking Geral do Dashboard Comercial. */
+export interface VisaoGeralCliente {
+  clienteId: number;
+  nome: string;
+  receita: number;
+  tpv: number;
+  qtdTickets: number;
+  taxaMedia: number;
+  /** 'YYYY-MM-DD' — só presente para clientes novos do mês. */
+  primeiraCompra?: string;
+}
+
+export interface VisaoGeral {
+  mes: number;
+  ano: number;
+  resumoMes: VisaoGeralResumoMes;
+  semanas: VisaoGeralSemana[];
+  dias: VisaoGeralDia[];
+  previsao: VisaoGeralPrevisao | null;
+  /** Todos os clientes que faturaram no mês, ordenados por receita desc. */
+  clientesDoMes: VisaoGeralCliente[];
+  /** Subconjunto de clientesDoMes cuja primeira transação com o vendedor caiu neste mês. */
+  clientesNovosDoMes: VisaoGeralCliente[];
+}
+

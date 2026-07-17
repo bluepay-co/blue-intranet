@@ -8,6 +8,7 @@ import type {
   ResumoGeral, MetricasHojeGeral, RetencaoClientes, MixProduto,
   CrescimentoMoM, TopClienteGeral, ComparativoYTD,
   NovosClientesMes, MetricasGerais,
+  VisaoGeral, VisaoGeralDia, VisaoGeralSemana, VisaoGeralPrevisao, VisaoGeralResumoMes, VisaoGeralCliente,
 } from '../models/metricas.model';
 
 export const FILTROS_BASE = `
@@ -94,6 +95,208 @@ export async function buscarMetricasMes(
     meta:           0,
     pct_meta:       0,
   };
+}
+
+interface LinhaTicketDia {
+  clientId: number;
+  nome: string;
+  dia: string; // 'YYYY-MM-DD' já em fuso America/Sao_Paulo
+  receita: number;
+  tpv: number;
+  taxa: number;
+  ehPrimeiroDia: boolean;
+}
+
+interface AcumuladorCliente {
+  nome: string;
+  receita: number;
+  tpv: number;
+  qtdTickets: number;
+  somaTaxa: number;
+  ehNovo: boolean;
+  primeiraCompra: string | null;
+}
+
+interface AcumuladorVisaoGeral {
+  receita: number;
+  tpv: number;
+  qtdTickets: number;
+  clientesAtivos: Set<number>;
+  clientesNovos: Set<number>;
+}
+
+function novoAcumuladorVisaoGeral(): AcumuladorVisaoGeral {
+  return { receita: 0, tpv: 0, qtdTickets: 0, clientesAtivos: new Set(), clientesNovos: new Set() };
+}
+
+function acumularVisaoGeral(acc: AcumuladorVisaoGeral, linha: LinhaTicketDia): void {
+  acc.receita += linha.receita;
+  acc.tpv += linha.tpv;
+  acc.qtdTickets += 1;
+  acc.clientesAtivos.add(linha.clientId);
+  if (linha.ehPrimeiroDia) acc.clientesNovos.add(linha.clientId);
+}
+
+function finalizarVisaoGeral(acc: AcumuladorVisaoGeral): VisaoGeralResumoMes {
+  return {
+    receita: acc.receita,
+    tpv: acc.tpv,
+    qtdTickets: acc.qtdTickets,
+    clientesAtivos: acc.clientesAtivos.size,
+    clientesNovos: acc.clientesNovos.size,
+  };
+}
+
+/**
+ * Início (domingo) e fim (sábado) da semana civil de `diaISO`, calculados em
+ * "UTC de calendário" (sem relação com fuso real) só para não depender do
+ * fuso do processo Node — `diaISO` já vem convertido para America/Sao_Paulo
+ * na query, então esse cálculo é puramente aritmético sobre a data civil.
+ */
+function semanaDoDia(diaISO: string): { inicio: string; fim: string } {
+  const [ano, mes, dia] = diaISO.split('-').map(Number);
+  const data = new Date(Date.UTC(ano!, mes! - 1, dia));
+  const diaSemana = data.getUTCDay(); // 0 = domingo
+  const inicio = new Date(data);
+  inicio.setUTCDate(inicio.getUTCDate() - diaSemana);
+  const fim = new Date(inicio);
+  fim.setUTCDate(fim.getUTCDate() + 6);
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  return { inicio: fmt(inicio), fim: fmt(fim) };
+}
+
+/**
+ * Visão Geral (Fase 1): novos clientes/receita por dia e por semana, mais
+ * previsão de fechamento do mês por ritmo diário. "Cliente novo" = primeira
+ * transação válida daquele cliente com ESSE vendedor (mesma definição de
+ * `clientesNovos` em `buscarMetricasMes`).
+ *
+ * Precisão: busca as linhas CRUAS de ticket (não pré-agregadas por dia em
+ * SQL) e faz uma única passada em JS acumulando dia/semana/mês ao mesmo
+ * tempo, usando Set<client_id> para clientesAtivos/clientesNovos — nunca
+ * soma contagens distintas já agregadas (evitaria contar um cliente duas
+ * vezes por ter transacionado em dois dias/semanas do mesmo mês). Por isso
+ * `resumoMes` aqui é calculado a partir das mesmas linhas de `dias`/`semanas`
+ * (garantindo soma exata entre os três), e não reaproveita `buscarMetricasMes`
+ * — aquela função usa `EXTRACT(...)` cru em UTC para o corte de mês, enquanto
+ * aqui o corte é em fuso America/Sao_Paulo (necessário para os dias do
+ * calendário baterem com o dia civil do vendedor); os dois podem divergir por
+ * poucas transações-limite nas primeiras horas UTC do dia 1 do mês — não é bug.
+ */
+export async function buscarVisaoGeralMes(
+  managerId: number,
+  mes: number,
+  ano: number
+): Promise<VisaoGeral> {
+  const [ticketsResult, hojeResult] = await Promise.all([
+    consultaPool.query(`
+      WITH primeira AS (
+        SELECT t.client_id, MIN(t.invoice_payment_date) AS primeiro
+        FROM tickets t
+        LEFT JOIN clients c ON c.id = t.client_id
+        WHERE ${FILTROS_BASE}
+          AND ${MANAGER_ID_REMAPPED} = $1
+        GROUP BY t.client_id
+      )
+      SELECT
+        t.client_id::int AS "clientId",
+        c.name AS nome,
+        TO_CHAR(t.invoice_payment_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD') AS dia,
+        t.excel_total_rate::float  AS receita,
+        t.excel_total_bonus::float AS tpv,
+        t.excel_rate::float        AS taxa,
+        (
+          TO_CHAR(p.primeiro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD')
+          = TO_CHAR(t.invoice_payment_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD')
+        ) AS "ehPrimeiroDia"
+      FROM tickets t
+      LEFT JOIN clients c ON c.id = t.client_id
+      JOIN primeira p ON p.client_id = t.client_id
+      WHERE ${FILTROS_BASE}
+        AND ${MANAGER_ID_REMAPPED} = $1
+        AND EXTRACT(YEAR  FROM (t.invoice_payment_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')) = $2
+        AND EXTRACT(MONTH FROM (t.invoice_payment_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')) = $3
+    `, [managerId, ano, mes]),
+    consultaPool.query(`SELECT TO_CHAR(NOW() AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD') AS hoje`),
+  ]);
+
+  const linhas = ticketsResult.rows as LinhaTicketDia[];
+
+  const porDia = new Map<string, AcumuladorVisaoGeral>();
+  const porSemana = new Map<string, { inicio: string; fim: string; acc: AcumuladorVisaoGeral }>();
+  const porCliente = new Map<number, AcumuladorCliente>();
+  const doMes = novoAcumuladorVisaoGeral();
+
+  for (const linha of linhas) {
+    if (!porDia.has(linha.dia)) porDia.set(linha.dia, novoAcumuladorVisaoGeral());
+    acumularVisaoGeral(porDia.get(linha.dia)!, linha);
+
+    const { inicio, fim } = semanaDoDia(linha.dia);
+    if (!porSemana.has(inicio)) porSemana.set(inicio, { inicio, fim, acc: novoAcumuladorVisaoGeral() });
+    acumularVisaoGeral(porSemana.get(inicio)!.acc, linha);
+
+    acumularVisaoGeral(doMes, linha);
+
+    if (!porCliente.has(linha.clientId)) {
+      porCliente.set(linha.clientId, {
+        nome: linha.nome, receita: 0, tpv: 0, qtdTickets: 0, somaTaxa: 0, ehNovo: false, primeiraCompra: null,
+      });
+    }
+    const c = porCliente.get(linha.clientId)!;
+    c.receita += linha.receita;
+    c.tpv += linha.tpv;
+    c.qtdTickets += 1;
+    c.somaTaxa += linha.taxa;
+    if (linha.ehPrimeiroDia) { c.ehNovo = true; c.primeiraCompra = linha.dia; }
+  }
+
+  const dias: VisaoGeralDia[] = Array.from(porDia.entries())
+    .map(([dia, acc]) => ({ dia, ...finalizarVisaoGeral(acc) }))
+    .sort((a, b) => a.dia.localeCompare(b.dia));
+
+  const semanas: VisaoGeralSemana[] = Array.from(porSemana.values())
+    .map(({ inicio, fim, acc }) => ({ inicio, fim, ...finalizarVisaoGeral(acc) }))
+    .sort((a, b) => a.inicio.localeCompare(b.inicio));
+
+  const resumoMes: VisaoGeralResumoMes = finalizarVisaoGeral(doMes);
+
+  const clientesDoMes: VisaoGeralCliente[] = Array.from(porCliente.entries())
+    .map(([clienteId, c]) => ({
+      clienteId, nome: c.nome, receita: c.receita, tpv: c.tpv, qtdTickets: c.qtdTickets,
+      taxaMedia: (c.somaTaxa / c.qtdTickets) * 100,
+    }))
+    .sort((a, b) => b.receita - a.receita);
+
+  const clientesNovosDoMes: VisaoGeralCliente[] = Array.from(porCliente.entries())
+    .filter(([, c]) => c.ehNovo)
+    .map(([clienteId, c]) => ({
+      clienteId, nome: c.nome, receita: c.receita, tpv: c.tpv, qtdTickets: c.qtdTickets,
+      taxaMedia: (c.somaTaxa / c.qtdTickets) * 100,
+      ...(c.primeiraCompra ? { primeiraCompra: c.primeiraCompra } : {}),
+    }))
+    .sort((a, b) => b.receita - a.receita);
+
+  const hojeSP: string = hojeResult.rows[0]?.hoje ?? '';
+  const [hojeAno, hojeMes] = hojeSP.split('-').map(Number);
+
+  let previsao: VisaoGeralPrevisao | null = null;
+  if (hojeAno === ano && hojeMes === mes) {
+    const diasDecorridos = Number(hojeSP.slice(8, 10));
+    const diasTotais = new Date(ano, mes, 0).getDate();
+    const acumuladoAteHoje = dias
+      .filter((d) => d.dia <= hojeSP)
+      .reduce((acc, d) => ({ receita: acc.receita + d.receita, tpv: acc.tpv + d.tpv }), { receita: 0, tpv: 0 });
+    const ritmoReceita = diasDecorridos > 0 ? acumuladoAteHoje.receita / diasDecorridos : 0;
+    const ritmoTpv = diasDecorridos > 0 ? acumuladoAteHoje.tpv / diasDecorridos : 0;
+    previsao = {
+      diasDecorridos,
+      diasTotais,
+      receitaProjetada: ritmoReceita * diasTotais,
+      tpvProjetado: ritmoTpv * diasTotais,
+    };
+  }
+
+  return { mes, ano, resumoMes, semanas, dias, previsao, clientesDoMes, clientesNovosDoMes };
 }
 
 export async function buscarMetricasHoje(

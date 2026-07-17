@@ -1,4 +1,4 @@
-import { Calendar, ListTodo, Users, Newspaper, LayoutList, LifeBuoy, Headset, BarChart3, PackageSearch, TrendingUp, Activity, PhoneCall, Building2, AlertTriangle, Sparkles, MessageSquare } from 'lucide-react'
+import { Calendar, ListTodo, Users, Newspaper, LayoutList, LifeBuoy, Headset, BarChart3, PackageSearch, TrendingUp, Activity, PhoneCall, Building2, AlertTriangle, Sparkles, MessageSquare, CalendarDays } from 'lucide-react'
 
 /**
  * Navegação principal da sidebar, organizada em SEÇÕES por setor.
@@ -52,9 +52,10 @@ export const NAV_SECTIONS = [
     label: 'KAM',
     roles: ['KAM', 'DESENVOLVEDOR'],
     items: [
-      { to: '/metricas/pessoal',    label: 'Dashboard Pessoal', icon: TrendingUp },
-      { to: '/metricas/kam/equipe', label: 'Dashboard Equipe',  icon: Users },
-      { to: '/clientes',            label: 'Meus Clientes',     icon: Building2 },
+      { to: '/metricas/pessoal',     label: 'Dashboard Pessoal', icon: TrendingUp },
+      { to: '/metricas/visao-geral', label: 'Visão Geral',       icon: CalendarDays },
+      { to: '/metricas/kam/equipe',  label: 'Dashboard Equipe',  icon: Users },
+      { to: '/clientes',             label: 'Meus Clientes',     icon: Building2 },
       { to: '/carteira/risco',      label: 'Radar de Risco',    icon: AlertTriangle },
       { to: '/carteira/cross-sell', label: 'Cross-sell',        icon: Sparkles },
     ],
@@ -63,9 +64,10 @@ export const NAV_SECTIONS = [
     label: 'Inside Sales',
     roles: ['INSIGHT_SALES', 'DESENVOLVEDOR'],
     items: [
-      { to: '/metricas/pessoal',   label: 'Dashboard Pessoal', icon: TrendingUp },
-      { to: '/metricas/is/equipe', label: 'Dashboard Equipe',  icon: Users },
-      { to: '/clientes',           label: 'Meus Clientes',     icon: Building2 },
+      { to: '/metricas/pessoal',     label: 'Dashboard Pessoal', icon: TrendingUp },
+      { to: '/metricas/visao-geral', label: 'Visão Geral',       icon: CalendarDays },
+      { to: '/metricas/is/equipe',   label: 'Dashboard Equipe',  icon: Users },
+      { to: '/clientes',             label: 'Meus Clientes',     icon: Building2 },
       { to: '/carteira/risco',      label: 'Radar de Risco',    icon: AlertTriangle },
       { to: '/carteira/cross-sell', label: 'Cross-sell',        icon: Sparkles },
     ],
