@@ -52,8 +52,8 @@ export const NAV_SECTIONS = [
     label: 'KAM',
     roles: ['KAM', 'DESENVOLVEDOR'],
     items: [
-      { to: '/metricas/pessoal',     label: 'Dashboard Pessoal', icon: TrendingUp },
       { to: '/metricas/visao-geral', label: 'Visão Geral',       icon: CalendarDays },
+      { to: '/metricas/pessoal',     label: 'Dashboard Pessoal', icon: TrendingUp },
       { to: '/metricas/kam/equipe',  label: 'Dashboard Equipe',  icon: Users },
       { to: '/clientes',             label: 'Meus Clientes',     icon: Building2 },
       { to: '/carteira/risco',      label: 'Radar de Risco',    icon: AlertTriangle },
@@ -64,8 +64,8 @@ export const NAV_SECTIONS = [
     label: 'Inside Sales',
     roles: ['INSIGHT_SALES', 'DESENVOLVEDOR'],
     items: [
-      { to: '/metricas/pessoal',     label: 'Dashboard Pessoal', icon: TrendingUp },
       { to: '/metricas/visao-geral', label: 'Visão Geral',       icon: CalendarDays },
+      { to: '/metricas/pessoal',     label: 'Dashboard Pessoal', icon: TrendingUp },
       { to: '/metricas/is/equipe',   label: 'Dashboard Equipe',  icon: Users },
       { to: '/clientes',             label: 'Meus Clientes',     icon: Building2 },
       { to: '/carteira/risco',      label: 'Radar de Risco',    icon: AlertTriangle },
