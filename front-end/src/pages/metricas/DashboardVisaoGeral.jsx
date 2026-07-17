@@ -9,10 +9,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import PageHeader from '@/components/layout/PageHeader'
 import { cn } from '@/lib/utils'
 import { gradeDoMes, diasDaSemana, chaveDia, mesmoMes, fmt, capitalizar } from '@/lib/datas'
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts'
+import { BarChart, Bar, LineChart, Line, Legend, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts'
 import {
   Wallet, Users, UserPlus, RefreshCw, AlertCircle, Loader2,
-  ChevronLeft, ChevronRight, Sparkles, BarChart3, TrendingUp, TrendingDown,
+  ChevronLeft, ChevronRight, ChevronDown, Sparkles, BarChart3, TrendingUp, TrendingDown,
+  CalendarRange,
 } from 'lucide-react'
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
@@ -85,6 +86,147 @@ function TooltipDiaUtil({ active, payload, mes, ano }) {
         </p>
       )}
     </div>
+  )
+}
+
+function TooltipComparativoDiario({ active, payload, label, mesAtualLabel, mesAnteriorLabel }) {
+  if (!active || !payload?.length) return null
+  const atual = payload.find((p) => p.dataKey === 'atual')?.value
+  const anterior = payload.find((p) => p.dataKey === 'anterior')?.value
+  const delta = (anterior ? Math.round(((atual - anterior) / anterior) * 1000) / 10 : null)
+  return (
+    <div className="rounded-xl border bg-background px-3.5 py-2.5 text-sm shadow-xl space-y-1 min-w-[180px]">
+      <p className="font-semibold text-foreground">Dia {label}</p>
+      {atual != null && <p className="text-primary font-medium">{mesAtualLabel}: {moeda(atual)}</p>}
+      {anterior != null && <p className="text-muted-foreground">{mesAnteriorLabel}: {moeda(anterior)}</p>}
+      {delta !== null && (
+        <p className={`text-xs font-semibold ${delta >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+          {pct(delta)} vs {mesAnteriorLabel}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/** Receita diária do mês atual vs. mesmo dia do mês anterior (dia 1 com dia 1, dia 2 com dia 2...). */
+function ComparativoMensalDiario({ serie, mesAtualLabel, mesAnteriorLabel }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Receita Diária — {mesAtualLabel} vs {mesAnteriorLabel}</CardTitle>
+        <p className="text-xs text-muted-foreground">Compara o mesmo dia do mês (dia 1 com dia 1, dia 2 com dia 2...).</p>
+      </CardHeader>
+      <CardContent>
+        {serie.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">Sem dados suficientes para comparar.</p>
+        ) : (
+          <ChartContainer className="h-64">
+            <LineChart data={serie} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="currentColor" className="stroke-border/30" />
+              <XAxis dataKey="dia" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+              <YAxis tickFormatter={(v) => moedaCompacta(v)} tick={{ fontSize: 11 }} width={70} tickLine={false} axisLine={false} />
+              <Tooltip content={<TooltipComparativoDiario mesAtualLabel={mesAtualLabel} mesAnteriorLabel={mesAnteriorLabel} />} />
+              <Legend
+                formatter={(v) => (v === 'atual' ? mesAtualLabel : mesAnteriorLabel)}
+                wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="anterior"
+                stroke={`${CORES_GRAFICO[0]}88`}
+                strokeWidth={2}
+                strokeDasharray="5 4"
+                dot={false}
+                connectNulls
+              />
+              <Line
+                type="monotone"
+                dataKey="atual"
+                stroke={CORES_GRAFICO[0]}
+                strokeWidth={2.5}
+                dot={{ r: 3, fill: CORES_GRAFICO[0], strokeWidth: 0 }}
+                activeDot={{ r: 5 }}
+                connectNulls
+              />
+            </LineChart>
+          </ChartContainer>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+/**
+ * Card de resumo de uma semana do mês, no mesmo estilo do card de Previsão
+ * (borda de destaque + ícone). Expande ao clicar para mostrar TPV, clientes
+ * novos/que faturaram e a receita dia a dia daquela semana — tudo derivado
+ * de `dados.semanas`/`dados.dias`, sem nenhuma chamada extra ao backend.
+ */
+function ResumoSemanalCard({ numeroSemana, semana, diasDaSemanaAtual, diasPorChave, mes, ano, expandida, onToggle }) {
+  const dataMesRef = new Date(ano, mes - 1, 1)
+  return (
+    <Card className="overflow-hidden border-l-4 border-l-primary bg-primary/[0.03]">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+            <CalendarRange className="size-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">
+              Semana {numeroSemana} · {fmt.diaMes.format(parseDia(semana.inicio))} a {fmt.diaMes.format(parseDia(semana.fim))}
+            </p>
+            <p className="truncate text-lg font-bold text-primary">{moeda(semana.receita)}</p>
+          </div>
+        </div>
+        <ChevronDown className={cn('size-4 shrink-0 text-muted-foreground transition-transform', expandida && 'rotate-180')} />
+      </button>
+
+      {expandida && (
+        <div className="space-y-4 border-t px-5 py-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div>
+              <p className="text-xs text-muted-foreground mb-0.5">TPV</p>
+              <p className="text-sm font-semibold">{moeda(semana.tpv)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-0.5">Clientes novos</p>
+              <p className="text-sm font-semibold">{numero(semana.clientesNovos)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-0.5">Clientes que faturaram</p>
+              <p className="text-sm font-semibold">{numero(semana.clientesAtivos)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-0.5">Transações</p>
+              <p className="text-sm font-semibold">{numero(semana.qtdTickets)}</p>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-2">Receita dia a dia</p>
+            <div className="grid grid-cols-7 gap-1.5">
+              {diasDaSemanaAtual.map((data) => {
+                const dentroDoMes = mesmoMes(data, dataMesRef)
+                const receitaDia = dentroDoMes ? (diasPorChave.get(chaveDia(data))?.receita ?? 0) : null
+                return (
+                  <div key={data.toISOString()} className={cn('rounded-md border px-1 py-1.5 text-center', !dentroDoMes && 'opacity-30')}>
+                    <p className="text-[10px] text-muted-foreground">{capitalizar(fmt.diaSemanaCurto.format(data)).slice(0, 3)}</p>
+                    <p className="text-xs font-medium">{data.getDate()}</p>
+                    <p className="text-[10px] font-semibold text-primary">
+                      {receitaDia ? moedaCompacta(receitaDia) : '—'}
+                    </p>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </Card>
   )
 }
 
@@ -173,16 +315,24 @@ export default function DashboardVisaoGeral() {
   const [mes, setMes] = useState(agora.getMonth() + 1)
   const [ano, setAno] = useState(agora.getFullYear())
   const [dados, setDados] = useState(null)
+  const [dadosAnterior, setDadosAnterior] = useState(null)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
   const [diaSelecionado, setDiaSelecionado] = useState(null)
+  const [semanasExpandidas, setSemanasExpandidas] = useState(() => new Set())
+
+  const anoAnterior = ano - 1
 
   const carregar = useCallback(async () => {
     setErro('')
     setCarregando(true)
     try {
-      const data = await getVisaoGeral(mes, ano)
+      const [data, dataAnterior] = await Promise.all([
+        getVisaoGeral(mes, ano),
+        getVisaoGeral(mes, ano - 1),
+      ])
       setDados(data)
+      setDadosAnterior(dataAnterior)
     } catch (e) {
       if (e.response?.status === 404) setErro('Você não possui métricas cadastradas no banco de produção.')
       else setErro('Erro ao carregar a visão geral. Tente novamente.')
@@ -212,6 +362,62 @@ export default function DashboardVisaoGeral() {
 
   const grade = useMemo(() => gradeDoMes(new Date(ano, mes - 1, 1)), [mes, ano])
   const hojeChave = useMemo(() => chaveDia(new Date()), [])
+
+  /**
+   * Todas as semanas (Semana 1, 2, 3...) que tocam o mês exibido, mesmo as
+   * sem nenhuma movimentação — `dados.semanas` só traz semanas com dados,
+   * então aqui completamos com zero as que faltarem, para o resumo semanal
+   * sempre mostrar o mês inteiro.
+   */
+  const semanasDoMes = useMemo(() => {
+    const dataMesRef = new Date(ano, mes - 1, 1)
+    const semanasPorInicio = new Map((dados?.semanas ?? []).map((s) => [s.inicio, s]))
+    const blocos = []
+    for (let i = 0; i < grade.length; i += 7) blocos.push(grade.slice(i, i + 7))
+    return blocos
+      .filter((dias7) => dias7.some((d) => mesmoMes(d, dataMesRef)))
+      .map((dias7) => {
+        const inicio = chaveDia(dias7[0])
+        const fim = chaveDia(dias7[6])
+        const existente = semanasPorInicio.get(inicio)
+        return {
+          dias7,
+          semana: existente ?? { inicio, fim, receita: 0, tpv: 0, qtdTickets: 0, clientesAtivos: 0, clientesNovos: 0 },
+        }
+      })
+  }, [dados, grade, mes, ano])
+
+  /** Receita diária do mês atual vs. o mesmo dia do mesmo mês no ano anterior. */
+  const serieComparativoMensal = useMemo(() => {
+    if (!dados) return []
+    const diasNoMesAtual = new Date(ano, mes, 0).getDate()
+    const diasNoMesAnoAnterior = new Date(anoAnterior, mes, 0).getDate()
+
+    const anteriorPorNumeroDia = new Map()
+    for (const d of dadosAnterior?.dias ?? []) {
+      anteriorPorNumeroDia.set(Number(d.dia.slice(8, 10)), d.receita)
+    }
+
+    const linhas = []
+    for (let dia = 1; dia <= diasNoMesAtual; dia++) {
+      const chaveAtual = `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`
+      linhas.push({
+        dia,
+        atual: diasPorChave.get(chaveAtual)?.receita ?? 0,
+        anterior: dia <= diasNoMesAnoAnterior ? (anteriorPorNumeroDia.get(dia) ?? 0) : null,
+      })
+    }
+    return linhas
+  }, [dados, dadosAnterior, diasPorChave, mes, ano, anoAnterior])
+
+  function alternarSemana(chave) {
+    setSemanasExpandidas((atual) => {
+      const novo = new Set(atual)
+      if (novo.has(chave)) novo.delete(chave)
+      else novo.add(chave)
+      return novo
+    })
+  }
 
   /** Receita por dia ÚTIL do mês (pula sáb/dom), com variação vs. o dia útil anterior. */
   const serieDiaUtil = useMemo(() => {
@@ -317,53 +523,55 @@ export default function DashboardVisaoGeral() {
             </Card>
           )}
 
-          {/* Receita e novos clientes por semana */}
-          <div className="grid gap-4 lg:grid-cols-3">
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Receita por Semana</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {dados.semanas.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-muted-foreground">Sem movimentação neste mês.</p>
-                ) : (
-                  <ChartContainer className="h-64">
-                    <BarChart data={dados.semanas} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="currentColor" className="stroke-border/30" />
-                      <XAxis dataKey="inicio" tickFormatter={(v) => fmt.diaMes.format(parseDia(v))} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                      <YAxis tickFormatter={(v) => moedaCompacta(v)} tick={{ fontSize: 11 }} width={70} tickLine={false} axisLine={false} />
-                      <Tooltip content={<TooltipSemana />} cursor={{ fill: 'currentColor', className: 'fill-muted/40' }} />
-                      <Bar dataKey="receita" radius={[5, 5, 0, 0]}>
-                        {dados.semanas.map((s, i) => (
-                          <Cell key={i} fill={s.inicio <= hojeChave && hojeChave <= s.fim ? CORES_GRAFICO[0] : `${CORES_GRAFICO[0]}66`} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ChartContainer>
-                )}
-              </CardContent>
-            </Card>
+          {/* Receita por semana */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Receita por Semana</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {dados.semanas.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">Sem movimentação neste mês.</p>
+              ) : (
+                <ChartContainer className="h-56">
+                  <BarChart data={dados.semanas} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="currentColor" className="stroke-border/30" />
+                    <XAxis dataKey="inicio" tickFormatter={(v) => fmt.diaMes.format(parseDia(v))} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                    <YAxis tickFormatter={(v) => moedaCompacta(v)} tick={{ fontSize: 11 }} width={70} tickLine={false} axisLine={false} />
+                    <Tooltip content={<TooltipSemana />} cursor={{ fill: 'currentColor', className: 'fill-muted/40' }} />
+                    <Bar dataKey="receita" radius={[5, 5, 0, 0]}>
+                      {dados.semanas.map((s, i) => (
+                        <Cell key={i} fill={s.inicio <= hojeChave && hojeChave <= s.fim ? CORES_GRAFICO[0] : `${CORES_GRAFICO[0]}66`} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ChartContainer>
+              )}
+            </CardContent>
+          </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Novos Clientes por Semana</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 pt-2">
-                {dados.semanas.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-muted-foreground">Sem dados.</p>
-                ) : (
-                  dados.semanas.map((s) => (
-                    <div key={s.inicio} className="flex items-center justify-between text-sm border-b pb-3 last:border-0 last:pb-0">
-                      <span className="text-muted-foreground">
-                        {fmt.diaMes.format(parseDia(s.inicio))} – {fmt.diaMes.format(parseDia(s.fim))}
-                      </span>
-                      <span className="font-semibold">{numero(s.clientesNovos)}</span>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
+          {/* Resumo semanal — Semana 1, 2, 3... clicável, expande com detalhe dia a dia */}
+          <div className="space-y-3">
+            {semanasDoMes.map(({ dias7, semana }, i) => (
+              <ResumoSemanalCard
+                key={semana.inicio}
+                numeroSemana={i + 1}
+                semana={semana}
+                diasDaSemanaAtual={dias7}
+                diasPorChave={diasPorChave}
+                mes={mes}
+                ano={ano}
+                expandida={semanasExpandidas.has(semana.inicio)}
+                onToggle={() => alternarSemana(semana.inicio)}
+              />
+            ))}
           </div>
+
+          {/* Receita diária vs. o mesmo mês no ano anterior */}
+          <ComparativoMensalDiario
+            serie={serieComparativoMensal}
+            mesAtualLabel={`${MESES[mes - 1]}/${ano}`}
+            mesAnteriorLabel={`${MESES[mes - 1]}/${anoAnterior}`}
+          />
 
           {/* Evolução diária de receita — dias úteis do mês */}
           <Card>
