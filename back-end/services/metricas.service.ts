@@ -9,6 +9,7 @@ import type {
   CrescimentoMoM, TopClienteGeral, ComparativoYTD,
   NovosClientesMes, MetricasGerais,
   VisaoGeral, VisaoGeralDia, VisaoGeralSemana, VisaoGeralPrevisao, VisaoGeralResumoMes, VisaoGeralCliente,
+  VisaoGeralDiaCliente,
 } from '../models/metricas.model';
 
 export const FILTROS_BASE = `
@@ -225,6 +226,7 @@ export async function buscarVisaoGeralMes(
   const porDia = new Map<string, AcumuladorVisaoGeral>();
   const porSemana = new Map<string, { inicio: string; fim: string; acc: AcumuladorVisaoGeral }>();
   const porCliente = new Map<number, AcumuladorCliente>();
+  const porDiaCliente = new Map<string, Map<number, { nome: string; receita: number; tpv: number }>>();
   const doMes = novoAcumuladorVisaoGeral();
 
   for (const linha of linhas) {
@@ -236,6 +238,15 @@ export async function buscarVisaoGeralMes(
     acumularVisaoGeral(porSemana.get(inicio)!.acc, linha);
 
     acumularVisaoGeral(doMes, linha);
+
+    if (!porDiaCliente.has(linha.dia)) porDiaCliente.set(linha.dia, new Map());
+    const clientesDoDia = porDiaCliente.get(linha.dia)!;
+    if (!clientesDoDia.has(linha.clientId)) {
+      clientesDoDia.set(linha.clientId, { nome: linha.nome, receita: 0, tpv: 0 });
+    }
+    const cd = clientesDoDia.get(linha.clientId)!;
+    cd.receita += linha.receita;
+    cd.tpv += linha.tpv;
 
     if (!porCliente.has(linha.clientId)) {
       porCliente.set(linha.clientId, {
@@ -251,7 +262,12 @@ export async function buscarVisaoGeralMes(
   }
 
   const dias: VisaoGeralDia[] = Array.from(porDia.entries())
-    .map(([dia, acc]) => ({ dia, ...finalizarVisaoGeral(acc) }))
+    .map(([dia, acc]) => {
+      const clientes: VisaoGeralDiaCliente[] = Array.from((porDiaCliente.get(dia) ?? new Map()).entries())
+        .map(([clienteId, c]) => ({ clienteId, nome: c.nome, receita: c.receita, tpv: c.tpv }))
+        .sort((a, b) => b.receita - a.receita);
+      return { dia, ...finalizarVisaoGeral(acc), clientes };
+    })
     .sort((a, b) => a.dia.localeCompare(b.dia));
 
   const semanas: VisaoGeralSemana[] = Array.from(porSemana.values())

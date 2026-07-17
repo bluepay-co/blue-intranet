@@ -235,6 +235,14 @@ export interface MetricasGerais {
 
 // ── Visão Geral (Inside Sales / KAM) ────────────────────────────────────
 
+/** Linha bem resumida de cliente dentro de um dia — usada no detalhe do calendário. */
+export interface VisaoGeralDiaCliente {
+  clienteId: number;
+  nome: string;
+  receita: number;
+  tpv: number;
+}
+
 export interface VisaoGeralDia {
   dia: string; // 'YYYY-MM-DD' (fuso America/Sao_Paulo)
   receita: number;
@@ -242,6 +250,8 @@ export interface VisaoGeralDia {
   qtdTickets: number;
   clientesAtivos: number;
   clientesNovos: number;
+  /** Clientes que faturaram nesse dia, ordenados por receita desc. */
+  clientes: VisaoGeralDiaCliente[];
 }
 
 export interface VisaoGeralSemana {

@@ -95,6 +95,11 @@ function TooltipDiaUtil({ active, payload, mes, ano }) {
  */
 function RankingClientesTabela({ titulo, clientes, mostrarPrimeiraCompra }) {
   const navigate = useNavigate()
+  const totais = (clientes ?? []).reduce((acc, c) => ({
+    receita: acc.receita + c.receita,
+    tpv: acc.tpv + c.tpv,
+    qtdTickets: acc.qtdTickets + c.qtdTickets,
+  }), { receita: 0, tpv: 0, qtdTickets: 0 })
   return (
     <Card className="overflow-hidden">
       <CardHeader className="border-b bg-muted/30">
@@ -128,7 +133,7 @@ function RankingClientesTabela({ titulo, clientes, mostrarPrimeiraCompra }) {
                     <td className="px-4 py-2.5">
                       <Badge variant={i === 0 ? 'default' : 'outline'} className="w-6 h-6 flex items-center justify-center p-0 text-xs">{i + 1}</Badge>
                     </td>
-                    <td className="px-4 py-2.5 max-w-[220px] truncate font-medium">{c.nome}</td>
+                    <td className="px-4 py-2.5 max-w-[220px] truncate font-medium" title={c.nome}>{c.nome}</td>
                     {mostrarPrimeiraCompra && (
                       <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
                         {c.primeiraCompra ? fmt.diaMes.format(parseDia(c.primeiraCompra)) : '—'}
@@ -142,6 +147,18 @@ function RankingClientesTabela({ titulo, clientes, mostrarPrimeiraCompra }) {
                   </tr>
                 ))}
               </tbody>
+              <tfoot className="sticky bottom-0 z-10 bg-card">
+                <tr className="border-t-2 font-semibold">
+                  <td className="px-4 py-2.5"></td>
+                  <td className="px-4 py-2.5">Total</td>
+                  {mostrarPrimeiraCompra && <td className="px-4 py-2.5"></td>}
+                  <td className="px-4 py-2.5 text-right text-primary">{moeda(totais.receita)}</td>
+                  <td className="px-4 py-2.5 text-right">{moeda(totais.tpv)}</td>
+                  <td className="px-4 py-2.5 text-right text-muted-foreground font-normal">—</td>
+                  <td className="px-4 py-2.5 text-right">{numero(totais.qtdTickets)}</td>
+                  <td className="px-2 py-2.5"></td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         )}
@@ -151,6 +168,7 @@ function RankingClientesTabela({ titulo, clientes, mostrarPrimeiraCompra }) {
 }
 
 export default function DashboardVisaoGeral() {
+  const navigate = useNavigate()
   const agora = new Date()
   const [mes, setMes] = useState(agora.getMonth() + 1)
   const [ano, setAno] = useState(agora.getFullYear())
@@ -230,7 +248,7 @@ export default function DashboardVisaoGeral() {
   }, [serieDiaUtil])
 
   function abrirDia(chave) {
-    setDiaSelecionado(diasPorChave.get(chave) ?? { dia: chave, receita: 0, tpv: 0, qtdTickets: 0, clientesAtivos: 0, clientesNovos: 0 })
+    setDiaSelecionado(diasPorChave.get(chave) ?? { dia: chave, receita: 0, tpv: 0, qtdTickets: 0, clientesAtivos: 0, clientesNovos: 0, clientes: [] })
   }
 
   if (carregando && !dados) {
@@ -489,6 +507,30 @@ export default function DashboardVisaoGeral() {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground border-t pt-3">{numero(diaSelecionado.qtdTickets)} transaç{diaSelecionado.qtdTickets === 1 ? 'ão' : 'ões'} neste dia</p>
+
+              {diaSelecionado.clientes?.length > 0 && (
+                <div className="min-w-0 border-t pt-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">
+                    Quem faturou ({diaSelecionado.clientes.length}) — maior para menor
+                  </p>
+                  <div className="min-w-0 max-h-52 space-y-0.5 overflow-y-auto pr-1">
+                    {diaSelecionado.clientes.map((c, i) => (
+                      <button
+                        key={c.clienteId}
+                        type="button"
+                        onClick={() => { setDiaSelecionado(null); navigate(`/clientes/${c.clienteId}`) }}
+                        className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted/50"
+                      >
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="w-4 shrink-0 text-xs text-muted-foreground">{i + 1}.</span>
+                          <span className="min-w-0 truncate font-medium" title={c.nome}>{c.nome}</span>
+                        </span>
+                        <span className="shrink-0 font-semibold text-primary">{moeda(c.receita)}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </DialogContent>
