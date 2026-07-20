@@ -30,14 +30,17 @@ const storage = multer.diskStorage({
   },
 });
 
+// Whitelist explícita (sem `image/svg+xml`): SVG pode conter <script> embutido
+// e o anexo é servido estaticamente em /uploads — aberto a XSS armazenado.
+const IMAGEM_OK = /^image\/(jpeg|png|gif|webp)$/;
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+    if (IMAGEM_OK.test(file.mimetype) || file.mimetype === 'application/pdf') {
       return cb(null, true);
     }
-    cb(new AppError('Apenas imagens ou PDF são permitidos.', 400));
+    cb(new AppError('Apenas imagens (JPEG/PNG/GIF/WebP) ou PDF são permitidos.', 400));
   },
 });
 

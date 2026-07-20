@@ -63,3 +63,6 @@ certs/
 
 # Planilhas de metas (dados de negócio, uso local)
 Metas Bluepay*.csv
+
+# Especificações com credenciais/segredos coladas em texto puro (uso local)
+hubspot.md

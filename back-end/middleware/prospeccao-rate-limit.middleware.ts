@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import type { Request, Response } from 'express';
 
 /**
@@ -13,7 +13,8 @@ export const prospeccaoRateLimit = rateLimit({
   limit: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req: Request): string => req.usuario?.email ?? req.ip ?? 'anonimo',
+  keyGenerator: (req: Request): string =>
+    req.usuario?.email ?? (req.ip ? ipKeyGenerator(req.ip) : 'anonimo'),
   handler: (_req: Request, res: Response) => {
     res.status(429).json({
       message: 'Muitas consultas de CNPJ em pouco tempo. Aguarde alguns minutos e tente novamente.',
