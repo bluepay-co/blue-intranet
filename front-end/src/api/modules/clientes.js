@@ -15,10 +15,19 @@ export async function listarClientes(filtros = {}) {
   return data
 }
 
-/** Ficha + métricas de um cliente do vendedor. */
-export async function buscarCliente(id) {
-  const { data } = await api.get(`/api/clientes/${id}`)
+/** Ficha + métricas de um cliente do vendedor. `mes`/`ano` filtram as métricas "do mês". */
+export async function buscarCliente(id, mes, ano) {
+  const params = {}
+  if (mes) params.mes = mes
+  if (ano) params.ano = ano
+  const { data } = await api.get(`/api/clientes/${id}`, { params })
   return data // { cliente, metricas }
+}
+
+/** Clientes da carteira agrupados por raiz de CNPJ (grupos com 2+ clientes). */
+export async function buscarGruposEconomicos() {
+  const { data } = await api.get('/api/clientes/grupo-economico')
+  return data // { grupos }
 }
 
 /** Prospecção por CNPJ: verifica se já é cliente; se não, puxa dados públicos. */

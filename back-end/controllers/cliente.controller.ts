@@ -9,6 +9,7 @@ import {
   buscarFiltrosClientes,
   buscarClienteDoVendedor,
   buscarMetricasCliente,
+  buscarGruposEconomicos,
   prospectarCnpj as prospectarCnpjService,
 } from '../services/cliente.service';
 
@@ -51,6 +52,25 @@ export async function getMeusClientes(req: Request, res: Response) {
   }
 }
 
+export async function getGruposEconomicos(req: Request, res: Response) {
+  try {
+    const email = req.usuario?.email;
+    if (!email) throw new AppError('Usuário não autenticado.', 401);
+
+    const vendedor = await buscarVendedorPorEmail(email);
+    if (!vendedor) {
+      return res.status(404).json({ message: 'Vendedor não encontrado no banco de produção.' });
+    }
+
+    const grupos = await buscarGruposEconomicos(vendedor.id);
+    return res.status(200).json({ grupos });
+  } catch (err) {
+    if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
+    console.error('[cliente.controller] getGruposEconomicos:', err);
+    return res.status(500).json({ message: 'Erro ao buscar grupos econômicos.' });
+  }
+}
+
 export async function getClienteDetalhe(req: Request, res: Response) {
   try {
     const email = req.usuario?.email;
@@ -72,7 +92,16 @@ export async function getClienteDetalhe(req: Request, res: Response) {
       return res.status(404).json({ message: 'Cliente não encontrado ou sem acesso.' });
     }
 
-    const metricas = await buscarMetricasCliente(clienteId);
+    const mes = req.query.mes ? Number(req.query.mes) : undefined;
+    const ano = req.query.ano ? Number(req.query.ano) : undefined;
+    if (mes !== undefined && (!Number.isInteger(mes) || mes < 1 || mes > 12)) {
+      throw new AppError('Mês inválido.', 400);
+    }
+    if (ano !== undefined && (!Number.isInteger(ano) || ano < 2000 || ano > 2100)) {
+      throw new AppError('Ano inválido.', 400);
+    }
+
+    const metricas = await buscarMetricasCliente(clienteId, mes, ano);
     return res.status(200).json({ cliente, metricas });
   } catch (err) {
     if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });

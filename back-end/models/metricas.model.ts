@@ -229,5 +229,76 @@ export interface MetricasGerais {
   novosClientesMes: NovosClientesMes[];
   /** Receita mensal da empresa inteira no ano filtrado (array[12], Jan–Dez), para o comparativo Ano × Ano. */
   receitaMensalAno: number[];
+  /** Ranking combinado de vendedores de Inside Sales + KAM, ordenado por receita. */
+  rankingComercial: MetricasEquipeMembro[];
+}
+
+// ── Visão Geral (Inside Sales / KAM) ────────────────────────────────────
+
+/** Linha bem resumida de cliente dentro de um dia — usada no detalhe do calendário. */
+export interface VisaoGeralDiaCliente {
+  clienteId: number;
+  nome: string;
+  receita: number;
+  tpv: number;
+}
+
+export interface VisaoGeralDia {
+  dia: string; // 'YYYY-MM-DD' (fuso America/Sao_Paulo)
+  receita: number;
+  tpv: number;
+  qtdTickets: number;
+  clientesAtivos: number;
+  clientesNovos: number;
+  /** Clientes que faturaram nesse dia, ordenados por receita desc. */
+  clientes: VisaoGeralDiaCliente[];
+}
+
+export interface VisaoGeralSemana {
+  inicio: string; // 'YYYY-MM-DD', domingo
+  fim: string;    // 'YYYY-MM-DD', sábado
+  receita: number;
+  tpv: number;
+  qtdTickets: number;
+  clientesAtivos: number;
+  clientesNovos: number;
+}
+
+export interface VisaoGeralResumoMes {
+  receita: number;
+  tpv: number;
+  qtdTickets: number;
+  clientesAtivos: number;
+  clientesNovos: number;
+  /** Meta individual do mês (data/metas2026.ts) — 0 quando não há meta cadastrada. */
+  meta: number;
+  /** receita / meta * 100 — 0 quando não há meta cadastrada. */
+  pctMeta: number;
+  /** Quanto falta para bater a meta (nunca negativo; 0 quando a meta já foi batida). */
+  metaEmAberto: number;
+}
+
+/** Linha de cliente na Visão Geral — mesmo padrão visual do Ranking Geral do Dashboard Comercial. */
+export interface VisaoGeralCliente {
+  clienteId: number;
+  nome: string;
+  receita: number;
+  tpv: number;
+  qtdTickets: number;
+  taxaMedia: number;
+  /** 'YYYY-MM-DD' — só presente para clientes novos do mês. */
+  primeiraCompra?: string;
+}
+
+export interface VisaoGeral {
+  mes: number;
+  ano: number;
+  resumoMes: VisaoGeralResumoMes;
+  semanas: VisaoGeralSemana[];
+  dias: VisaoGeralDia[];
+  /** Todos os clientes que faturaram no mês, ordenados por receita desc. */
+  clientesDoMes: VisaoGeralCliente[];
+  /** Subconjunto de clientesDoMes cuja primeira transação com o vendedor caiu neste mês. */
+  clientesNovosDoMes: VisaoGeralCliente[];
 }
 

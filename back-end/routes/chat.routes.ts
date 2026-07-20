@@ -33,14 +33,17 @@ const MIME_PERMITIDOS = new Set([
   'application/vnd.ms-excel',
 ]);
 
+// Whitelist explícita (sem `image/svg+xml`): SVG pode conter <script> embutido
+// e o anexo é servido estaticamente em /uploads — aberto a XSS armazenado.
+const IMAGEM_OK = /^image\/(jpeg|png|gif|webp)$/;
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith('image/') || MIME_PERMITIDOS.has(file.mimetype)) {
+    if (IMAGEM_OK.test(file.mimetype) || MIME_PERMITIDOS.has(file.mimetype)) {
       return cb(null, true);
     }
-    cb(new Error('Apenas imagens, PDF ou planilhas são permitidos.'));
+    cb(new Error('Apenas imagens (JPEG/PNG/GIF/WebP), PDF ou planilhas são permitidos.'));
   },
 });
 

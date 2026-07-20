@@ -131,6 +131,57 @@ function TooltipYTD({ active, payload, label }) {
   )
 }
 
+/** Ranking combinado de vendedores (Inside Sales + KAM). */
+function RankingGeralTabela({ titulo, membros }) {
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="border-b bg-muted/30">
+        <CardTitle>{titulo}</CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        {(!membros || membros.length === 0) ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">Nenhum dado para este período.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-xs text-muted-foreground">
+                  <th className="px-4 py-2 text-left font-medium">#</th>
+                  <th className="px-4 py-2 text-left font-medium">Vendedor</th>
+                  <th className="px-4 py-2 text-right font-medium">Receita</th>
+                  <th className="px-4 py-2 text-right font-medium">Meta</th>
+                  <th className="px-4 py-2 text-right font-medium">% Meta</th>
+                  <th className="px-4 py-2 text-right font-medium">TPV</th>
+                </tr>
+              </thead>
+              <tbody>
+                {membros.map((m, i) => (
+                  <tr key={m.vendedorId} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-2.5">
+                      <Badge variant={i === 0 ? 'default' : 'outline'} className="w-6 h-6 flex items-center justify-center p-0 text-xs">{i + 1}</Badge>
+                    </td>
+                    <td className="px-4 py-2.5 font-medium">{m.nome}</td>
+                    <td className="px-4 py-2.5 text-right font-semibold text-primary">{moeda(m.receita)}</td>
+                    <td className="px-4 py-2.5 text-right text-muted-foreground">{m.meta > 0 ? moeda(m.meta) : '—'}</td>
+                    <td className="px-4 py-2.5 text-right">
+                      {m.meta > 0 ? (
+                        <span className={`font-semibold text-xs ${m.pct_meta >= 100 ? 'text-emerald-600' : m.pct_meta >= 70 ? 'text-amber-600' : 'text-red-500'}`}>
+                          {m.pct_meta.toFixed(1)}%
+                        </span>
+                      ) : '—'}
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-muted-foreground">{moeda(m.tpv)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function DashboardGeral() {
   const agora = new Date()
   const [mes, setMes] = useState(agora.getMonth() + 1)
@@ -200,7 +251,7 @@ export default function DashboardGeral() {
       )}
 
       {dados && (() => {
-        const { resumo, hoje, retencao, mixProduto, evolucaoMensal, topClientes, ytd, novosClientesMes, receitaMensalAno } = dados
+        const { resumo, hoje, retencao, mixProduto, evolucaoMensal, ytd, novosClientesMes, receitaMensalAno, rankingComercial } = dados
         const ytdAtual    = ytd.find(y => y.ano === ano)
         const ytdAnterior = ytd.find(y => y.ano === ano - 1)
         const agora_ref   = new Date()
@@ -535,38 +586,8 @@ export default function DashboardGeral() {
               </Card>
             </div>
 
-            {/* Top Clientes */}
-            <Card className="overflow-hidden">
-              <CardHeader className="border-b bg-muted/30">
-                <CardTitle>Top Clientes do Mês</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-xs text-muted-foreground">
-                      <th className="px-4 py-2 text-left font-medium">#</th>
-                      <th className="px-4 py-2 text-left font-medium">Cliente</th>
-                      <th className="px-4 py-2 text-right font-medium">Receita</th>
-                      <th className="px-4 py-2 text-right font-medium">TPV</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {topClientes.map((c, i) => (
-                      <tr key={c.nome} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-2.5">
-                          <Badge variant="outline" className="w-6 h-6 flex items-center justify-center p-0 text-xs">
-                            {i + 1}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-2.5 max-w-[180px] truncate font-medium">{c.nome}</td>
-                        <td className="px-4 py-2.5 text-right text-primary font-semibold">{moeda(c.receita)}</td>
-                        <td className="px-4 py-2.5 text-right text-muted-foreground">{moeda(c.tpv)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </CardContent>
-            </Card>
+            {/* Ranking Geral — Inside Sales + KAM */}
+            <RankingGeralTabela titulo="Ranking Geral — Inside Sales + KAM" membros={rankingComercial} />
 
             {/* Novos Clientes no Ano */}
             {novosClientesMes.length > 0 && (

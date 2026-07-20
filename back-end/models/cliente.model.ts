@@ -42,6 +42,20 @@ export interface FiltrosClientes {
   segmentos: string[];
 }
 
+/**
+ * Grupo econômico oficial (`clients.economic_group_id` → `economic_groups`,
+ * cadastro real do banco de produção). Só existe quando 2+ clientes da
+ * carteira do vendedor pertencem ao mesmo grupo.
+ */
+export interface GrupoEconomico {
+  id: number;
+  nome: string;
+  clientes: ClienteResumo[];
+  receitaTotal: number;
+  tpvTotal: number;
+  qtdClientes: number;
+}
+
 /** Ficha completa do cliente. */
 export interface ClienteDetalhe {
   id: number;
@@ -83,6 +97,8 @@ export interface ClienteMetricas {
   receitaMes: number;
   tpvMes: number;
   qtdTicketsMes: number;
+  ticketMedioMes: number;
+  taxaMediaMes: number;
   primeiroTicket: string | null;
   ultimoTicket: string | null;
   evolucao: { mes: number; ano: number; receita: number }[];

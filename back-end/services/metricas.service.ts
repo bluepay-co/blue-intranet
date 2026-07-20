@@ -8,6 +8,8 @@ import type {
   ResumoGeral, MetricasHojeGeral, RetencaoClientes, MixProduto,
   CrescimentoMoM, TopClienteGeral, ComparativoYTD,
   NovosClientesMes, MetricasGerais,
+  VisaoGeral, VisaoGeralDia, VisaoGeralSemana, VisaoGeralResumoMes, VisaoGeralCliente,
+  VisaoGeralDiaCliente,
 } from '../models/metricas.model';
 
 export const FILTROS_BASE = `
@@ -94,6 +96,212 @@ export async function buscarMetricasMes(
     meta:           0,
     pct_meta:       0,
   };
+}
+
+interface LinhaTicketDia {
+  clientId: number;
+  nome: string;
+  dia: string; // 'YYYY-MM-DD' já em fuso America/Sao_Paulo
+  receita: number;
+  tpv: number;
+  taxa: number;
+  ehPrimeiroDia: boolean;
+}
+
+interface AcumuladorCliente {
+  nome: string;
+  receita: number;
+  tpv: number;
+  qtdTickets: number;
+  somaTaxa: number;
+  ehNovo: boolean;
+  primeiraCompra: string | null;
+}
+
+interface AcumuladorVisaoGeral {
+  receita: number;
+  tpv: number;
+  qtdTickets: number;
+  clientesAtivos: Set<number>;
+  clientesNovos: Set<number>;
+}
+
+function novoAcumuladorVisaoGeral(): AcumuladorVisaoGeral {
+  return { receita: 0, tpv: 0, qtdTickets: 0, clientesAtivos: new Set(), clientesNovos: new Set() };
+}
+
+function acumularVisaoGeral(acc: AcumuladorVisaoGeral, linha: LinhaTicketDia): void {
+  acc.receita += linha.receita;
+  acc.tpv += linha.tpv;
+  acc.qtdTickets += 1;
+  acc.clientesAtivos.add(linha.clientId);
+  if (linha.ehPrimeiroDia) acc.clientesNovos.add(linha.clientId);
+}
+
+interface TotaisVisaoGeral {
+  receita: number;
+  tpv: number;
+  qtdTickets: number;
+  clientesAtivos: number;
+  clientesNovos: number;
+}
+
+function finalizarVisaoGeral(acc: AcumuladorVisaoGeral): TotaisVisaoGeral {
+  return {
+    receita: acc.receita,
+    tpv: acc.tpv,
+    qtdTickets: acc.qtdTickets,
+    clientesAtivos: acc.clientesAtivos.size,
+    clientesNovos: acc.clientesNovos.size,
+  };
+}
+
+/**
+ * Início (domingo) e fim (sábado) da semana civil de `diaISO`, calculados em
+ * "UTC de calendário" (sem relação com fuso real) só para não depender do
+ * fuso do processo Node — `diaISO` já vem convertido para America/Sao_Paulo
+ * na query, então esse cálculo é puramente aritmético sobre a data civil.
+ */
+function semanaDoDia(diaISO: string): { inicio: string; fim: string } {
+  const [ano, mes, dia] = diaISO.split('-').map(Number);
+  const data = new Date(Date.UTC(ano!, mes! - 1, dia));
+  const diaSemana = data.getUTCDay(); // 0 = domingo
+  const inicio = new Date(data);
+  inicio.setUTCDate(inicio.getUTCDate() - diaSemana);
+  const fim = new Date(inicio);
+  fim.setUTCDate(fim.getUTCDate() + 6);
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  return { inicio: fmt(inicio), fim: fmt(fim) };
+}
+
+/**
+ * Visão Geral (Fase 1): novos clientes/receita por dia e por semana. "Cliente
+ * novo" = primeira transação válida daquele cliente com ESSE vendedor (mesma
+ * definição de `clientesNovos` em `buscarMetricasMes`).
+ *
+ * Precisão: busca as linhas CRUAS de ticket (não pré-agregadas por dia em
+ * SQL) e faz uma única passada em JS acumulando dia/semana/mês ao mesmo
+ * tempo, usando Set<client_id> para clientesAtivos/clientesNovos — nunca
+ * soma contagens distintas já agregadas (evitaria contar um cliente duas
+ * vezes por ter transacionado em dois dias/semanas do mesmo mês). Por isso
+ * `resumoMes` aqui é calculado a partir das mesmas linhas de `dias`/`semanas`
+ * (garantindo soma exata entre os três), e não reaproveita `buscarMetricasMes`
+ * — aquela função usa `EXTRACT(...)` cru em UTC para o corte de mês, enquanto
+ * aqui o corte é em fuso America/Sao_Paulo (necessário para os dias do
+ * calendário baterem com o dia civil do vendedor); os dois podem divergir por
+ * poucas transações-limite nas primeiras horas UTC do dia 1 do mês — não é bug.
+ */
+export async function buscarVisaoGeralMes(
+  managerId: number,
+  nome: string,
+  mes: number,
+  ano: number
+): Promise<VisaoGeral> {
+  const ticketsResult = await consultaPool.query(`
+      WITH primeira AS (
+        SELECT t.client_id, MIN(t.invoice_payment_date) AS primeiro
+        FROM tickets t
+        LEFT JOIN clients c ON c.id = t.client_id
+        WHERE ${FILTROS_BASE}
+          AND ${MANAGER_ID_REMAPPED} = $1
+        GROUP BY t.client_id
+      )
+      SELECT
+        t.client_id::int AS "clientId",
+        c.name AS nome,
+        TO_CHAR(t.invoice_payment_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD') AS dia,
+        t.excel_total_rate::float  AS receita,
+        t.excel_total_bonus::float AS tpv,
+        t.excel_rate::float        AS taxa,
+        (
+          TO_CHAR(p.primeiro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD')
+          = TO_CHAR(t.invoice_payment_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD')
+        ) AS "ehPrimeiroDia"
+      FROM tickets t
+      LEFT JOIN clients c ON c.id = t.client_id
+      JOIN primeira p ON p.client_id = t.client_id
+      WHERE ${FILTROS_BASE}
+        AND ${MANAGER_ID_REMAPPED} = $1
+        AND EXTRACT(YEAR  FROM (t.invoice_payment_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')) = $2
+        AND EXTRACT(MONTH FROM (t.invoice_payment_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')) = $3
+    `, [managerId, ano, mes]);
+
+  const linhas = ticketsResult.rows as LinhaTicketDia[];
+
+  const porDia = new Map<string, AcumuladorVisaoGeral>();
+  const porSemana = new Map<string, { inicio: string; fim: string; acc: AcumuladorVisaoGeral }>();
+  const porCliente = new Map<number, AcumuladorCliente>();
+  const porDiaCliente = new Map<string, Map<number, { nome: string; receita: number; tpv: number }>>();
+  const doMes = novoAcumuladorVisaoGeral();
+
+  for (const linha of linhas) {
+    if (!porDia.has(linha.dia)) porDia.set(linha.dia, novoAcumuladorVisaoGeral());
+    acumularVisaoGeral(porDia.get(linha.dia)!, linha);
+
+    const { inicio, fim } = semanaDoDia(linha.dia);
+    if (!porSemana.has(inicio)) porSemana.set(inicio, { inicio, fim, acc: novoAcumuladorVisaoGeral() });
+    acumularVisaoGeral(porSemana.get(inicio)!.acc, linha);
+
+    acumularVisaoGeral(doMes, linha);
+
+    if (!porDiaCliente.has(linha.dia)) porDiaCliente.set(linha.dia, new Map());
+    const clientesDoDia = porDiaCliente.get(linha.dia)!;
+    if (!clientesDoDia.has(linha.clientId)) {
+      clientesDoDia.set(linha.clientId, { nome: linha.nome, receita: 0, tpv: 0 });
+    }
+    const cd = clientesDoDia.get(linha.clientId)!;
+    cd.receita += linha.receita;
+    cd.tpv += linha.tpv;
+
+    if (!porCliente.has(linha.clientId)) {
+      porCliente.set(linha.clientId, {
+        nome: linha.nome, receita: 0, tpv: 0, qtdTickets: 0, somaTaxa: 0, ehNovo: false, primeiraCompra: null,
+      });
+    }
+    const c = porCliente.get(linha.clientId)!;
+    c.receita += linha.receita;
+    c.tpv += linha.tpv;
+    c.qtdTickets += 1;
+    c.somaTaxa += linha.taxa;
+    if (linha.ehPrimeiroDia) { c.ehNovo = true; c.primeiraCompra = linha.dia; }
+  }
+
+  const dias: VisaoGeralDia[] = Array.from(porDia.entries())
+    .map(([dia, acc]) => {
+      const clientes: VisaoGeralDiaCliente[] = Array.from((porDiaCliente.get(dia) ?? new Map()).entries())
+        .map(([clienteId, c]) => ({ clienteId, nome: c.nome, receita: c.receita, tpv: c.tpv }))
+        .sort((a, b) => b.receita - a.receita);
+      return { dia, ...finalizarVisaoGeral(acc), clientes };
+    })
+    .sort((a, b) => a.dia.localeCompare(b.dia));
+
+  const semanas: VisaoGeralSemana[] = Array.from(porSemana.values())
+    .map(({ inicio, fim, acc }) => ({ inicio, fim, ...finalizarVisaoGeral(acc) }))
+    .sort((a, b) => a.inicio.localeCompare(b.inicio));
+
+  const totaisMes = finalizarVisaoGeral(doMes);
+  const meta = getMetaIndividual(nome, mes, ano, managerId);
+  const pctMeta = meta > 0 ? Math.round((totaisMes.receita / meta) * 1000) / 10 : 0;
+  const metaEmAberto = Math.max(0, meta - totaisMes.receita);
+  const resumoMes: VisaoGeralResumoMes = { ...totaisMes, meta, pctMeta, metaEmAberto };
+
+  const clientesDoMes: VisaoGeralCliente[] = Array.from(porCliente.entries())
+    .map(([clienteId, c]) => ({
+      clienteId, nome: c.nome, receita: c.receita, tpv: c.tpv, qtdTickets: c.qtdTickets,
+      taxaMedia: (c.somaTaxa / c.qtdTickets) * 100,
+    }))
+    .sort((a, b) => b.receita - a.receita);
+
+  const clientesNovosDoMes: VisaoGeralCliente[] = Array.from(porCliente.entries())
+    .filter(([, c]) => c.ehNovo)
+    .map(([clienteId, c]) => ({
+      clienteId, nome: c.nome, receita: c.receita, tpv: c.tpv, qtdTickets: c.qtdTickets,
+      taxaMedia: (c.somaTaxa / c.qtdTickets) * 100,
+      ...(c.primeiraCompra ? { primeiraCompra: c.primeiraCompra } : {}),
+    }))
+    .sort((a, b) => b.receita - a.receita);
+
+  return { mes, ano, resumoMes, semanas, dias, clientesDoMes, clientesNovosDoMes };
 }
 
 export async function buscarMetricasHoje(
@@ -606,6 +814,101 @@ async function buscarMembrosAnualEquipe(
       meta: metaAnual, pct_meta: metaAnual > 0 ? Math.round((r.receita / metaAnual) * 1000) / 10 : 0,
     };
   });
+}
+
+/**
+ * Ranking enxuto de membros para um conjunto de roles, sem o restante das
+ * agregações de `buscarMetricasEquipe` (retenção, mix de produto, histórico,
+ * anual etc.) — usado para compor rankings combinados (ex.: IS + KAM) sem
+ * pagar o custo das outras queries.
+ */
+export async function buscarRankingMembros(
+  roles: string[],
+  mes: number,
+  ano: number
+): Promise<MetricasEquipeMembro[]> {
+  const { rows: usuariosIntranet } = await pool.query(
+    `SELECT email FROM blue_intranet.usuarios WHERE role = ANY($1::text[]) AND bloqueado = false`,
+    [roles]
+  );
+  if (usuariosIntranet.length === 0) return [];
+
+  const emails = usuariosIntranet.map((u: { email: string }) => u.email);
+
+  const { rows: vendedoresProd } = await consultaPool.query(
+    `SELECT id, name AS nome FROM users WHERE email = ANY($1::text[])`,
+    [emails]
+  );
+  if (vendedoresProd.length === 0) return [];
+
+  const managerIds = vendedoresProd.map((v: { id: number }) => v.id);
+  const nomeMap = new Map<number, string>(
+    vendedoresProd.map((v: { id: number; nome: string }) => [v.id, v.nome])
+  );
+
+  const [membrosRows, hojeMembroRows] = await Promise.all([
+    consultaPool.query(`
+      SELECT
+        ${MANAGER_ID_REMAPPED}                         AS "managerId",
+        COUNT(*)::int                                  AS "qtdTickets",
+        COUNT(DISTINCT t.client_id)::int               AS "clientesAtivos",
+        COALESCE(SUM(t.excel_total_rate), 0)::float    AS receita,
+        COALESCE(SUM(t.excel_total_bonus), 0)::float   AS tpv,
+        COALESCE(AVG(t.excel_rate) * 100, 0)::float    AS "taxaMedia",
+        CASE WHEN COUNT(*) = 0 THEN 0
+             ELSE (COALESCE(SUM(t.excel_total_rate), 0) / COUNT(*))::float
+        END AS "ticketMedio"
+      FROM tickets t
+      LEFT JOIN clients c ON c.id = t.client_id
+      WHERE ${FILTROS_BASE}
+        AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+        AND EXTRACT(MONTH FROM t.invoice_payment_date) = $2
+        AND EXTRACT(YEAR  FROM t.invoice_payment_date) = $3
+      GROUP BY ${MANAGER_ID_REMAPPED}
+      ORDER BY receita DESC
+    `, [managerIds, mes, ano]),
+
+    consultaPool.query(`
+      SELECT
+        ${MANAGER_ID_REMAPPED}                         AS "managerId",
+        COUNT(*)::int                                  AS "ticketsHoje",
+        COALESCE(SUM(t.excel_total_rate), 0)::float    AS "receitaHoje"
+      FROM tickets t
+      LEFT JOIN clients c ON c.id = t.client_id
+      WHERE ${FILTROS_BASE}
+        AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+        AND DATE(t.invoice_payment_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') = CURRENT_DATE
+      GROUP BY ${MANAGER_ID_REMAPPED}
+    `, [managerIds]),
+  ]);
+
+  const hojeMembroMap = new Map<number, { receitaHoje: number; ticketsHoje: number }>(
+    hojeMembroRows.rows.map((r: { managerId: number; receitaHoje: number; ticketsHoje: number }) => [
+      r.managerId,
+      { receitaHoje: r.receitaHoje, ticketsHoje: r.ticketsHoje },
+    ])
+  );
+
+  return membrosRows.rows.map(
+    (r: { managerId: number; qtdTickets: number; clientesAtivos: number; receita: number; tpv: number; taxaMedia: number; ticketMedio: number }) => {
+      const nome = nomeMap.get(r.managerId) ?? 'Desconhecido';
+      const meta = getMetaIndividual(nome, mes, ano, r.managerId);
+      return {
+        vendedorId:     r.managerId,
+        nome,
+        receita:        r.receita,
+        tpv:            r.tpv,
+        qtdTickets:     r.qtdTickets,
+        clientesAtivos: r.clientesAtivos,
+        taxaMedia:      r.taxaMedia,
+        ticketMedio:    r.ticketMedio,
+        receitaHoje:    hojeMembroMap.get(r.managerId)?.receitaHoje ?? 0,
+        ticketsHoje:    hojeMembroMap.get(r.managerId)?.ticketsHoje ?? 0,
+        meta,
+        pct_meta:       meta > 0 ? Math.round((r.receita / meta) * 1000) / 10 : 0,
+      };
+    }
+  );
 }
 
 export async function buscarMetricasEquipe(
@@ -1128,6 +1431,7 @@ export async function buscarMetricasGerais(
     ytd,
     novosClientesMes,
     receitaMensalAno,
+    rankingComercial,
   ] = await Promise.all([
     buscarResumoGeral(mesRef, anoRef),
     buscarHojeGeral(mesRef, anoRef),
@@ -1138,7 +1442,8 @@ export async function buscarMetricasGerais(
     buscarYTD(mesRef, anoRef),
     buscarNovosClientesMes(anoRef),
     buscarReceitaMensalAnoGeral(anoRef),
+    buscarRankingMembros(['INSIGHT_SALES', 'KAM'], mesRef, anoRef),
   ]);
 
-  return { resumo, hoje, retencao, mixProduto, evolucaoMensal, topClientes, ytd, novosClientesMes, receitaMensalAno };
+  return { resumo, hoje, retencao, mixProduto, evolucaoMensal, topClientes, ytd, novosClientesMes, receitaMensalAno, rankingComercial };
 }

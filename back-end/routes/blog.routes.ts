@@ -27,12 +27,16 @@ const storage = multer.diskStorage({
   },
 });
 
+// Whitelist explícita (sem `image/svg+xml`): SVG pode conter <script>/<foreignObject>
+// embutido e é servido estaticamente em /uploads — permiti-lo abriria XSS
+// armazenado para quem abre a imagem diretamente no navegador.
+const IMAGEM_OK = /^image\/(jpeg|png|gif|webp)$/;
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) return cb(null, true);
-    cb(new AppError('Apenas imagens são permitidas.', 400));
+    if (IMAGEM_OK.test(file.mimetype)) return cb(null, true);
+    cb(new AppError('Apenas imagens JPEG, PNG, GIF ou WebP são permitidas.', 400));
   },
 });
 

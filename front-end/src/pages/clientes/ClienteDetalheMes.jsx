@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { buscarCliente } from '@/api/modules/clientes'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { ChartContainer, CORES_GRAFICO } from '@/components/ui/chart'
 import PageHeader from '@/components/layout/PageHeader'
 import {
@@ -10,7 +11,7 @@ import {
 } from 'recharts'
 import {
   Wallet, TrendingUp, BarChart3, Percent, CalendarDays,
-  Building2, AlertCircle, Loader2,
+  Building2, AlertCircle, Loader2, RefreshCw, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
@@ -133,8 +134,11 @@ function ComparativoAnoAno({ yoy }) {
   )
 }
 
-export default function ClienteDetalhe() {
+export default function ClienteDetalheMes() {
   const { id } = useParams()
+  const agora = new Date()
+  const [mes, setMes] = useState(agora.getMonth() + 1)
+  const [ano, setAno] = useState(agora.getFullYear())
   const [dados, setDados] = useState(null)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
@@ -143,18 +147,25 @@ export default function ClienteDetalhe() {
     setErro('')
     setCarregando(true)
     try {
-      setDados(await buscarCliente(id))
+      setDados(await buscarCliente(id, mes, ano))
     } catch (e) {
       if (e.response?.status === 404) setErro('Cliente não encontrado ou sem acesso.')
       else setErro('Erro ao carregar o cliente. Tente novamente.')
     } finally {
       setCarregando(false)
     }
-  }, [id])
+  }, [id, mes, ano])
 
   useEffect(() => { carregar() }, [carregar])
 
-  if (carregando) {
+  function mudarMes(delta) {
+    let m = mes + delta, a = ano
+    if (m > 12) { m = 1; a++ }
+    if (m < 1)  { m = 12; a-- }
+    setMes(m); setAno(a)
+  }
+
+  if (carregando && !dados) {
     return (
       <div className="grid place-items-center py-24">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
@@ -190,20 +201,35 @@ export default function ClienteDetalhe() {
         title={cliente.nome}
         subtitle={cliente.cnpj ? `CNPJ ${cliente.cnpj}` : 'Ficha do cliente'}
       >
-        {cliente.segmento && <Badge variant="outline">{cliente.segmento}</Badge>}
+        <div className="flex items-center gap-2">
+          {cliente.segmento && <Badge variant="outline">{cliente.segmento}</Badge>}
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={carregar} disabled={carregando} title="Atualizar">
+            <RefreshCw className={`size-4 ${carregando ? 'animate-spin' : ''}`} />
+          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => mudarMes(-1)} disabled={carregando}>
+              <ChevronLeft className="size-4" />
+            </Button>
+            <span className="min-w-[100px] text-center text-sm font-medium">
+              {MESES[mes - 1]} / {ano}
+            </span>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => mudarMes(1)} disabled={carregando}>
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        </div>
       </PageHeader>
 
-      {/* KPIs de receita */}
+      {/* KPIs do mês selecionado */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard icon={Wallet}     cor="bg-blue-500/10 text-blue-600"      valor={moeda(metricas.receitaTotal)} rotulo="Receita total gerada" />
-        <KpiCard icon={TrendingUp} cor="bg-sky-500/10 text-sky-600"        valor={moeda(metricas.tpvTotal)}     rotulo="TPV total" />
-        <KpiCard icon={BarChart3}  cor="bg-amber-500/10 text-amber-600"    valor={numero(metricas.qtdTickets)}  rotulo="Transações" />
-        <KpiCard icon={Wallet}     cor="bg-violet-500/10 text-violet-600"  valor={moeda(metricas.ticketMedio)}  rotulo="Ticket médio" />
+        <KpiCard icon={Wallet}     cor="bg-blue-500/10 text-blue-600"      valor={moeda(metricas.receitaMes)}      rotulo={`Receita — ${MESES[mes - 1]}/${ano}`} />
+        <KpiCard icon={TrendingUp} cor="bg-sky-500/10 text-sky-600"        valor={moeda(metricas.tpvMes)}          rotulo={`TPV — ${MESES[mes - 1]}/${ano}`} />
+        <KpiCard icon={BarChart3}  cor="bg-amber-500/10 text-amber-600"    valor={numero(metricas.qtdTicketsMes)}  rotulo="Transações no mês" />
+        <KpiCard icon={Wallet}     cor="bg-violet-500/10 text-violet-600"  valor={moeda(metricas.ticketMedioMes)}  rotulo="Ticket médio no mês" />
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard icon={Percent}      cor="bg-orange-500/10 text-orange-600"  valor={`${(metricas.taxaMedia ?? 0).toFixed(3)}%`} rotulo="Taxa média" />
-        <KpiCard icon={Wallet}       cor="bg-emerald-500/10 text-emerald-600" valor={moeda(metricas.receitaAno)}  rotulo="Receita no ano" />
-        <KpiCard icon={Wallet}       cor="bg-pink-500/10 text-pink-600"       valor={moeda(metricas.receitaMes)}  rotulo="Receita no mês" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <KpiCard icon={Percent}      cor="bg-orange-500/10 text-orange-600"   valor={`${(metricas.taxaMediaMes ?? 0).toFixed(3)}%`} rotulo="Taxa média no mês" />
+        <KpiCard icon={Wallet}       cor="bg-emerald-500/10 text-emerald-600" valor={moeda(metricas.receitaAno)}         rotulo={`Receita no ano — ${ano}`} />
         <KpiCard icon={CalendarDays} cor="bg-teal-500/10 text-teal-600"       valor={dataLonga(metricas.primeiroTicket)} rotulo="Cliente ativo desde" />
       </div>
 
@@ -261,7 +287,7 @@ export default function ClienteDetalhe() {
           </CardContent>
         </Card>
 
-        {/* Evolução de receita (12 meses) */}
+        {/* Evolução de receita (12 meses, mês selecionado em destaque) */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Evolução de Receita — últimos 12 meses</CardTitle>
@@ -273,7 +299,7 @@ export default function ClienteDetalhe() {
               <ChartContainer className="h-72">
                 <BarChart data={metricas.evolucao} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="gradCliente" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="gradClienteMes" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor={CORES_GRAFICO[0]} stopOpacity={1} />
                       <stop offset="100%" stopColor={CORES_GRAFICO[0]} stopOpacity={0.7} />
                     </linearGradient>
@@ -283,7 +309,12 @@ export default function ClienteDetalhe() {
                   <YAxis tickFormatter={v => moeda(v)} tick={{ fontSize: 11 }} width={110} tickLine={false} axisLine={false} />
                   <Tooltip content={<TooltipReceita />} cursor={{ fill: 'currentColor', className: 'fill-muted/40' }} />
                   <Bar dataKey="receita" radius={[5, 5, 0, 0]}>
-                    {metricas.evolucao.map((_, i) => (<Cell key={i} fill="url(#gradCliente)" />))}
+                    {metricas.evolucao.map((entry, i) => (
+                      <Cell
+                        key={i}
+                        fill={entry.mes === mes && entry.ano === ano ? 'url(#gradClienteMes)' : `${CORES_GRAFICO[0]}44`}
+                      />
+                    ))}
                   </Bar>
                 </BarChart>
               </ChartContainer>

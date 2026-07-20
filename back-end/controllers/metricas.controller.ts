@@ -5,6 +5,7 @@ import {
   buscarVendedorPorEmail,
   buscarMetricasEquipe,
   buscarMetricasGerais,
+  buscarVisaoGeralMes,
 } from '../services/metricas.service';
 import { AppError } from '../utils/app-error';
 import { pool } from '../database/pool';
@@ -29,6 +30,31 @@ export async function meuResumo(req: Request, res: Response) {
     if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
     console.error('[metricas.controller] meuResumo:', err);
     return res.status(500).json({ message: 'Erro ao buscar métricas.' });
+  }
+}
+
+export async function visaoGeral(req: Request, res: Response) {
+  try {
+    const emailJwt = req.usuario?.email;
+    if (!emailJwt) throw new AppError('Usuário não autenticado.', 401);
+
+    const agora = new Date();
+    const mes = req.query.mes ? Number(req.query.mes) : agora.getMonth() + 1;
+    const ano = req.query.ano ? Number(req.query.ano) : agora.getFullYear();
+
+    const vendedor = await buscarVendedorPorEmail(emailJwt);
+    if (!vendedor) {
+      return res.status(404).json({
+        message: 'Nenhuma métrica encontrada para este usuário no banco de produção.',
+      });
+    }
+
+    const visao = await buscarVisaoGeralMes(vendedor.id, vendedor.nome, mes, ano);
+    return res.status(200).json(visao);
+  } catch (err) {
+    if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
+    console.error('[metricas.controller] visaoGeral:', err);
+    return res.status(500).json({ message: 'Erro ao buscar a visão geral.' });
   }
 }
 

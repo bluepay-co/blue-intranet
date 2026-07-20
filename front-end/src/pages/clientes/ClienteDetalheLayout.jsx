@@ -1,15 +1,23 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate, useParams } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { ArrowLeft } from 'lucide-react'
 
-const ABAS = [
-  { to: '/clientes',                    label: 'Meus Clientes',   end: true },
-  { to: '/clientes/prospeccao',         label: 'Prospecção',      end: false },
-  { to: '/clientes/grupo-economico',    label: 'Grupo Econômico', end: false },
-]
+export default function ClienteDetalheLayout() {
+  const { id } = useParams()
+  const navigate = useNavigate()
 
-export default function ClientesLayout() {
+  const ABAS = [
+    { to: `/clientes/${id}`,     label: 'Geral', end: true },
+    { to: `/clientes/${id}/mes`, label: 'Mês',   end: false },
+  ]
+
   return (
     <div className="space-y-6">
+      <Button variant="ghost" size="sm" className="gap-1.5 -mb-2" onClick={() => navigate('/clientes')}>
+        <ArrowLeft className="size-4" /> Voltar para Meus Clientes
+      </Button>
+
       <div className="flex gap-1 border-b border-border">
         {ABAS.map(({ to, label, end }) => (
           <NavLink
@@ -29,6 +37,7 @@ export default function ClientesLayout() {
           </NavLink>
         ))}
       </div>
+
       <Outlet />
     </div>
   )

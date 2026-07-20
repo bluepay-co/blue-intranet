@@ -17,13 +17,17 @@ import DashboardPessoal from '@/pages/metricas/DashboardPessoal'
 import DashboardEquipe from '@/pages/metricas/DashboardEquipe'
 import DashboardGeral from '@/pages/metricas/DashboardGeral'
 import DashboardComercialLayout from '@/pages/metricas/DashboardComercialLayout'
+import DashboardVisaoGeral from '@/pages/metricas/DashboardVisaoGeral'
 import DashboardPreVendas from '@/pages/metricas/DashboardPreVendas'
 import DashboardPreVendasEquipe from '@/pages/metricas/DashboardPreVendasEquipe'
 import LancamentoPreVendas from '@/pages/prevendas/LancamentoPreVendas'
 import ClientesLayout from '@/pages/clientes/ClientesLayout'
 import MeusClientes from '@/pages/clientes/MeusClientes'
 import Prospeccao from '@/pages/clientes/Prospeccao'
+import GrupoEconomico from '@/pages/clientes/GrupoEconomico'
+import ClienteDetalheLayout from '@/pages/clientes/ClienteDetalheLayout'
 import ClienteDetalhe from '@/pages/clientes/ClienteDetalhe'
+import ClienteDetalheMes from '@/pages/clientes/ClienteDetalheMes'
 import RadarRisco from '@/pages/carteira/RadarRisco'
 import CrossSell from '@/pages/carteira/CrossSell'
 
@@ -115,6 +119,14 @@ function App() {
           }
         />
         <Route
+          path="metricas/visao-geral"
+          element={
+            <ProtectedRoute roles={['KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
+              <DashboardVisaoGeral />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="metricas/is/equipe"
           element={
             <ProtectedRoute roles={['INSIGHT_SALES', 'DESENVOLVEDOR']}>
@@ -164,15 +176,19 @@ function App() {
         >
           <Route index element={<MeusClientes />} />
           <Route path="prospeccao" element={<Prospeccao />} />
+          <Route path="grupo-economico" element={<GrupoEconomico />} />
         </Route>
         <Route
           path="clientes/:id"
           element={
             <ProtectedRoute roles={['KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
-              <ClienteDetalhe />
+              <ClienteDetalheLayout />
             </ProtectedRoute>
           }
-        />
+        >
+          <Route index element={<ClienteDetalhe />} />
+          <Route path="mes" element={<ClienteDetalheMes />} />
+        </Route>
         <Route
           path="carteira/risco"
           element={

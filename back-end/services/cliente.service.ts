@@ -11,6 +11,7 @@ import type {
   ClientesPaginados,
   ResumoCarteira,
   FiltrosClientes,
+  GrupoEconomico,
 } from '../models/cliente.model';
 
 /**
@@ -156,6 +157,68 @@ export async function buscarFiltrosClientes(managerId: number): Promise<FiltrosC
   };
 }
 
+interface ClienteGrupoRow extends ClienteResumo {
+  grupoId: number;
+  grupoNome: string;
+}
+
+/**
+ * Agrupa os clientes da carteira do vendedor pelo grupo econômico oficial
+ * (`clients.economic_group_id` → `economic_groups`, cadastro real mantido no
+ * banco de produção — não é uma heurística). Só retorna grupos com 2+
+ * clientes na carteira do vendedor (um cliente isolado não forma "grupo").
+ */
+export async function buscarGruposEconomicos(managerId: number): Promise<GrupoEconomico[]> {
+  const { rows } = await consultaPool.query(`
+    ${AGG_CLIENTES_CTE}
+    SELECT
+      c.id::int                      AS id,
+      c.name                         AS nome,
+      c.commercial_name              AS "nomeComercial",
+      c.cnpj,
+      c.address_city                 AS cidade,
+      c.address_uf                   AS uf,
+      s.name                         AS segmento,
+      COALESCE(agg.receita, 0)::float     AS receita,
+      COALESCE(agg.tpv, 0)::float         AS tpv,
+      COALESCE(agg."qtdTickets", 0)::int  AS "qtdTickets",
+      COALESCE(agg."taxaMedia", 0)::float AS "taxaMedia",
+      agg."ultimaAtividade"          AS "ultimaAtividade",
+      c.economic_group_id::int       AS "grupoId",
+      eg.name                        AS "grupoNome"
+    FROM clients c
+    LEFT JOIN agg      ON agg.client_id = c.id
+    LEFT JOIN segments s ON s.id = c.segment_id
+    JOIN economic_groups eg ON eg.id = c.economic_group_id
+    WHERE ${MANAGER_ID_REMAPPED} = $1
+  `, [managerId]);
+
+  const porGrupo = new Map<number, { nome: string; clientes: ClienteResumo[] }>();
+  for (const r of rows as ClienteGrupoRow[]) {
+    const { grupoId, grupoNome, ...cliente } = r;
+    const entrada = porGrupo.get(grupoId) ?? { nome: grupoNome, clientes: [] };
+    entrada.clientes.push(cliente);
+    porGrupo.set(grupoId, entrada);
+  }
+
+  const grupos: GrupoEconomico[] = [];
+  for (const [id, { nome, clientes }] of porGrupo) {
+    if (clientes.length < 2) continue;
+    clientes.sort((a, b) => b.receita - a.receita);
+    grupos.push({
+      id,
+      nome,
+      clientes,
+      receitaTotal: clientes.reduce((acc, c) => acc + c.receita, 0),
+      tpvTotal: clientes.reduce((acc, c) => acc + c.tpv, 0),
+      qtdClientes: clientes.length,
+    });
+  }
+
+  grupos.sort((a, b) => b.receitaTotal - a.receitaTotal);
+  return grupos;
+}
+
 /** Ficha do cliente — retorna null se o cliente não pertence ao vendedor. */
 export async function buscarClienteDoVendedor(
   managerId: number,
@@ -210,11 +273,22 @@ export async function buscarClienteDoVendedor(
   };
 }
 
-/** Métricas agregadas do cliente (só chamar após confirmar a propriedade). */
-export async function buscarMetricasCliente(clienteId: number): Promise<ClienteMetricas> {
-  const anoAtual = new Date().getFullYear();
+/**
+ * Métricas agregadas do cliente (só chamar após confirmar a propriedade).
+ * `mes`/`ano` são opcionais: quando ausentes, os campos "do mês" e o YoY usam
+ * o mês/ano corrente (comportamento da aba Geral); quando informados, ficam
+ * escopados a esse período (usado pela aba Mês da ficha do cliente).
+ */
+export async function buscarMetricasCliente(
+  clienteId: number,
+  mes?: number,
+  ano?: number,
+): Promise<ClienteMetricas> {
+  const agora  = new Date();
+  const mesRef = mes ?? (agora.getMonth() + 1);
+  const anoRef = ano ?? agora.getFullYear();
 
-  const [totais, evolucao, comparativo] = await Promise.all([
+  const [totais, mesAgg, evolucao, comparativo] = await Promise.all([
     consultaPool.query(`
       SELECT
         COUNT(*)::int                                AS "qtdTickets",
@@ -222,26 +296,23 @@ export async function buscarMetricasCliente(clienteId: number): Promise<ClienteM
         COALESCE(SUM(t.excel_total_bonus), 0)::float  AS "tpvTotal",
         COALESCE(AVG(t.excel_rate) * 100, 0)::float   AS "taxaMedia",
         COALESCE(AVG(t.excel_total_bonus), 0)::float  AS "ticketMedio",
-        COALESCE(SUM(t.excel_total_rate) FILTER (
-          WHERE EXTRACT(YEAR FROM t.invoice_payment_date) = EXTRACT(YEAR FROM NOW())
-        ), 0)::float AS "receitaAno",
-        COALESCE(SUM(t.excel_total_rate) FILTER (
-          WHERE EXTRACT(YEAR FROM t.invoice_payment_date)  = EXTRACT(YEAR FROM NOW())
-            AND EXTRACT(MONTH FROM t.invoice_payment_date) = EXTRACT(MONTH FROM NOW())
-        ), 0)::float AS "receitaMes",
-        COALESCE(SUM(t.excel_total_bonus) FILTER (
-          WHERE EXTRACT(YEAR FROM t.invoice_payment_date)  = EXTRACT(YEAR FROM NOW())
-            AND EXTRACT(MONTH FROM t.invoice_payment_date) = EXTRACT(MONTH FROM NOW())
-        ), 0)::float AS "tpvMes",
-        COUNT(*) FILTER (
-          WHERE EXTRACT(YEAR FROM t.invoice_payment_date)  = EXTRACT(YEAR FROM NOW())
-            AND EXTRACT(MONTH FROM t.invoice_payment_date) = EXTRACT(MONTH FROM NOW())
-        )::int AS "qtdTicketsMes",
         MIN(t.invoice_payment_date) AS "primeiroTicket",
         MAX(t.invoice_payment_date) AS "ultimoTicket"
       FROM tickets t
       WHERE ${FILTROS_BASE} AND t.client_id = $1
     `, [clienteId]),
+    consultaPool.query(`
+      SELECT
+        COUNT(*)::int                                AS "qtdTicketsMes",
+        COALESCE(SUM(t.excel_total_rate), 0)::float   AS "receitaMes",
+        COALESCE(SUM(t.excel_total_bonus), 0)::float  AS "tpvMes",
+        COALESCE(AVG(t.excel_rate) * 100, 0)::float   AS "taxaMediaMes",
+        COALESCE(AVG(t.excel_total_bonus), 0)::float  AS "ticketMedioMes"
+      FROM tickets t
+      WHERE ${FILTROS_BASE} AND t.client_id = $1
+        AND EXTRACT(YEAR  FROM t.invoice_payment_date) = $2
+        AND EXTRACT(MONTH FROM t.invoice_payment_date) = $3
+    `, [clienteId, anoRef, mesRef]),
     consultaPool.query(`
       SELECT
         EXTRACT(YEAR  FROM t.invoice_payment_date)::int AS ano,
@@ -264,36 +335,40 @@ export async function buscarMetricasCliente(clienteId: number): Promise<ClienteM
         AND t.client_id = $1
         AND EXTRACT(YEAR FROM t.invoice_payment_date) IN ($2, $3)
       GROUP BY ano, mes
-    `, [clienteId, anoAtual, anoAtual - 1]),
+    `, [clienteId, anoRef, anoRef - 1]),
   ]);
 
-  // Monta o comparativo Ano × Ano (12 meses de cada ano).
+  // Monta o comparativo Ano × Ano (12 meses de cada ano) e a receita do ano de referência.
   const mAtual = new Array<number>(12).fill(0);
   const mAnterior = new Array<number>(12).fill(0);
   for (const e of comparativo.rows as { ano: number; mes: number; receita: number }[]) {
-    if (e.ano === anoAtual) mAtual[e.mes - 1] = e.receita;
-    else if (e.ano === anoAtual - 1) mAnterior[e.mes - 1] = e.receita;
+    if (e.ano === anoRef) mAtual[e.mes - 1] = e.receita;
+    else if (e.ano === anoRef - 1) mAnterior[e.mes - 1] = e.receita;
   }
+  const receitaAno = mAtual.reduce((acc, v) => acc + v, 0);
 
-  const r = totais.rows[0];
+  const r  = totais.rows[0];
+  const rm = mesAgg.rows[0];
   return {
     receitaTotal:   r?.receitaTotal ?? 0,
     tpvTotal:       r?.tpvTotal ?? 0,
     qtdTickets:     r?.qtdTickets ?? 0,
     ticketMedio:    r?.ticketMedio ?? 0,
     taxaMedia:      r?.taxaMedia ?? 0,
-    receitaAno:     r?.receitaAno ?? 0,
-    receitaMes:     r?.receitaMes ?? 0,
-    tpvMes:         r?.tpvMes ?? 0,
-    qtdTicketsMes:  r?.qtdTicketsMes ?? 0,
+    receitaAno,
+    receitaMes:     rm?.receitaMes ?? 0,
+    tpvMes:         rm?.tpvMes ?? 0,
+    qtdTicketsMes:  rm?.qtdTicketsMes ?? 0,
+    ticketMedioMes: rm?.ticketMedioMes ?? 0,
+    taxaMediaMes:   rm?.taxaMediaMes ?? 0,
     primeiroTicket: r?.primeiroTicket ?? null,
     ultimoTicket:   r?.ultimoTicket ?? null,
     evolucao:       evolucao.rows.map((e: { ano: number; mes: number; receita: number }) => ({
       mes: e.mes, ano: e.ano, receita: e.receita,
     })),
     yoy: {
-      anoAtual,
-      anoAnterior: anoAtual - 1,
+      anoAtual: anoRef,
+      anoAnterior: anoRef - 1,
       meses: Array.from({ length: 12 }, (_, i) => ({
         mes: i + 1, atual: mAtual[i] ?? 0, anterior: mAnterior[i] ?? 0,
       })),
