@@ -17,6 +17,8 @@ export interface ClienteResumo {
   qtdTickets: number;
   taxaMedia: number;
   ultimaAtividade: string | null;
+  /** Receita do ticket mais recente (independe do total agregado `receita`). Só populado por `listarClientesDoVendedor`. */
+  ultimaReceita?: number;
   vendedorId?: number;
   vendedorNome?: string | null;
 }

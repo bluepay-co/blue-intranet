@@ -21,6 +21,11 @@ const DEBOUNCE_BUSCA_MS = 400
 function numero(v) {
   return new Intl.NumberFormat('pt-BR').format(v ?? 0)
 }
+function moeda(v) {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2,
+  }).format(v ?? 0)
+}
 function dataCurta(v) {
   if (!v) return '—'
   return new Date(v).toLocaleDateString('pt-BR')
@@ -221,6 +226,11 @@ export default function ClientesDaEquipe() {
                     <th className="px-4 py-2.5 text-left font-medium">CNPJ</th>
                     <th className="px-4 py-2.5 text-left font-medium">Cidade/UF</th>
                     <th className="px-4 py-2.5 text-left font-medium">Segmento</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Receita</th>
+                    <th className="px-4 py-2.5 text-right font-medium">TPV</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Transações</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Última Receita</th>
+                    <th className="px-4 py-2.5 text-left font-medium">Último Pedido</th>
                     <th className="px-4 py-2.5 text-left font-medium">Status</th>
                     <th className="px-2 py-2.5"></th>
                   </tr>
@@ -248,6 +258,11 @@ export default function ClientesDaEquipe() {
                         <td className="px-4 py-2.5">
                           {c.segmento ? <Badge variant="outline" className="font-normal">{c.segmento}</Badge> : '—'}
                         </td>
+                        <td className="px-4 py-2.5 text-right font-semibold text-primary">{moeda(c.receita)}</td>
+                        <td className="px-4 py-2.5 text-right text-muted-foreground">{moeda(c.tpv)}</td>
+                        <td className="px-4 py-2.5 text-right">{numero(c.qtdTickets)}</td>
+                        <td className="px-4 py-2.5 text-right text-muted-foreground">{moeda(c.ultimaReceita)}</td>
+                        <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground">{dataCurta(c.ultimaAtividade)}</td>
                         <td className="px-4 py-2.5">
                           <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${st.cls}`} title={`Última atividade: ${dataCurta(c.ultimaAtividade)}`}>
                             {st.label}

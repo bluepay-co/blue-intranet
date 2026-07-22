@@ -73,7 +73,17 @@ export async function listarClientesDoVendedor(
   const offset = (page - 1) * limit;
 
   const { rows } = await consultaPool.query(`
-    ${AGG_CLIENTES_CTE}
+    ${AGG_CLIENTES_CTE},
+    ultimo_pedido AS (
+      SELECT DISTINCT ON (t.client_id)
+        t.client_id,
+        t.excel_total_rate::float AS "ultimaReceita"
+      FROM tickets t
+      JOIN clients c ON c.id = t.client_id
+      WHERE ${FILTROS_BASE}
+        AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+      ORDER BY t.client_id, t.invoice_payment_date DESC
+    )
     SELECT
       c.id::int                      AS id,
       c.name                         AS nome,
@@ -87,11 +97,13 @@ export async function listarClientesDoVendedor(
       COALESCE(agg."qtdTickets", 0)::int  AS "qtdTickets",
       COALESCE(agg."taxaMedia", 0)::float AS "taxaMedia",
       agg."ultimaAtividade"          AS "ultimaAtividade",
+      COALESCE(up."ultimaReceita", 0)::float AS "ultimaReceita",
       vend.name                      AS "vendedorNome",
       ${MANAGER_ID_REMAPPED}         AS "vendedorId",
       COUNT(*) OVER()::int           AS "totalCount"
     FROM clients c
     LEFT JOIN agg      ON agg.client_id = c.id
+    LEFT JOIN ultimo_pedido up ON up.client_id = c.id
     LEFT JOIN segments s ON s.id = c.segment_id
     LEFT JOIN users vend ON vend.id = ${MANAGER_ID_REMAPPED}
     WHERE ${MANAGER_ID_REMAPPED} = ANY($1::int[])
