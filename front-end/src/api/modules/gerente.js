@@ -42,3 +42,9 @@ export async function getReceitasEquipeGerente(mes, ano, vendedorId) {
   const { data } = await api.get('/api/gerente/receitas', { params })
   return data
 }
+
+/** Ranking da equipe hoje ('dia') ou na semana atual ('semana') — { periodo, membros }. */
+export async function getRankingPeriodoGerente(periodo) {
+  const { data } = await api.get('/api/gerente/ranking-periodo', { params: { periodo } })
+  return data
+}

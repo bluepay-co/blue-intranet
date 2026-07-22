@@ -3,6 +3,9 @@ import { getMetaIndividual, getMetaEquipe } from '../data/metas2026';
 import {
   resolverManagerIdsDaEquipe,
   buscarVisaoGeralMes,
+  buscarDataHojeSaoPaulo,
+  buscarRankingPeriodoEquipe,
+  semanaDoDia,
 } from './metricas.service';
 import {
   listarClientesDoVendedor,
@@ -13,7 +16,7 @@ import {
   type FiltrosListaClientes,
 } from './cliente.service';
 import type { ClientesPaginados, ResumoCarteira, FiltrosClientes, ClienteDetalheResposta } from '../models/cliente.model';
-import type { VisaoGeral } from '../models/metricas.model';
+import type { VisaoGeral, MetricasEquipeMembro } from '../models/metricas.model';
 import type { MembroEquipe } from '../models/gerente.model';
 
 /**
@@ -110,4 +113,15 @@ export async function buscarReceitasEquipeGerente(
     : getMetaEquipe('IS', mes, ano);
 
   return buscarVisaoGeralMes(ids, meta, mes, ano);
+}
+
+/** Ranking da equipe de hoje ou da semana atual (domingo–sábado) — sem meta, período menor que um mês. */
+export async function buscarRankingPeriodoGerente(periodo: 'dia' | 'semana'): Promise<MetricasEquipeMembro[] | null> {
+  const equipe = await resolverEquipeGerente();
+  if (!equipe) return null;
+
+  const hoje = await buscarDataHojeSaoPaulo();
+  const { inicio, fim } = periodo === 'semana' ? semanaDoDia(hoje) : { inicio: hoje, fim: hoje };
+
+  return buscarRankingPeriodoEquipe(equipe.managerIds, inicio, fim, equipe.nomeMap);
 }

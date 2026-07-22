@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getReceitasEquipeGerente, getMembrosEquipeGerente } from '@/api/modules/gerente'
+import { getReceitasEquipeGerente, getMembrosEquipeGerente, getRankingPeriodoGerente } from '@/api/modules/gerente'
 import { getEquipe } from '@/api/modules/metricas'
+import RankingTabela from '@/components/metricas/RankingTabela'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -340,6 +341,9 @@ export default function ReceitasEquipe() {
   const [membros, setMembros] = useState([])
   const [membrosRanking, setMembrosRanking] = useState([])
   const [metricaAberta, setMetricaAberta] = useState(null)
+  const [periodoRanking, setPeriodoRanking] = useState('dia')
+  const [rankingPeriodo, setRankingPeriodo] = useState([])
+  const [carregandoRankingPeriodo, setCarregandoRankingPeriodo] = useState(true)
   const [dados, setDados] = useState(null)
   const [dadosAnterior, setDadosAnterior] = useState(null)
   const [carregando, setCarregando] = useState(true)
@@ -375,6 +379,21 @@ export default function ReceitasEquipe() {
   }, [mes, ano, vendedorId])
 
   useEffect(() => { carregar() }, [carregar])
+
+  const carregarRankingPeriodo = useCallback(async () => {
+    if (vendedorId) return
+    setCarregandoRankingPeriodo(true)
+    try {
+      const data = await getRankingPeriodoGerente(periodoRanking)
+      setRankingPeriodo(data.membros)
+    } catch {
+      setRankingPeriodo([])
+    } finally {
+      setCarregandoRankingPeriodo(false)
+    }
+  }, [vendedorId, periodoRanking])
+
+  useEffect(() => { carregarRankingPeriodo() }, [carregarRankingPeriodo])
 
   function alternarRanking(chave) {
     setMetricaAberta((atual) => (atual === chave ? null : chave))
@@ -603,6 +622,49 @@ export default function ReceitasEquipe() {
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {/* Ranking Geral da equipe — flexível entre Dia (hoje) e Semana (atual) */}
+          {!vendedorId && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-sm font-medium text-muted-foreground">Ranking da Equipe</h2>
+                <div className="flex gap-1 rounded-lg border border-border p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setPeriodoRanking('dia')}
+                    className={cn(
+                      'px-3 py-1 text-xs font-medium rounded-md transition-colors',
+                      periodoRanking === 'dia' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    Dia
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPeriodoRanking('semana')}
+                    className={cn(
+                      'px-3 py-1 text-xs font-medium rounded-md transition-colors',
+                      periodoRanking === 'semana' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    Semana
+                  </button>
+                </div>
+              </div>
+              {carregandoRankingPeriodo ? (
+                <div className="grid place-items-center py-12">
+                  <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <RankingTabela
+                  titulo={`Ranking da Equipe — ${periodoRanking === 'dia' ? 'Hoje' : 'Esta Semana'}`}
+                  membros={rankingPeriodo}
+                  mostrarHoje={false}
+                  ocultarSigilosas={false}
+                />
+              )}
+            </div>
           )}
 
           {/* Resumo semanal — Semana 1, 2, 3... clicável, abre o detalhe dia a dia */}

@@ -166,7 +166,7 @@ function finalizarVisaoGeral(acc: AcumuladorVisaoGeral): TotaisVisaoGeral {
  * fuso do processo Node — `diaISO` já vem convertido para America/Sao_Paulo
  * na query, então esse cálculo é puramente aritmético sobre a data civil.
  */
-function semanaDoDia(diaISO: string): { inicio: string; fim: string } {
+export function semanaDoDia(diaISO: string): { inicio: string; fim: string } {
   const [ano, mes, dia] = diaISO.split('-').map(Number);
   const data = new Date(Date.UTC(ano!, mes! - 1, dia));
   const diaSemana = data.getUTCDay(); // 0 = domingo
@@ -316,6 +316,69 @@ export async function buscarVisaoGeralMes(
     .sort((a, b) => b.receita - a.receita);
 
   return { mes, ano, resumoMes, semanas, dias, clientesDoMes, clientesNovosDoMes };
+}
+
+/** Data de hoje em 'YYYY-MM-DD', no fuso America/Sao_Paulo, direto do relógio do banco (evita depender do fuso do processo Node). */
+export async function buscarDataHojeSaoPaulo(): Promise<string> {
+  const { rows } = await consultaPool.query(
+    `SELECT TO_CHAR(NOW() AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD') AS hoje`
+  );
+  return rows[0].hoje;
+}
+
+/**
+ * Ranking dos membros da equipe num intervalo de datas arbitrário (dia/semana
+ * atual), no mesmo formato do ranking mensal de `buscarMetricasEquipe` — usado
+ * pelas telas de gerência para "Ranking do Dia"/"Ranking da Semana". `meta` e
+ * `pct_meta` ficam sempre 0 (a meta é mensal, não faz sentido comparada a um
+ * período menor). Fuso America/Sao_Paulo, mesmo padrão de `buscarVisaoGeralMes`.
+ */
+export async function buscarRankingPeriodoEquipe(
+  managerIds: number[],
+  dataInicio: string,
+  dataFim: string,
+  nomeMap: Map<number, string>,
+): Promise<MetricasEquipeMembro[]> {
+  const { rows } = await consultaPool.query(`
+    SELECT
+      ${MANAGER_ID_REMAPPED}                         AS "managerId",
+      COUNT(*)::int                                  AS "qtdTickets",
+      COUNT(DISTINCT t.client_id)::int               AS "clientesAtivos",
+      COALESCE(SUM(t.excel_total_rate), 0)::float    AS receita,
+      COALESCE(SUM(t.excel_total_bonus), 0)::float   AS tpv,
+      COALESCE(AVG(t.excel_rate) * 100, 0)::float    AS "taxaMedia",
+      CASE WHEN COUNT(*) = 0 THEN 0
+           ELSE (COALESCE(SUM(t.excel_total_rate), 0) / COUNT(*))::float
+      END AS "ticketMedio"
+    FROM tickets t
+    LEFT JOIN clients c ON c.id = t.client_id
+    WHERE ${FILTROS_BASE}
+      AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+      AND DATE(t.invoice_payment_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') BETWEEN $2 AND $3
+    GROUP BY ${MANAGER_ID_REMAPPED}
+    ORDER BY receita DESC
+  `, [managerIds, dataInicio, dataFim]);
+
+  return rows.map((r: { managerId: number; qtdTickets: number; clientesAtivos: number; receita: number; tpv: number; taxaMedia: number; ticketMedio: number }) => {
+    // `managerId` vem do banco como string (mesma raiz do bigint de `users.id` — ver
+    // nota em `gerente.service.ts`); `nomeMap` pode ter chaves number (normalizadas
+    // por quem chama) ou string, então convertemos antes do lookup.
+    const vendedorId = Number(r.managerId);
+    return {
+    vendedorId,
+    nome:           nomeMap.get(vendedorId) ?? 'Desconhecido',
+    receita:        r.receita,
+    tpv:            r.tpv,
+    qtdTickets:     r.qtdTickets,
+    clientesAtivos: r.clientesAtivos,
+    taxaMedia:      r.taxaMedia,
+    ticketMedio:    r.ticketMedio,
+    receitaHoje:    0,
+    ticketsHoje:    0,
+    meta:           0,
+    pct_meta:       0,
+    };
+  });
 }
 
 export async function buscarMetricasHoje(

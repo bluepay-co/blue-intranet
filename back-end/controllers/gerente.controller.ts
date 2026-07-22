@@ -5,6 +5,7 @@ import {
   listarClientesEquipeGerente,
   buscarClienteEquipeGerente,
   buscarReceitasEquipeGerente,
+  buscarRankingPeriodoGerente,
 } from '../services/gerente.service';
 
 function paramTexto(v: unknown): string | undefined {
@@ -103,5 +104,21 @@ export async function getReceitasEquipe(req: Request, res: Response) {
     if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
     console.error('[gerente.controller] getReceitasEquipe:', err);
     return res.status(500).json({ message: 'Erro ao buscar receitas da equipe.' });
+  }
+}
+
+export async function getRankingPeriodo(req: Request, res: Response) {
+  try {
+    const periodo = req.query.periodo === 'semana' ? 'semana' : 'dia';
+    const membros = await buscarRankingPeriodoGerente(periodo);
+    if (!membros) {
+      return res.status(404).json({ message: 'Nenhum dado de equipe encontrado.' });
+    }
+
+    return res.status(200).json({ periodo, membros });
+  } catch (err) {
+    if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
+    console.error('[gerente.controller] getRankingPeriodo:', err);
+    return res.status(500).json({ message: 'Erro ao buscar o ranking da equipe.' });
   }
 }

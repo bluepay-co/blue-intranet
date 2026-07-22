@@ -7,6 +7,7 @@ import {
   getClientesEquipe,
   getClienteEquipeDetalhe,
   getReceitasEquipe,
+  getRankingPeriodo,
 } from '../controllers/gerente.controller';
 
 export const gerenteRouter = Router();
@@ -26,3 +27,6 @@ gerenteRouter.get('/clientes/:id', ACESSO, getClienteEquipeDetalhe);
 
 // GET /api/gerente/receitas?vendedorId=&mes=&ano=  — receita por dia/semana do mês, equipe ou vendedor específico
 gerenteRouter.get('/receitas', ACESSO, getReceitasEquipe);
+
+// GET /api/gerente/ranking-periodo?periodo=dia|semana  — ranking da equipe hoje ou na semana atual
+gerenteRouter.get('/ranking-periodo', ACESSO, getRankingPeriodo);

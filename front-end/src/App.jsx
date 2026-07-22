@@ -214,7 +214,7 @@ function App() {
           path="gerente/is/visao-geral"
           element={
             <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'DESENVOLVEDOR']}>
-              <DashboardEquipe equipeFixa="IS" titulo="Insight Sales" />
+              <DashboardEquipe equipeFixa="IS" titulo="Insight Sales" mostrarSigilosas />
             </ProtectedRoute>
           }
         />
