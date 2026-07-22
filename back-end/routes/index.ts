@@ -11,6 +11,7 @@ import { clienteRouter } from './cliente.routes';
 import { carteiraRouter } from './carteira.routes';
 import { backofficeRouter } from './backoffice.routes';
 import { chatRouter } from './chat.routes';
+import { gerenteRouter } from './gerente.routes';
 
 const router = Router();
 
@@ -50,5 +51,8 @@ router.use('/api/backoffice/chamados', backofficeRouter);
 
 // Domínio: Chat interno (canais de setor/DM/customizados, mensagens em tempo real)
 router.use('/api/chat', chatRouter);
+
+// Domínio: Gerência (visão de equipe para os cargos GERENTE_*, escopo por role)
+router.use('/api/gerente', gerenteRouter);
 
 export { router };

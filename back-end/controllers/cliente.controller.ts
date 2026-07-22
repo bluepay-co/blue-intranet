@@ -31,7 +31,7 @@ export async function getMeusClientes(req: Request, res: Response) {
     const limit = Number(req.query.limit) || 20;
 
     const [pagina, resumo, filtros] = await Promise.all([
-      listarClientesDoVendedor(vendedor.id, {
+      listarClientesDoVendedor([vendedor.id], {
         busca: paramTexto(req.query.busca),
         uf: paramTexto(req.query.uf),
         cidade: paramTexto(req.query.cidade),
@@ -40,8 +40,8 @@ export async function getMeusClientes(req: Request, res: Response) {
         page,
         limit,
       }),
-      buscarResumoCarteira(vendedor.id),
-      buscarFiltrosClientes(vendedor.id),
+      buscarResumoCarteira([vendedor.id]),
+      buscarFiltrosClientes([vendedor.id]),
     ]);
 
     return res.status(200).json({ ...pagina, resumo, filtros });
@@ -87,7 +87,7 @@ export async function getClienteDetalhe(req: Request, res: Response) {
     }
 
     // Segurança: só retorna se o cliente pertencer ao vendedor logado.
-    const cliente = await buscarClienteDoVendedor(vendedor.id, clienteId);
+    const cliente = await buscarClienteDoVendedor([vendedor.id], clienteId);
     if (!cliente) {
       return res.status(404).json({ message: 'Cliente não encontrado ou sem acesso.' });
     }

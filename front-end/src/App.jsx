@@ -30,6 +30,9 @@ import ClienteDetalhe from '@/pages/clientes/ClienteDetalhe'
 import ClienteDetalheMes from '@/pages/clientes/ClienteDetalheMes'
 import RadarRisco from '@/pages/carteira/RadarRisco'
 import CrossSell from '@/pages/carteira/CrossSell'
+import ClientesDaEquipe from '@/pages/gerente/ClientesDaEquipe'
+import ClienteEquipeDetalhe from '@/pages/gerente/ClienteEquipeDetalhe'
+import ReceitasEquipe from '@/pages/gerente/ReceitasEquipe'
 
 function App() {
   return (
@@ -202,6 +205,40 @@ function App() {
           element={
             <ProtectedRoute roles={['KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
               <CrossSell />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Gerência — Inside Sales & CX */}
+        <Route
+          path="gerente/is/visao-geral"
+          element={
+            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'DESENVOLVEDOR']}>
+              <DashboardEquipe equipeFixa="IS" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="gerente/is/clientes"
+          element={
+            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'DESENVOLVEDOR']}>
+              <ClientesDaEquipe />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="gerente/is/clientes/:id"
+          element={
+            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'DESENVOLVEDOR']}>
+              <ClienteEquipeDetalhe />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="gerente/is/receitas"
+          element={
+            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'DESENVOLVEDOR']}>
+              <ReceitasEquipe />
             </ProtectedRoute>
           }
         />

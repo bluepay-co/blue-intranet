@@ -17,6 +17,8 @@ export interface ClienteResumo {
   qtdTickets: number;
   taxaMedia: number;
   ultimaAtividade: string | null;
+  vendedorId?: number;
+  vendedorNome?: string | null;
 }
 
 /** Página de "Meus Clientes" (paginado no banco, 20 por página por padrão). */

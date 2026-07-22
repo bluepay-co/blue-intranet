@@ -192,8 +192,8 @@ function semanaDoDia(diaISO: string): { inicio: string; fim: string } {
  * poucas transações-limite nas primeiras horas UTC do dia 1 do mês — não é bug.
  */
 export async function buscarVisaoGeralMes(
-  managerId: number,
-  nome: string,
+  managerIds: number[],
+  meta: number,
   mes: number,
   ano: number
 ): Promise<VisaoGeral> {
@@ -203,7 +203,7 @@ export async function buscarVisaoGeralMes(
         FROM tickets t
         LEFT JOIN clients c ON c.id = t.client_id
         WHERE ${FILTROS_BASE}
-          AND ${MANAGER_ID_REMAPPED} = $1
+          AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
         GROUP BY t.client_id
       )
       SELECT
@@ -221,10 +221,10 @@ export async function buscarVisaoGeralMes(
       LEFT JOIN clients c ON c.id = t.client_id
       JOIN primeira p ON p.client_id = t.client_id
       WHERE ${FILTROS_BASE}
-        AND ${MANAGER_ID_REMAPPED} = $1
+        AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
         AND EXTRACT(YEAR  FROM (t.invoice_payment_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')) = $2
         AND EXTRACT(MONTH FROM (t.invoice_payment_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')) = $3
-    `, [managerId, ano, mes]);
+    `, [managerIds, ano, mes]);
 
   const linhas = ticketsResult.rows as LinhaTicketDia[];
 
@@ -280,7 +280,6 @@ export async function buscarVisaoGeralMes(
     .sort((a, b) => a.inicio.localeCompare(b.inicio));
 
   const totaisMes = finalizarVisaoGeral(doMes);
-  const meta = getMetaIndividual(nome, mes, ano, managerId);
   const pctMeta = meta > 0 ? Math.round((totaisMes.receita / meta) * 1000) / 10 : 0;
   const metaEmAberto = Math.max(0, meta - totaisMes.receita);
   const resumoMes: VisaoGeralResumoMes = { ...totaisMes, meta, pctMeta, metaEmAberto };
@@ -911,11 +910,14 @@ export async function buscarRankingMembros(
   );
 }
 
-export async function buscarMetricasEquipe(
-  roles: string[],
-  mes: number,
-  ano: number
-): Promise<MetricasEquipe | null> {
+/**
+ * Resolve a lista de vendedores (managerIds de produção) que pertencem a um
+ * conjunto de roles da intranet: busca os e-mails dos usuários ativos com
+ * essas roles, depois casa por e-mail com `users` de produção.
+ */
+export async function resolverManagerIdsDaEquipe(
+  roles: string[]
+): Promise<{ managerIds: number[]; nomeMap: Map<number, string> } | null> {
   // 1. Emails dos membros ativos no banco da intranet
   const { rows: usuariosIntranet } = await pool.query(
     `SELECT email FROM blue_intranet.usuarios WHERE role = ANY($1::text[]) AND bloqueado = false`,
@@ -936,6 +938,18 @@ export async function buscarMetricasEquipe(
   const nomeMap = new Map<number, string>(
     vendedoresProd.map((v: { id: number; nome: string }) => [v.id, v.nome])
   );
+
+  return { managerIds, nomeMap };
+}
+
+export async function buscarMetricasEquipe(
+  roles: string[],
+  mes: number,
+  ano: number
+): Promise<MetricasEquipe | null> {
+  const resolvido = await resolverManagerIdsDaEquipe(roles);
+  if (!resolvido) return null;
+  const { managerIds, nomeMap } = resolvido;
 
   const mesAnteriorNum = mes === 1 ? 12 : mes - 1;
   const anoAnteriorNum = mes === 1 ? ano - 1 : ano;

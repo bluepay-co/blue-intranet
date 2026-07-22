@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getEquipe } from '@/api/modules/metricas'
+import { useAuth } from '@/auth/auth-context'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -22,6 +23,12 @@ const ABAS = [
   { id: 'mes',   label: 'Mês' },
   { id: 'anual', label: 'Anual' },
 ]
+
+/** Roles "donas" de cada time — só elas veem as colunas sensíveis do ranking (espelha o backend). */
+const DONOS_POR_EQUIPE = {
+  IS:  ['INSIGHT_SALES', 'GERENTE_INSIDE_CX', 'DESENVOLVEDOR'],
+  KAM: ['KAM', 'DESENVOLVEDOR'],
+}
 
 const LABEL_PRODUTO = {
   bank_deposit:    'Depósito Bancário',
@@ -279,6 +286,8 @@ function RankingTabela({ titulo, membros, mostrarHoje, ocultarSigilosas }) {
 }
 
 export default function DashboardEquipe({ equipeFixa }) {
+  const { usuario } = useAuth()
+  const ehDonoDoTime = equipeFixa ? (DONOS_POR_EQUIPE[equipeFixa] ?? []).includes(usuario?.role) : true
   const agora = new Date()
   const [mes, setMes] = useState(agora.getMonth() + 1)
   const [ano, setAno] = useState(agora.getFullYear())
@@ -545,7 +554,7 @@ export default function DashboardEquipe({ equipeFixa }) {
                   )}
                 </div>
 
-                <RankingTabela titulo={`Ranking da Equipe — ${MESES[mes - 1]}/${ano}`} membros={membros} mostrarHoje={ehMesAtual} ocultarSigilosas={!!equipeFixa} />
+                <RankingTabela titulo={`Ranking da Equipe — ${MESES[mes - 1]}/${ano}`} membros={membros} mostrarHoje={ehMesAtual} ocultarSigilosas={!!equipeFixa && !ehDonoDoTime} />
               </div>
             )}
 
@@ -618,7 +627,7 @@ export default function DashboardEquipe({ equipeFixa }) {
                 <ComparativoAnoAno yoy={anual.yoy} />
 
                 {/* Ranking Anual */}
-                <RankingTabela titulo={`Ranking da Equipe — ${ano}`} membros={anual.membros} mostrarHoje={false} ocultarSigilosas={!!equipeFixa} />
+                <RankingTabela titulo={`Ranking da Equipe — ${ano}`} membros={anual.membros} mostrarHoje={false} ocultarSigilosas={!!equipeFixa && !ehDonoDoTime} />
               </div>
             )}
           </>

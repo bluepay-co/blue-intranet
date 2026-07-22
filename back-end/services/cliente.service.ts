@@ -43,12 +43,12 @@ const AGG_CLIENTES_CTE = `
     FROM tickets t
     JOIN clients c ON c.id = t.client_id
     WHERE ${FILTROS_BASE}
-      AND ${MANAGER_ID_REMAPPED} = $1
+      AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
     GROUP BY t.client_id
   )
 `;
 
-interface FiltrosListaClientes {
+export interface FiltrosListaClientes {
   busca?: string | undefined;
   uf?: string | undefined;
   cidade?: string | undefined;
@@ -58,9 +58,9 @@ interface FiltrosListaClientes {
   limit?: number | undefined;
 }
 
-/** Lista paginada dos clientes do vendedor, com receita/atividade agregadas. */
+/** Lista paginada dos clientes do vendedor(es), com receita/atividade agregadas. */
 export async function listarClientesDoVendedor(
-  managerId: number,
+  managerIds: number[],
   filtros: FiltrosListaClientes = {},
 ): Promise<ClientesPaginados> {
   const termo = filtros.busca?.trim() ? filtros.busca.trim() : null;
@@ -87,11 +87,14 @@ export async function listarClientesDoVendedor(
       COALESCE(agg."qtdTickets", 0)::int  AS "qtdTickets",
       COALESCE(agg."taxaMedia", 0)::float AS "taxaMedia",
       agg."ultimaAtividade"          AS "ultimaAtividade",
+      vend.name                      AS "vendedorNome",
+      ${MANAGER_ID_REMAPPED}         AS "vendedorId",
       COUNT(*) OVER()::int           AS "totalCount"
     FROM clients c
     LEFT JOIN agg      ON agg.client_id = c.id
     LEFT JOIN segments s ON s.id = c.segment_id
-    WHERE ${MANAGER_ID_REMAPPED} = $1
+    LEFT JOIN users vend ON vend.id = ${MANAGER_ID_REMAPPED}
+    WHERE ${MANAGER_ID_REMAPPED} = ANY($1::int[])
       AND (
         $2::text IS NULL
         OR c.name ILIKE '%' || $2 || '%'
@@ -104,15 +107,15 @@ export async function listarClientesDoVendedor(
       AND ($6::text IS NULL OR ${STATUS_CASE} = $6)
     ORDER BY COALESCE(agg.receita, 0) DESC, c.name ASC
     LIMIT $7 OFFSET $8
-  `, [managerId, termo, uf, cidade, segmento, status, limit, offset]);
+  `, [managerIds, termo, uf, cidade, segmento, status, limit, offset]);
 
   const total = rows[0]?.totalCount ?? 0;
   const clientes = rows.map(({ totalCount, ...resto }) => resto) as ClienteResumo[];
   return { clientes, total, page, limit };
 }
 
-/** Resumo agregado da carteira inteira do vendedor (independe de filtros/página). */
-export async function buscarResumoCarteira(managerId: number): Promise<ResumoCarteira> {
+/** Resumo agregado da carteira inteira do(s) vendedor(es) (independe de filtros/página). */
+export async function buscarResumoCarteira(managerIds: number[]): Promise<ResumoCarteira> {
   const { rows } = await consultaPool.query(`
     ${AGG_CLIENTES_CTE}
     SELECT
@@ -122,32 +125,32 @@ export async function buscarResumoCarteira(managerId: number): Promise<ResumoCar
       COALESCE(SUM(COALESCE(agg.receita, 0)), 0)::float AS receita
     FROM clients c
     LEFT JOIN agg ON agg.client_id = c.id
-    WHERE ${MANAGER_ID_REMAPPED} = $1
-  `, [managerId]);
+    WHERE ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+  `, [managerIds]);
 
   const r = rows[0] ?? { total: 0, ativos: 0, risco: 0, receita: 0 };
   return { total: r.total, ativos: r.ativos, risco: r.risco, receita: r.receita };
 }
 
-/** Opções distintas de UF/cidade/segmento entre os clientes do vendedor (para os filtros). */
-export async function buscarFiltrosClientes(managerId: number): Promise<FiltrosClientes> {
+/** Opções distintas de UF/cidade/segmento entre os clientes do(s) vendedor(es) (para os filtros). */
+export async function buscarFiltrosClientes(managerIds: number[]): Promise<FiltrosClientes> {
   const [ufs, cidades, segmentos] = await Promise.all([
     consultaPool.query(`
       SELECT DISTINCT c.address_uf AS uf FROM clients c
-      WHERE ${MANAGER_ID_REMAPPED} = $1 AND c.address_uf IS NOT NULL
+      WHERE ${MANAGER_ID_REMAPPED} = ANY($1::int[]) AND c.address_uf IS NOT NULL
       ORDER BY uf
-    `, [managerId]),
+    `, [managerIds]),
     consultaPool.query(`
       SELECT DISTINCT c.address_city AS cidade, c.address_uf AS uf FROM clients c
-      WHERE ${MANAGER_ID_REMAPPED} = $1 AND c.address_city IS NOT NULL
+      WHERE ${MANAGER_ID_REMAPPED} = ANY($1::int[]) AND c.address_city IS NOT NULL
       ORDER BY cidade
-    `, [managerId]),
+    `, [managerIds]),
     consultaPool.query(`
       SELECT DISTINCT s.name AS segmento FROM clients c
       JOIN segments s ON s.id = c.segment_id
-      WHERE ${MANAGER_ID_REMAPPED} = $1 AND s.name IS NOT NULL
+      WHERE ${MANAGER_ID_REMAPPED} = ANY($1::int[]) AND s.name IS NOT NULL
       ORDER BY segmento
-    `, [managerId]),
+    `, [managerIds]),
   ]);
 
   return {
@@ -190,8 +193,8 @@ export async function buscarGruposEconomicos(managerId: number): Promise<GrupoEc
     LEFT JOIN agg      ON agg.client_id = c.id
     LEFT JOIN segments s ON s.id = c.segment_id
     JOIN economic_groups eg ON eg.id = c.economic_group_id
-    WHERE ${MANAGER_ID_REMAPPED} = $1
-  `, [managerId]);
+    WHERE ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+  `, [[managerId]]);
 
   const porGrupo = new Map<number, { nome: string; clientes: ClienteResumo[] }>();
   for (const r of rows as ClienteGrupoRow[]) {
@@ -219,9 +222,9 @@ export async function buscarGruposEconomicos(managerId: number): Promise<GrupoEc
   return grupos;
 }
 
-/** Ficha do cliente — retorna null se o cliente não pertence ao vendedor. */
+/** Ficha do cliente — retorna null se o cliente não pertence a nenhum dos vendedores. */
 export async function buscarClienteDoVendedor(
-  managerId: number,
+  managerIds: number[],
   clienteId: number,
 ): Promise<ClienteDetalhe | null> {
   const { rows } = await consultaPool.query(`
@@ -236,9 +239,9 @@ export async function buscarClienteDoVendedor(
       c.created_at
     FROM clients c
     LEFT JOIN segments s ON s.id = c.segment_id
-    WHERE c.id = $1 AND ${MANAGER_ID_REMAPPED} = $2
+    WHERE c.id = $1 AND ${MANAGER_ID_REMAPPED} = ANY($2::int[])
     LIMIT 1
-  `, [clienteId, managerId]);
+  `, [clienteId, managerIds]);
 
   const r = rows[0];
   if (!r) return null;
