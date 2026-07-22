@@ -106,6 +106,8 @@ interface LinhaTicketDia {
   tpv: number;
   taxa: number;
   ehPrimeiroDia: boolean;
+  vendedorId: number;
+  vendedorNome: string | null;
 }
 
 interface AcumuladorCliente {
@@ -116,6 +118,8 @@ interface AcumuladorCliente {
   somaTaxa: number;
   ehNovo: boolean;
   primeiraCompra: string | null;
+  vendedorId: number;
+  vendedorNome: string | null;
 }
 
 interface AcumuladorVisaoGeral {
@@ -216,9 +220,12 @@ export async function buscarVisaoGeralMes(
         (
           TO_CHAR(p.primeiro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD')
           = TO_CHAR(t.invoice_payment_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD')
-        ) AS "ehPrimeiroDia"
+        ) AS "ehPrimeiroDia",
+        ${MANAGER_ID_REMAPPED} AS "vendedorId",
+        vend.name              AS "vendedorNome"
       FROM tickets t
       LEFT JOIN clients c ON c.id = t.client_id
+      LEFT JOIN users vend ON vend.id = ${MANAGER_ID_REMAPPED}
       JOIN primeira p ON p.client_id = t.client_id
       WHERE ${FILTROS_BASE}
         AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
@@ -231,7 +238,7 @@ export async function buscarVisaoGeralMes(
   const porDia = new Map<string, AcumuladorVisaoGeral>();
   const porSemana = new Map<string, { inicio: string; fim: string; acc: AcumuladorVisaoGeral }>();
   const porCliente = new Map<number, AcumuladorCliente>();
-  const porDiaCliente = new Map<string, Map<number, { nome: string; receita: number; tpv: number }>>();
+  const porDiaCliente = new Map<string, Map<number, { nome: string; receita: number; tpv: number; vendedorId: number; vendedorNome: string | null }>>();
   const doMes = novoAcumuladorVisaoGeral();
 
   for (const linha of linhas) {
@@ -247,7 +254,9 @@ export async function buscarVisaoGeralMes(
     if (!porDiaCliente.has(linha.dia)) porDiaCliente.set(linha.dia, new Map());
     const clientesDoDia = porDiaCliente.get(linha.dia)!;
     if (!clientesDoDia.has(linha.clientId)) {
-      clientesDoDia.set(linha.clientId, { nome: linha.nome, receita: 0, tpv: 0 });
+      clientesDoDia.set(linha.clientId, {
+        nome: linha.nome, receita: 0, tpv: 0, vendedorId: linha.vendedorId, vendedorNome: linha.vendedorNome,
+      });
     }
     const cd = clientesDoDia.get(linha.clientId)!;
     cd.receita += linha.receita;
@@ -256,6 +265,7 @@ export async function buscarVisaoGeralMes(
     if (!porCliente.has(linha.clientId)) {
       porCliente.set(linha.clientId, {
         nome: linha.nome, receita: 0, tpv: 0, qtdTickets: 0, somaTaxa: 0, ehNovo: false, primeiraCompra: null,
+        vendedorId: linha.vendedorId, vendedorNome: linha.vendedorNome,
       });
     }
     const c = porCliente.get(linha.clientId)!;
@@ -269,7 +279,10 @@ export async function buscarVisaoGeralMes(
   const dias: VisaoGeralDia[] = Array.from(porDia.entries())
     .map(([dia, acc]) => {
       const clientes: VisaoGeralDiaCliente[] = Array.from((porDiaCliente.get(dia) ?? new Map()).entries())
-        .map(([clienteId, c]) => ({ clienteId, nome: c.nome, receita: c.receita, tpv: c.tpv }))
+        .map(([clienteId, c]) => ({
+          clienteId, nome: c.nome, receita: c.receita, tpv: c.tpv,
+          vendedorId: c.vendedorId, vendedorNome: c.vendedorNome,
+        }))
         .sort((a, b) => b.receita - a.receita);
       return { dia, ...finalizarVisaoGeral(acc), clientes };
     })
@@ -288,6 +301,7 @@ export async function buscarVisaoGeralMes(
     .map(([clienteId, c]) => ({
       clienteId, nome: c.nome, receita: c.receita, tpv: c.tpv, qtdTickets: c.qtdTickets,
       taxaMedia: (c.somaTaxa / c.qtdTickets) * 100,
+      vendedorId: c.vendedorId, vendedorNome: c.vendedorNome,
     }))
     .sort((a, b) => b.receita - a.receita);
 
@@ -296,6 +310,7 @@ export async function buscarVisaoGeralMes(
     .map(([clienteId, c]) => ({
       clienteId, nome: c.nome, receita: c.receita, tpv: c.tpv, qtdTickets: c.qtdTickets,
       taxaMedia: (c.somaTaxa / c.qtdTickets) * 100,
+      vendedorId: c.vendedorId, vendedorNome: c.vendedorNome,
       ...(c.primeiraCompra ? { primeiraCompra: c.primeiraCompra } : {}),
     }))
     .sort((a, b) => b.receita - a.receita);

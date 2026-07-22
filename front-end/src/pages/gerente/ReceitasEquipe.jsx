@@ -247,7 +247,7 @@ function SemanaMiniCard({ numeroSemana, semana, onClick }) {
 }
 
 /** Mesmo padrão visual do Ranking Geral, adaptado para clientes da equipe. */
-function RankingClientesTabela({ titulo, clientes, mostrarPrimeiraCompra }) {
+function RankingClientesTabela({ titulo, clientes, mostrarPrimeiraCompra, mostrarVendedor }) {
   const navigate = useNavigate()
   const totais = (clientes ?? []).reduce((acc, c) => ({
     receita: acc.receita + c.receita,
@@ -269,6 +269,7 @@ function RankingClientesTabela({ titulo, clientes, mostrarPrimeiraCompra }) {
                 <tr className="border-b text-xs text-muted-foreground">
                   <th className="px-4 py-2 text-left font-medium">#</th>
                   <th className="px-4 py-2 text-left font-medium">Cliente</th>
+                  {mostrarVendedor && <th className="px-4 py-2 text-left font-medium">Vendedor</th>}
                   {mostrarPrimeiraCompra && <th className="px-4 py-2 text-left font-medium">1ª compra</th>}
                   <th className="px-4 py-2 text-right font-medium">Receita</th>
                   <th className="px-4 py-2 text-right font-medium">TPV</th>
@@ -288,6 +289,9 @@ function RankingClientesTabela({ titulo, clientes, mostrarPrimeiraCompra }) {
                       <Badge variant={i === 0 ? 'default' : 'outline'} className="w-6 h-6 flex items-center justify-center p-0 text-xs">{i + 1}</Badge>
                     </td>
                     <td className="px-4 py-2.5 max-w-[220px] truncate font-medium" title={c.nome}>{c.nome}</td>
+                    {mostrarVendedor && (
+                      <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">{c.vendedorNome ?? '—'}</td>
+                    )}
                     {mostrarPrimeiraCompra && (
                       <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
                         {c.primeiraCompra ? fmt.diaMes.format(parseDia(c.primeiraCompra)) : '—'}
@@ -305,6 +309,7 @@ function RankingClientesTabela({ titulo, clientes, mostrarPrimeiraCompra }) {
                 <tr className="border-t-2 font-semibold">
                   <td className="px-4 py-2.5"></td>
                   <td className="px-4 py-2.5">Total</td>
+                  {mostrarVendedor && <td className="px-4 py-2.5"></td>}
                   {mostrarPrimeiraCompra && <td className="px-4 py-2.5"></td>}
                   <td className="px-4 py-2.5 text-right text-primary">{moeda(totais.receita)}</td>
                   <td className="px-4 py-2.5 text-right">{moeda(totais.tpv)}</td>
@@ -458,8 +463,9 @@ export default function ReceitasEquipe() {
       const data = new Date(ano, mes - 1, d)
       const diaSemana = data.getDay()
       if (diaSemana === 0 || diaSemana === 6) continue // pula fim de semana
-      const receita = diasPorChave.get(chaveDia(data))?.receita ?? 0
-      bruto.push({ dia: d, receita })
+      const chave = chaveDia(data)
+      const receita = diasPorChave.get(chave)?.receita ?? 0
+      bruto.push({ dia: d, chave, receita })
     }
     return bruto.map((item, i) => {
       const anterior = i > 0 ? bruto[i - 1].receita : null
@@ -482,6 +488,20 @@ export default function ReceitasEquipe() {
   function abrirDia(chave) {
     setDiaSelecionado(diasPorChave.get(chave) ?? { dia: chave, receita: 0, tpv: 0, qtdTickets: 0, clientesAtivos: 0, clientesNovos: 0, clientes: [] })
   }
+
+  /** Ranking de quem mais vendeu no dia selecionado — soma a receita dos clientes do dia por vendedor. */
+  const rankingVendedoresDia = useMemo(() => {
+    if (vendedorId || !diaSelecionado?.clientes?.length) return []
+    const porVendedor = new Map()
+    for (const c of diaSelecionado.clientes) {
+      const chave = c.vendedorId ?? 'sem-vendedor'
+      if (!porVendedor.has(chave)) {
+        porVendedor.set(chave, { vendedorId: c.vendedorId, nome: c.vendedorNome ?? 'Desconhecido', receita: 0 })
+      }
+      porVendedor.get(chave).receita += c.receita
+    }
+    return Array.from(porVendedor.values()).sort((a, b) => b.receita - a.receita)
+  }, [diaSelecionado, vendedorId])
 
   if (carregando && !dados) {
     return (
@@ -637,7 +657,7 @@ export default function ReceitasEquipe() {
           <Card>
             <CardHeader>
               <CardTitle>Evolução Diária de Receita — Dias Úteis</CardTitle>
-              <p className="text-xs text-muted-foreground">Fins de semana são ignorados na comparação dia a dia.</p>
+              <p className="text-xs text-muted-foreground">Fins de semana são ignorados na comparação dia a dia. Clique num ponto para ver o ranking de quem mais vendeu naquele dia.</p>
             </CardHeader>
             <CardContent className="space-y-4">
               {serieDiaUtil.length === 0 ? (
@@ -658,9 +678,26 @@ export default function ReceitasEquipe() {
                         dot={(props) => {
                           const { cx, cy, payload, index } = props
                           const cor = payload.delta === null ? CORES_GRAFICO[0] : payload.delta >= 0 ? '#10b981' : '#ef4444'
-                          return <circle key={`dot-${payload.dia}-${index}`} cx={cx} cy={cy} r={3.5} fill={cor} stroke="none" />
+                          return (
+                            <circle
+                              key={`dot-${payload.dia}-${index}`}
+                              cx={cx} cy={cy} r={3.5} fill={cor} stroke="none"
+                              cursor="pointer"
+                              onClick={() => abrirDia(payload.chave)}
+                            />
+                          )
                         }}
-                        activeDot={{ r: 5 }}
+                        activeDot={(props) => {
+                          const { cx, cy, payload, index } = props
+                          return (
+                            <circle
+                              key={`dot-ativo-${payload.dia}-${index}`}
+                              cx={cx} cy={cy} r={5} fill={CORES_GRAFICO[0]} stroke="none"
+                              cursor="pointer"
+                              onClick={() => abrirDia(payload.chave)}
+                            />
+                          )
+                        }}
                       />
                     </LineChart>
                   </ChartContainer>
@@ -744,8 +781,8 @@ export default function ReceitasEquipe() {
           </Card>
 
           {/* Clientes que faturaram + clientes novos do mês */}
-          <RankingClientesTabela titulo="Clientes que Faturaram no Mês" clientes={dados.clientesDoMes} />
-          <RankingClientesTabela titulo="Clientes Novos do Mês" clientes={dados.clientesNovosDoMes} mostrarPrimeiraCompra />
+          <RankingClientesTabela titulo="Clientes que Faturaram no Mês" clientes={dados.clientesDoMes} mostrarVendedor={!vendedorId} />
+          <RankingClientesTabela titulo="Clientes Novos do Mês" clientes={dados.clientesNovosDoMes} mostrarPrimeiraCompra mostrarVendedor={!vendedorId} />
         </>
       )}
 
@@ -775,6 +812,23 @@ export default function ReceitasEquipe() {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground border-t pt-3">{numero(diaSelecionado.qtdTickets)} transaç{diaSelecionado.qtdTickets === 1 ? 'ão' : 'ões'} neste dia</p>
+
+              {rankingVendedoresDia.length > 0 && (
+                <div className="min-w-0 border-t pt-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Ranking do dia — quem mais vendeu</p>
+                  <div className="min-w-0 space-y-0.5">
+                    {rankingVendedoresDia.map((v, i) => (
+                      <div key={v.vendedorId ?? i} className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <Badge variant={i === 0 ? 'default' : 'outline'} className="w-5 h-5 flex items-center justify-center p-0 text-[10px]">{i + 1}</Badge>
+                          <span className="min-w-0 truncate font-medium" title={v.nome}>{v.nome}</span>
+                        </span>
+                        <span className="shrink-0 font-semibold text-primary">{moeda(v.receita)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {diaSelecionado.clientes?.length > 0 && (
                 <div className="min-w-0 border-t pt-3">

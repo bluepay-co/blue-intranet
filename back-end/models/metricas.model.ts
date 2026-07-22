@@ -243,6 +243,8 @@ export interface VisaoGeralDiaCliente {
   nome: string;
   receita: number;
   tpv: number;
+  vendedorId?: number;
+  vendedorNome?: string | null;
 }
 
 export interface VisaoGeralDia {
@@ -290,6 +292,8 @@ export interface VisaoGeralCliente {
   taxaMedia: number;
   /** 'YYYY-MM-DD' — só presente para clientes novos do mês. */
   primeiraCompra?: string;
+  vendedorId?: number;
+  vendedorNome?: string | null;
 }
 
 export interface VisaoGeral {
