@@ -18,9 +18,9 @@ const DONOS_POR_EQUIPE: Record<string, string[]> = {
   KAM: ['KAM', 'DESENVOLVEDOR'],
 };
 
-/** Zera taxaMedia/ticketMedio/qtdTickets/clientesAtivos — mesmos campos que o front já esconde via `ocultarSigilosas`. */
+/** Zera taxaMedia/ticketMedio/qtdTickets/clientesAtivos/clientesNovos — mesmos campos que o front já esconde via `ocultarSigilosas`. */
 function redigirCamposSigilosos(membros: MetricasEquipeMembro[]): MetricasEquipeMembro[] {
-  return membros.map((m) => ({ ...m, taxaMedia: 0, ticketMedio: 0, qtdTickets: 0, clientesAtivos: 0 }));
+  return membros.map((m) => ({ ...m, taxaMedia: 0, ticketMedio: 0, qtdTickets: 0, clientesAtivos: 0, clientesNovos: 0 }));
 }
 
 export async function meuResumo(req: Request, res: Response) {

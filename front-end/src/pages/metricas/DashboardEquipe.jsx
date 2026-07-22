@@ -285,7 +285,7 @@ function RankingTabela({ titulo, membros, mostrarHoje, ocultarSigilosas }) {
   )
 }
 
-export default function DashboardEquipe({ equipeFixa }) {
+export default function DashboardEquipe({ equipeFixa, titulo }) {
   const { usuario } = useAuth()
   const ehDonoDoTime = equipeFixa ? (DONOS_POR_EQUIPE[equipeFixa] ?? []).includes(usuario?.role) : true
   const agora = new Date()
@@ -336,7 +336,7 @@ export default function DashboardEquipe({ equipeFixa }) {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Dashboard Equipe"
+        title={titulo ?? 'Dashboard Equipe'}
         subtitle={dados ? (LABEL_EQUIPE[dados.equipe] ?? `Equipe ${dados.equipe}`) : 'Carregando...'}
       >
         <div className="flex items-center gap-2">

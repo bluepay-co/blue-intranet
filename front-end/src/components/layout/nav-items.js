@@ -76,9 +76,9 @@ export const NAV_SECTIONS = [
     label: 'Ger. Inside Sales & CX',
     roles: ['GERENTE_INSIDE_CX', 'DESENVOLVEDOR'],
     items: [
-      { to: '/gerente/is/visao-geral', label: 'Visão Geral / Metas',  icon: Target },
-      { to: '/gerente/is/clientes',    label: 'Clientes da Equipe',   icon: Building2 },
-      { to: '/gerente/is/receitas',    label: 'Receitas por Período', icon: CalendarDays },
+      { to: '/gerente/is/receitas',    label: 'Visão Geral',        icon: CalendarDays },
+      { to: '/gerente/is/visao-geral', label: 'Insight Sales',      icon: Target },
+      { to: '/gerente/is/clientes',    label: 'Clientes da Equipe', icon: Building2 },
     ],
   },
   {

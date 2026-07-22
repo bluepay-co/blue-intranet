@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getReceitasEquipeGerente, getMembrosEquipeGerente } from '@/api/modules/gerente'
+import { getEquipe } from '@/api/modules/metricas'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -12,9 +13,17 @@ import { gradeDoMes, diasDaSemana, chaveDia, mesmoMes, fmt, capitalizar } from '
 import { BarChart, Bar, LineChart, Line, Legend, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts'
 import {
   Wallet, Users, UserPlus, RefreshCw, AlertCircle, Loader2,
-  ChevronLeft, ChevronRight, Target, BarChart3, TrendingUp, TrendingDown,
+  ChevronLeft, ChevronRight, ChevronDown, Target, BarChart3, TrendingUp, TrendingDown,
   CalendarRange,
 } from 'lucide-react'
+
+/** Métricas dos 4 cards do topo que abrem ranking da equipe ao clicar. */
+const METRICAS_RANKING = {
+  receita:        { titulo: 'Receita no Mês',              campo: 'receita',        formato: (v) => moeda(v) },
+  tpv:            { titulo: 'TPV no Mês',                  campo: 'tpv',            formato: (v) => moeda(v) },
+  clientesNovos:  { titulo: 'Clientes Novos no Mês',        campo: 'clientesNovos',  formato: (v) => numero(v) },
+  clientesAtivos: { titulo: 'Clientes que Faturaram',       campo: 'clientesAtivos', formato: (v) => numero(v) },
+}
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 
@@ -44,17 +53,72 @@ function parseDia(iso) {
   return new Date(`${iso}T00:00:00`)
 }
 
-function KpiCard({ icon: Icon, cor, valor, rotulo }) {
+/** KpiCard do gerente — quando `onClick` é passado, fica clicável e expande o ranking da equipe por baixo. */
+function KpiCard({ icon: Icon, cor, valor, rotulo, onClick, ativo }) {
   return (
-    <Card>
+    <Card
+      onClick={onClick}
+      className={cn(
+        onClick && 'cursor-pointer transition-colors hover:border-primary/50',
+        ativo && 'border-primary ring-1 ring-primary',
+      )}
+    >
       <CardContent className="flex items-center gap-3 py-4">
-        <div className={`grid size-10 place-items-center rounded-lg ${cor}`}>
+        <div className={`grid size-10 shrink-0 place-items-center rounded-lg ${cor}`}>
           <Icon className="size-5" />
         </div>
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="text-2xl font-semibold leading-tight">{valor}</p>
           <p className="text-xs text-muted-foreground">{rotulo}</p>
         </div>
+        {onClick && (
+          <ChevronDown className={cn('size-4 shrink-0 text-muted-foreground transition-transform', ativo && 'rotate-180')} />
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+/** Ranking da equipe por uma métrica específica — abre ao clicar num dos KpiCards do topo. */
+function RankingMetricaEquipe({ titulo, membros, campo, formato, onSelecionarVendedor }) {
+  const ordenado = [...(membros ?? [])].sort((a, b) => (b[campo] ?? 0) - (a[campo] ?? 0))
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="border-b bg-muted/30">
+        <CardTitle>Ranking da Equipe — {titulo}</CardTitle>
+        <p className="text-xs text-muted-foreground">Clique num funcionário para ver a visão individual dele.</p>
+      </CardHeader>
+      <CardContent className="p-0">
+        {ordenado.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">Sem dados para este período.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-xs text-muted-foreground">
+                <th className="px-4 py-2 text-left font-medium">#</th>
+                <th className="px-4 py-2 text-left font-medium">Funcionário</th>
+                <th className="px-4 py-2 text-right font-medium">{titulo}</th>
+                <th className="px-2 py-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {ordenado.map((m, i) => (
+                <tr
+                  key={m.vendedorId}
+                  onClick={() => onSelecionarVendedor(m.vendedorId)}
+                  className="border-b last:border-0 cursor-pointer hover:bg-muted/30 transition-colors"
+                >
+                  <td className="px-4 py-2.5">
+                    <Badge variant={i === 0 ? 'default' : 'outline'} className="w-6 h-6 flex items-center justify-center p-0 text-xs">{i + 1}</Badge>
+                  </td>
+                  <td className="px-4 py-2.5 font-medium">{m.nome}</td>
+                  <td className="px-4 py-2.5 text-right font-semibold text-primary">{formato(m[campo] ?? 0)}</td>
+                  <td className="px-2 py-2.5 text-muted-foreground"><ChevronRight className="size-4" /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </CardContent>
     </Card>
   )
@@ -269,6 +333,8 @@ export default function ReceitasEquipe() {
   const [ano, setAno] = useState(agora.getFullYear())
   const [vendedorId, setVendedorId] = useState('')
   const [membros, setMembros] = useState([])
+  const [membrosRanking, setMembrosRanking] = useState([])
+  const [metricaAberta, setMetricaAberta] = useState(null)
   const [dados, setDados] = useState(null)
   const [dadosAnterior, setDadosAnterior] = useState(null)
   const [carregando, setCarregando] = useState(true)
@@ -286,12 +352,15 @@ export default function ReceitasEquipe() {
     setErro('')
     setCarregando(true)
     try {
-      const [data, dataAnterior] = await Promise.all([
+      const chamadas = [
         getReceitasEquipeGerente(mes, ano, vendedorId || undefined),
         getReceitasEquipeGerente(mes, ano - 1, vendedorId || undefined),
-      ])
+      ]
+      if (!vendedorId) chamadas.push(getEquipe(mes, ano, 'IS'))
+      const [data, dataAnterior, dataEquipe] = await Promise.all(chamadas)
       setDados(data)
       setDadosAnterior(dataAnterior)
+      setMembrosRanking(dataEquipe?.membros ?? [])
     } catch (e) {
       if (e.response?.status === 404) setErro('Nenhum dado encontrado para este período.')
       else setErro('Erro ao carregar as receitas. Tente novamente.')
@@ -301,6 +370,15 @@ export default function ReceitasEquipe() {
   }, [mes, ano, vendedorId])
 
   useEffect(() => { carregar() }, [carregar])
+
+  function alternarRanking(chave) {
+    setMetricaAberta((atual) => (atual === chave ? null : chave))
+  }
+
+  function selecionarVendedorDoRanking(id) {
+    setVendedorId(String(id))
+    setMetricaAberta(null)
+  }
 
   function mudarMes(delta) {
     let m = mes + delta, a = ano
@@ -416,11 +494,11 @@ export default function ReceitasEquipe() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Receitas por Período"
+        title="Visão Geral"
         subtitle="Receita da equipe ou de um funcionário específico, dia a dia e semana a semana"
       >
         <div className="flex items-center gap-2">
-          <select className={selectCls} value={vendedorId} onChange={(e) => setVendedorId(e.target.value)}>
+          <select className={selectCls} value={vendedorId} onChange={(e) => { setVendedorId(e.target.value); setMetricaAberta(null) }}>
             <option value="">Toda a equipe</option>
             {membros.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
           </select>
@@ -450,13 +528,27 @@ export default function ReceitasEquipe() {
 
       {dados && (
         <>
-          {/* KPIs do mês */}
+          {/* KPIs do mês — clicáveis quando "Toda a equipe" está selecionada, abrem o ranking por baixo */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <KpiCard icon={Wallet}    cor="bg-blue-500/10 text-blue-600"      valor={moeda(dados.resumoMes.receita)}       rotulo="Receita no mês" />
-            <KpiCard icon={BarChart3} cor="bg-sky-500/10 text-sky-600"        valor={moeda(dados.resumoMes.tpv)}           rotulo="TPV no mês" />
-            <KpiCard icon={UserPlus}  cor="bg-emerald-500/10 text-emerald-600" valor={numero(dados.resumoMes.clientesNovos)} rotulo="Clientes novos no mês" />
-            <KpiCard icon={Users}     cor="bg-violet-500/10 text-violet-600"  valor={numero(dados.resumoMes.clientesAtivos)} rotulo="Clientes que faturaram" />
+            <KpiCard icon={Wallet}    cor="bg-blue-500/10 text-blue-600"      valor={moeda(dados.resumoMes.receita)}       rotulo="Receita no mês"
+              onClick={!vendedorId ? () => alternarRanking('receita') : undefined} ativo={metricaAberta === 'receita'} />
+            <KpiCard icon={BarChart3} cor="bg-sky-500/10 text-sky-600"        valor={moeda(dados.resumoMes.tpv)}           rotulo="TPV no mês"
+              onClick={!vendedorId ? () => alternarRanking('tpv') : undefined} ativo={metricaAberta === 'tpv'} />
+            <KpiCard icon={UserPlus}  cor="bg-emerald-500/10 text-emerald-600" valor={numero(dados.resumoMes.clientesNovos)} rotulo="Clientes novos no mês"
+              onClick={!vendedorId ? () => alternarRanking('clientesNovos') : undefined} ativo={metricaAberta === 'clientesNovos'} />
+            <KpiCard icon={Users}     cor="bg-violet-500/10 text-violet-600"  valor={numero(dados.resumoMes.clientesAtivos)} rotulo="Clientes que faturaram"
+              onClick={!vendedorId ? () => alternarRanking('clientesAtivos') : undefined} ativo={metricaAberta === 'clientesAtivos'} />
           </div>
+
+          {metricaAberta && (
+            <RankingMetricaEquipe
+              titulo={METRICAS_RANKING[metricaAberta].titulo}
+              membros={membrosRanking}
+              campo={METRICAS_RANKING[metricaAberta].campo}
+              formato={METRICAS_RANKING[metricaAberta].formato}
+              onSelecionarVendedor={selecionarVendedorDoRanking}
+            />
+          )}
 
           {/* Meta do mês — % já batido e quanto falta */}
           {dados.resumoMes.meta > 0 && (

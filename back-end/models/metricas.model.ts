@@ -80,6 +80,8 @@ export interface MetricasEquipeMembro {
   tpv: number;
   qtdTickets: number;
   clientesAtivos: number;
+  /** Só populado no ranking mensal de `buscarMetricasEquipe` (usado pelo ranking clicável do gerente). */
+  clientesNovos?: number;
   taxaMedia: number;
   ticketMedio: number;
   receitaHoje: number;

@@ -960,6 +960,7 @@ export async function buscarMetricasEquipe(
     membrosRows,
     anteriorRows,
     hojeMembroRows,
+    clientesNovosRows,
     hoje,
     retencao,
     mixProduto,
@@ -1031,6 +1032,33 @@ export async function buscarMetricasEquipe(
       GROUP BY ${MANAGER_ID_REMAPPED}
     `, [managerIds]),
 
+    consultaPool.query(`
+      WITH base AS (
+        SELECT DISTINCT t.client_id, ${MANAGER_ID_REMAPPED} AS "managerId"
+        FROM tickets t
+        LEFT JOIN clients c ON c.id = t.client_id
+        WHERE ${FILTROS_BASE}
+          AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+          AND EXTRACT(MONTH FROM t.invoice_payment_date) = $2
+          AND EXTRACT(YEAR  FROM t.invoice_payment_date) = $3
+      ),
+      anteriores AS (
+        SELECT DISTINCT t.client_id, ${MANAGER_ID_REMAPPED} AS "managerId"
+        FROM tickets t
+        LEFT JOIN clients c ON c.id = t.client_id
+        WHERE ${FILTROS_BASE}
+          AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+          AND t.invoice_payment_date < MAKE_DATE($3::int, $2::int, 1)
+      )
+      SELECT
+        base."managerId",
+        COUNT(DISTINCT CASE WHEN ant.client_id IS NULL THEN base.client_id END)::int AS "clientesNovos"
+      FROM base
+      LEFT JOIN anteriores ant
+        ON ant.client_id = base.client_id AND ant."managerId" = base."managerId"
+      GROUP BY base."managerId"
+    `, [managerIds, mes, ano]),
+
     buscarHojeEquipe(managerIds),
     buscarRetencaoEquipe(managerIds, mes, ano),
     buscarMixProdutoEquipe(managerIds, mes, ano),
@@ -1045,6 +1073,10 @@ export async function buscarMetricasEquipe(
     ])
   );
 
+  const clientesNovosMap = new Map<number, number>(
+    clientesNovosRows.rows.map((r: { managerId: number; clientesNovos: number }) => [r.managerId, r.clientesNovos])
+  );
+
   const membros: MetricasEquipeMembro[] = membrosRows.rows.map(
     (r: { managerId: number; qtdTickets: number; clientesAtivos: number; receita: number; tpv: number; taxaMedia: number; ticketMedio: number }) => {
       const nome          = nomeMap.get(r.managerId) ?? 'Desconhecido';
@@ -1056,6 +1088,7 @@ export async function buscarMetricasEquipe(
         tpv:            r.tpv,
         qtdTickets:     r.qtdTickets,
         clientesAtivos: r.clientesAtivos,
+        clientesNovos:  clientesNovosMap.get(r.managerId) ?? 0,
         taxaMedia:      r.taxaMedia,
         ticketMedio:    r.ticketMedio,
         receitaHoje:    hojeMembroMap.get(r.managerId)?.receitaHoje ?? 0,
