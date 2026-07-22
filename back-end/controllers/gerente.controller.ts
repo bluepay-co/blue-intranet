@@ -6,6 +6,7 @@ import {
   buscarClienteEquipeGerente,
   buscarReceitasEquipeGerente,
   buscarRankingPeriodoGerente,
+  buscarPessoalEquipeGerente,
 } from '../services/gerente.service';
 
 function paramTexto(v: unknown): string | undefined {
@@ -120,5 +121,33 @@ export async function getRankingPeriodo(req: Request, res: Response) {
     if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
     console.error('[gerente.controller] getRankingPeriodo:', err);
     return res.status(500).json({ message: 'Erro ao buscar o ranking da equipe.' });
+  }
+}
+
+export async function getPessoalEquipe(req: Request, res: Response) {
+  try {
+    const vendedorId = Number(req.params.vendedorId);
+    if (!Number.isInteger(vendedorId) || vendedorId <= 0) {
+      throw new AppError('Identificador de vendedor inválido.', 400);
+    }
+    const mes = req.query.mes ? Number(req.query.mes) : undefined;
+    const ano = req.query.ano ? Number(req.query.ano) : undefined;
+    if (mes !== undefined && (!Number.isInteger(mes) || mes < 1 || mes > 12)) {
+      throw new AppError('Mês inválido.', 400);
+    }
+    if (ano !== undefined && (!Number.isInteger(ano) || ano < 2000 || ano > 2100)) {
+      throw new AppError('Ano inválido.', 400);
+    }
+
+    const resultado = await buscarPessoalEquipeGerente(vendedorId, mes, ano);
+    if (!resultado) {
+      return res.status(404).json({ message: 'Nenhum dado de equipe encontrado.' });
+    }
+
+    return res.status(200).json(resultado);
+  } catch (err) {
+    if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
+    console.error('[gerente.controller] getPessoalEquipe:', err);
+    return res.status(500).json({ message: 'Erro ao buscar o dashboard pessoal do funcionário.' });
   }
 }

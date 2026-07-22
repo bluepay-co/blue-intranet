@@ -564,12 +564,26 @@ export async function buscarMetricasCompletas(
   mes?: number,
   ano?: number
 ): Promise<MetricasVendedor | null> {
+  const vendedor = await buscarVendedorPorEmail(email);
+  if (!vendedor) return null;
+
+  const dados = await buscarMetricasCompletasPorVendedor(vendedor, mes, ano);
+  return { ...dados, email };
+}
+
+/**
+ * Núcleo de `buscarMetricasCompletas`, mas a partir de `{ id, nome }` já
+ * resolvidos — reutilizado pela camada de gerência, que nunca tem o e-mail do
+ * vendedor à mão (o vendedorId já vem validado contra a equipe).
+ */
+export async function buscarMetricasCompletasPorVendedor(
+  vendedor: { id: number; nome: string },
+  mes?: number,
+  ano?: number
+): Promise<Omit<MetricasVendedor, 'email'>> {
   const agora = new Date();
   const mesConsulta = mes ?? (agora.getMonth() + 1);
   const anoConsulta = ano ?? agora.getFullYear();
-
-  const vendedor = await buscarVendedorPorEmail(email);
-  if (!vendedor) return null;
 
   // Corte de período para o comparativo "vs Ano Anterior" (mesmo período):
   // no ano corrente compara até o mês atual; em anos já fechados, o ano inteiro.
@@ -629,7 +643,6 @@ export async function buscarMetricasCompletas(
   return {
     vendedorId: vendedor.id,
     nome:       vendedor.nome,
-    email,
     mesAtual,
     hoje,
     historico,

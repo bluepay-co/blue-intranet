@@ -1,4 +1,4 @@
-import { Calendar, ListTodo, Users, Newspaper, LayoutList, LifeBuoy, Headset, BarChart3, PackageSearch, TrendingUp, Activity, PhoneCall, Building2, AlertTriangle, Sparkles, MessageSquare, CalendarDays, Target } from 'lucide-react'
+import { Calendar, ListTodo, Users, Newspaper, LayoutList, LifeBuoy, Headset, BarChart3, PackageSearch, TrendingUp, Activity, PhoneCall, Building2, AlertTriangle, Sparkles, MessageSquare, CalendarDays, Target, UserRound } from 'lucide-react'
 
 /**
  * Navegação principal da sidebar, organizada em SEÇÕES por setor.
@@ -76,9 +76,10 @@ export const NAV_SECTIONS = [
     label: 'Ger. Inside Sales & CX',
     roles: ['GERENTE_INSIDE_CX', 'DESENVOLVEDOR'],
     items: [
-      { to: '/gerente/is/receitas',    label: 'Visão Geral',        icon: CalendarDays },
-      { to: '/gerente/is/visao-geral', label: 'Insight Sales',      icon: Target },
-      { to: '/gerente/is/clientes',    label: 'Clientes da Equipe', icon: Building2 },
+      { to: '/gerente/is/receitas',       label: 'Visão Geral',        icon: CalendarDays },
+      { to: '/gerente/is/visao-geral',    label: 'Insights da Equipe', icon: Target },
+      { to: '/gerente/is/equipe-pessoal', label: 'Métricas Insides',   icon: UserRound },
+      { to: '/gerente/is/clientes',       label: 'Clientes da Equipe', icon: Building2 },
     ],
   },
   {

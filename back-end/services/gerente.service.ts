@@ -6,6 +6,8 @@ import {
   buscarDataHojeSaoPaulo,
   buscarRankingPeriodoEquipe,
   semanaDoDia,
+  buscarMetricasCompletasPorVendedor,
+  buscarTopClientes,
 } from './metricas.service';
 import {
   listarClientesDoVendedor,
@@ -16,7 +18,7 @@ import {
   type FiltrosListaClientes,
 } from './cliente.service';
 import type { ClientesPaginados, ResumoCarteira, FiltrosClientes, ClienteDetalheResposta } from '../models/cliente.model';
-import type { VisaoGeral, MetricasEquipeMembro } from '../models/metricas.model';
+import type { VisaoGeral, MetricasEquipeMembro, MetricasVendedor, TopCliente } from '../models/metricas.model';
 import type { MembroEquipe } from '../models/gerente.model';
 
 /**
@@ -124,4 +126,27 @@ export async function buscarRankingPeriodoGerente(periodo: 'dia' | 'semana'): Pr
   const { inicio, fim } = periodo === 'semana' ? semanaDoDia(hoje) : { inicio: hoje, fim: hoje };
 
   return buscarRankingPeriodoEquipe(equipe.managerIds, inicio, fim, equipe.nomeMap);
+}
+
+/** Dashboard pessoal (réplica do Dashboard Pessoal do vendedor) de um funcionário específico da equipe. */
+export async function buscarPessoalEquipeGerente(
+  vendedorId: number,
+  mes?: number,
+  ano?: number,
+): Promise<{ resumo: Omit<MetricasVendedor, 'email'>; topClientesMes: TopCliente[] } | null> {
+  const equipe = await resolverEquipeGerente();
+  if (!equipe) return null;
+  validarVendedorNaEquipe(vendedorId, equipe);
+
+  const nome = equipe.nomeMap.get(vendedorId) ?? 'Desconhecido';
+  const agora = new Date();
+  const mesConsulta = mes ?? agora.getMonth() + 1;
+  const anoConsulta = ano ?? agora.getFullYear();
+
+  const [resumo, topClientesMes] = await Promise.all([
+    buscarMetricasCompletasPorVendedor({ id: vendedorId, nome }, mesConsulta, anoConsulta),
+    buscarTopClientes(vendedorId, mesConsulta, anoConsulta, 10),
+  ]);
+
+  return { resumo, topClientesMes };
 }

@@ -48,3 +48,12 @@ export async function getRankingPeriodoGerente(periodo) {
   const { data } = await api.get('/api/gerente/ranking-periodo', { params: { periodo } })
   return data
 }
+
+/** Dashboard pessoal (réplica do Dashboard Pessoal) de um funcionário específico da equipe. */
+export async function getPessoalEquipeGerente(vendedorId, mes, ano) {
+  const params = {}
+  if (mes) params.mes = mes
+  if (ano) params.ano = ano
+  const { data } = await api.get(`/api/gerente/pessoal/${vendedorId}`, { params })
+  return data // { resumo, topClientesMes }
+}

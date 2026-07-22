@@ -33,6 +33,7 @@ import CrossSell from '@/pages/carteira/CrossSell'
 import ClientesDaEquipe from '@/pages/gerente/ClientesDaEquipe'
 import ClienteEquipeDetalhe from '@/pages/gerente/ClienteEquipeDetalhe'
 import ReceitasEquipe from '@/pages/gerente/ReceitasEquipe'
+import VisaoEquipePessoal from '@/pages/gerente/VisaoEquipePessoal'
 
 function App() {
   return (
@@ -239,6 +240,14 @@ function App() {
           element={
             <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'DESENVOLVEDOR']}>
               <ReceitasEquipe />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="gerente/is/equipe-pessoal"
+          element={
+            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'DESENVOLVEDOR']}>
+              <VisaoEquipePessoal />
             </ProtectedRoute>
           }
         />
