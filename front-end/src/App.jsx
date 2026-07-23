@@ -14,6 +14,7 @@ import ChamadosTI from '@/pages/ti/ChamadosTI'
 import DashboardTI from '@/pages/ti/DashboardTI'
 import ChamadosProdutos from '@/pages/produtos/ChamadosProdutos'
 import DashboardPessoal from '@/pages/metricas/DashboardPessoal'
+import ForecastPessoal from '@/pages/metricas/ForecastPessoal'
 import DashboardEquipe from '@/pages/metricas/DashboardEquipe'
 import DashboardGeral from '@/pages/metricas/DashboardGeral'
 import DashboardComercialLayout from '@/pages/metricas/DashboardComercialLayout'
@@ -30,6 +31,11 @@ import ClienteDetalhe from '@/pages/clientes/ClienteDetalhe'
 import ClienteDetalheMes from '@/pages/clientes/ClienteDetalheMes'
 import RadarRisco from '@/pages/carteira/RadarRisco'
 import CrossSell from '@/pages/carteira/CrossSell'
+import ClientesDaEquipe from '@/pages/gerente/ClientesDaEquipe'
+import ClienteEquipeDetalhe from '@/pages/gerente/ClienteEquipeDetalhe'
+import ReceitasEquipe from '@/pages/gerente/ReceitasEquipe'
+import VisaoEquipePessoal from '@/pages/gerente/VisaoEquipePessoal'
+import ForecastIS from '@/pages/gerente/ForecastIS'
 
 function App() {
   return (
@@ -127,6 +133,14 @@ function App() {
           }
         />
         <Route
+          path="metricas/forecast"
+          element={
+            <ProtectedRoute roles={['KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
+              <ForecastPessoal />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="metricas/is/equipe"
           element={
             <ProtectedRoute roles={['INSIGHT_SALES', 'DESENVOLVEDOR']}>
@@ -202,6 +216,106 @@ function App() {
           element={
             <ProtectedRoute roles={['KAM', 'INSIGHT_SALES', 'DESENVOLVEDOR']}>
               <CrossSell />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Gerência — Inside Sales & CX */}
+        <Route
+          path="gerente/is/visao-geral"
+          element={
+            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
+              <DashboardEquipe equipeFixa="IS" titulo="Insight Sales" mostrarSigilosas />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="gerente/is/clientes"
+          element={
+            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
+              <ClientesDaEquipe />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="gerente/is/clientes/:id"
+          element={
+            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
+              <ClienteEquipeDetalhe />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="gerente/is/receitas"
+          element={
+            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
+              <ReceitasEquipe />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="gerente/is/equipe-pessoal"
+          element={
+            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
+              <VisaoEquipePessoal />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="gerente/is/forecast"
+          element={
+            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
+              <ForecastIS />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Gerência — Comercial (KAM): mesmas telas do IS, escopadas ao time KAM */}
+        <Route
+          path="gerente/kam/visao-geral"
+          element={
+            <ProtectedRoute roles={['GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
+              <DashboardEquipe equipeFixa="KAM" titulo="KAM" mostrarSigilosas />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="gerente/kam/clientes"
+          element={
+            <ProtectedRoute roles={['GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
+              <ClientesDaEquipe equipe="KAM" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="gerente/kam/clientes/:id"
+          element={
+            <ProtectedRoute roles={['GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
+              <ClienteEquipeDetalhe equipe="KAM" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="gerente/kam/receitas"
+          element={
+            <ProtectedRoute roles={['GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
+              <ReceitasEquipe equipe="KAM" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="gerente/kam/equipe-pessoal"
+          element={
+            <ProtectedRoute roles={['GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
+              <VisaoEquipePessoal equipe="KAM" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="gerente/kam/forecast"
+          element={
+            <ProtectedRoute roles={['GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
+              <ForecastIS equipe="KAM" />
             </ProtectedRoute>
           }
         />

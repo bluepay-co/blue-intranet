@@ -24,6 +24,7 @@ Fullstack-dashboard/
 plano-metricas-gerais.md
 "Implementação de Métricas.md"
 Implementação\ de\ Métricas.md
+.docs/
 
 # Variáveis de Ambiente e Arquivos de Configuração Sensíveis (Segurança!)
 .env

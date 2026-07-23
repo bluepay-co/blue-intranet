@@ -17,6 +17,10 @@ export interface ClienteResumo {
   qtdTickets: number;
   taxaMedia: number;
   ultimaAtividade: string | null;
+  /** Receita do ticket mais recente (independe do total agregado `receita`). Só populado por `listarClientesDoVendedor`. */
+  ultimaReceita?: number;
+  vendedorId?: number;
+  vendedorNome?: string | null;
 }
 
 /** Página de "Meus Clientes" (paginado no banco, 20 por página por padrão). */

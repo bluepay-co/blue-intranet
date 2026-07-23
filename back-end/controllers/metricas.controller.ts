@@ -7,8 +7,21 @@ import {
   buscarMetricasGerais,
   buscarVisaoGeralMes,
 } from '../services/metricas.service';
+import type { MetricasEquipeMembro } from '../models/metricas.model';
 import { AppError } from '../utils/app-error';
 import { pool } from '../database/pool';
+import { getMetaIndividual } from '../data/metas2026';
+
+/** Roles "donas" de cada time — só elas veem as colunas sensíveis por membro. */
+const DONOS_POR_EQUIPE: Record<string, string[]> = {
+  IS:  ['INSIGHT_SALES', 'GERENTE_INSIDE_CX', 'GERENTE_COMERCIAL', 'DESENVOLVEDOR'],
+  KAM: ['KAM', 'GERENTE_COMERCIAL', 'DESENVOLVEDOR'],
+};
+
+/** Zera taxaMedia/ticketMedio/qtdTickets/clientesAtivos/clientesNovos — mesmos campos que o front já esconde via `ocultarSigilosas`. */
+function redigirCamposSigilosos(membros: MetricasEquipeMembro[]): MetricasEquipeMembro[] {
+  return membros.map((m) => ({ ...m, taxaMedia: 0, ticketMedio: 0, qtdTickets: 0, clientesAtivos: 0, clientesNovos: 0 }));
+}
 
 export async function meuResumo(req: Request, res: Response) {
   try {
@@ -49,7 +62,8 @@ export async function visaoGeral(req: Request, res: Response) {
       });
     }
 
-    const visao = await buscarVisaoGeralMes(vendedor.id, vendedor.nome, mes, ano);
+    const meta = getMetaIndividual(vendedor.nome, mes, ano, vendedor.id);
+    const visao = await buscarVisaoGeralMes([vendedor.id], meta, mes, ano);
     return res.status(200).json(visao);
   } catch (err) {
     if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
@@ -102,14 +116,22 @@ export async function minhaEquipe(req: Request, res: Response) {
     // Se vier query param ?equipe=IS|KAM, força a equipe independente do role do usuário
     const equipeParam = req.query.equipe as string | undefined;
     let roles: string[];
+    let equipeEfetiva: string;
     if (equipeParam === 'IS') {
       roles = ['INSIGHT_SALES'];
+      equipeEfetiva = 'IS';
     } else if (equipeParam === 'KAM') {
       roles = ['KAM'];
+      equipeEfetiva = 'KAM';
     } else if (role === 'DESENVOLVEDOR') {
       roles = ['VENDAS', 'KAM', 'INSIGHT_SALES'];
+      equipeEfetiva = 'GERAL';
+    } else if (role === 'GERENTE_INSIDE_CX') {
+      roles = ['INSIGHT_SALES'];
+      equipeEfetiva = 'IS';
     } else {
       roles = [role];
+      equipeEfetiva = role === 'KAM' ? 'KAM' : role === 'INSIGHT_SALES' ? 'IS' : 'GERAL';
     }
 
     const equipe = await buscarMetricasEquipe(roles, mes, ano);
@@ -117,6 +139,14 @@ export async function minhaEquipe(req: Request, res: Response) {
       return res.status(404).json({
         message: 'Nenhum dado de equipe encontrado para este cargo.',
       });
+    }
+
+    // Colunas sensíveis por membro só para quem é "dono" do time efetivo — mesma
+    // regra que hoje só existia no front via `ocultarSigilosas`.
+    const donos = DONOS_POR_EQUIPE[equipeEfetiva];
+    if (donos && !donos.includes(role)) {
+      equipe.membros = redigirCamposSigilosos(equipe.membros);
+      equipe.anual.membros = redigirCamposSigilosos(equipe.anual.membros);
     }
 
     return res.status(200).json(equipe);

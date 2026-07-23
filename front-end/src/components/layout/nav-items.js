@@ -1,4 +1,4 @@
-import { Calendar, ListTodo, Users, Newspaper, LayoutList, LifeBuoy, Headset, BarChart3, PackageSearch, TrendingUp, Activity, PhoneCall, Building2, AlertTriangle, Sparkles, MessageSquare, CalendarDays } from 'lucide-react'
+import { Calendar, ListTodo, Users, Newspaper, LayoutList, LifeBuoy, Headset, BarChart3, PackageSearch, TrendingUp, Activity, PhoneCall, Building2, AlertTriangle, Sparkles, MessageSquare, CalendarDays, Target, UserRound } from 'lucide-react'
 
 /**
  * Navegação principal da sidebar, organizada em SEÇÕES por setor.
@@ -54,6 +54,7 @@ export const NAV_SECTIONS = [
     items: [
       { to: '/metricas/visao-geral', label: 'Visão Geral',       icon: CalendarDays },
       { to: '/metricas/pessoal',     label: 'Dashboard Pessoal', icon: TrendingUp },
+      { to: '/metricas/forecast',    label: 'Meu Forecast',      icon: Target },
       { to: '/metricas/kam/equipe',  label: 'Dashboard Equipe',  icon: Users },
       { to: '/clientes',             label: 'Meus Clientes',     icon: Building2 },
       { to: '/carteira/risco',      label: 'Radar de Risco',    icon: AlertTriangle },
@@ -66,10 +67,37 @@ export const NAV_SECTIONS = [
     items: [
       { to: '/metricas/visao-geral', label: 'Visão Geral',       icon: CalendarDays },
       { to: '/metricas/pessoal',     label: 'Dashboard Pessoal', icon: TrendingUp },
+      { to: '/metricas/forecast',    label: 'Meu Forecast',      icon: Target },
       { to: '/metricas/is/equipe',   label: 'Dashboard Equipe',  icon: Users },
       { to: '/clientes',             label: 'Meus Clientes',     icon: Building2 },
       { to: '/carteira/risco',      label: 'Radar de Risco',    icon: AlertTriangle },
       { to: '/carteira/cross-sell', label: 'Cross-sell',        icon: Sparkles },
+    ],
+  },
+  {
+    label: 'Ger. Inside Sales & CX',
+    // O Gerente Comercial gerencia os dois times, então enxerga esta seção como
+    // "Equipe - Inside Sales" (o rótulo padrão fica para o Gerente de IS).
+    labelPorRole: { GERENTE_COMERCIAL: 'Equipe - Inside Sales' },
+    roles: ['GERENTE_INSIDE_CX', 'GERENTE_COMERCIAL', 'DESENVOLVEDOR'],
+    items: [
+      { to: '/gerente/is/receitas',       label: 'Visão Geral IS', icon: CalendarDays },
+      { to: '/gerente/is/visao-geral',    label: 'Insights IS',    icon: Target },
+      { to: '/gerente/is/equipe-pessoal', label: 'Métricas IS',    icon: UserRound },
+      { to: '/gerente/is/forecast',       label: 'Forecast IS',    icon: TrendingUp },
+      { to: '/gerente/is/clientes',       label: 'Clientes do IS', icon: Building2 },
+    ],
+  },
+  {
+    label: 'Ger. Comercial — KAM',
+    labelPorRole: { GERENTE_COMERCIAL: 'Equipe - KAM' },
+    roles: ['GERENTE_COMERCIAL', 'DESENVOLVEDOR'],
+    items: [
+      { to: '/gerente/kam/receitas',       label: 'Visão Geral KAM', icon: CalendarDays },
+      { to: '/gerente/kam/visao-geral',    label: 'Insights KAM',    icon: Target },
+      { to: '/gerente/kam/equipe-pessoal', label: 'Métricas KAM',    icon: UserRound },
+      { to: '/gerente/kam/forecast',       label: 'Forecast KAM',    icon: TrendingUp },
+      { to: '/gerente/kam/clientes',       label: 'Clientes do KAM', icon: Building2 },
     ],
   },
   {
@@ -90,7 +118,16 @@ export const NAV_SECTIONS = [
   },
 ]
 
-/** Filtra as seções visíveis para o cargo informado (RBAC). */
+/**
+ * Filtra as seções visíveis para o cargo informado (RBAC) e resolve o rótulo
+ * da seção. Se a seção tiver `labelPorRole[role]`, esse rótulo substitui o
+ * `label` padrão só para aquele cargo (ex.: o Gerente Comercial vê as seções
+ * de gerência como "Equipe - Inside Sales" / "Equipe KAM").
+ */
 export function secoesVisiveis(role) {
-  return NAV_SECTIONS.filter((secao) => !secao.roles || secao.roles.includes(role))
+  return NAV_SECTIONS
+    .filter((secao) => !secao.roles || secao.roles.includes(role))
+    .map((secao) =>
+      secao.labelPorRole?.[role] ? { ...secao, label: secao.labelPorRole[role] } : secao,
+    )
 }
