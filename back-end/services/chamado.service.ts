@@ -115,10 +115,14 @@ interface FiltrosChamado {
   busca?: string | undefined;
 }
 
-/** Lista TODOS os chamados (exclusivo T.I.), com filtros opcionais. */
+/**
+ * Lista TODOS os chamados da fila da T.I. (exclusivo T.I.), com filtros
+ * opcionais. Exclui os chamados abertos por usuários CX — esses pertencem à
+ * fila de Produtos (fluxo "CX → Produtos", ver `listarChamadosProdutos`).
+ */
 export async function listarTodos(filtros: FiltrosChamado = {}): Promise<ChamadoLista[]> {
-  const condicoes: string[] = [];
-  const params: unknown[] = [];
+  const params: unknown[] = [Role.CX];
+  const condicoes: string[] = [`u.role <> $${params.length}`];
 
   if (filtros.status && STATUS_VALIDOS.has(filtros.status)) {
     params.push(filtros.status);
@@ -137,7 +141,7 @@ export async function listarTodos(filtros: FiltrosChamado = {}): Promise<Chamado
     condicoes.push(`(LOWER(c.titulo) LIKE $${params.length} OR LOWER(u.nome) LIKE $${params.length})`);
   }
 
-  const where = condicoes.length ? `WHERE ${condicoes.join(' AND ')}` : '';
+  const where = `WHERE ${condicoes.join(' AND ')}`;
 
   const { rows } = await pool.query<ChamadoLista>(
     `SELECT c.id, c.titulo, c.categoria, c.criticidade, c.status,
@@ -373,15 +377,35 @@ export async function adicionarComentario(
 }
 
 /** Resumo leve para o polling de notificações (dono → próprios; T.I. → todos). */
+/**
+ * Resumo leve p/ notificações (badge da sidebar). Para a equipe de T.I., só
+ * conta chamados ainda ativos (ABERTO/EM_ANDAMENTO) — chamados finalizados não
+ * precisam de mais atenção e não devem inflar a contagem de "não vistos" — e
+ * exclui os chamados abertos por usuários CX, que pertencem à fila de Produtos
+ * (ver `listarChamadosProdutos`), não à da T.I.
+ * Para o autor comum, mantém todos os próprios chamados (ele deve ser avisado
+ * mesmo quando o chamado dele é fechado pela T.I.).
+ */
 export async function resumoChamados(usuario: AuthPayload): Promise<ChamadoResumo[]> {
-  const where = ehEquipeTI(usuario.role) ? '' : 'WHERE c.usuario_id = $1';
-  const params = ehEquipeTI(usuario.role) ? [] : [usuario.id];
+  const condicoes: string[] = [];
+  const params: unknown[] = [];
+
+  if (ehEquipeTI(usuario.role)) {
+    condicoes.push(`c.status <> '${StatusChamado.FECHADO}'`);
+    params.push(Role.CX);
+    condicoes.push(`u.role <> $${params.length}`);
+  } else {
+    params.push(usuario.id);
+    condicoes.push(`c.usuario_id = $${params.length}`);
+  }
+  const where = `WHERE ${condicoes.join(' AND ')}`;
 
   const { rows } = await pool.query<ChamadoResumo>(
     `SELECT c.id, c.titulo, c.status, c.usuario_id AS autor_id, c.atualizado_em,
             lc.criado_em AS ultimo_comentario_em,
             lc.usuario_id AS ultimo_comentario_autor_id
        FROM chamados c
+       JOIN usuarios u ON u.id = c.usuario_id
        LEFT JOIN LATERAL (
          SELECT criado_em, usuario_id
            FROM chamado_comentarios
@@ -396,7 +420,11 @@ export async function resumoChamados(usuario: AuthPayload): Promise<ChamadoResum
   return rows;
 }
 
-/** Métricas globais para o painel da T.I. (agregações em todo o banco). */
+/**
+ * Métricas globais para o painel da T.I. (agregações em todo o banco).
+ * Exclui os chamados abertos por usuários CX — esses pertencem à fila de
+ * Produtos (fluxo "CX → Produtos", ver `listarChamadosProdutos`), não à da T.I.
+ */
 export async function dashboardTI(): Promise<DashboardTI> {
   const kpisRes = await pool.query<{
     ativos: number;
@@ -405,18 +433,25 @@ export async function dashboardTI(): Promise<DashboardTI> {
     total_mes: number;
   }>(
     `SELECT
-       COUNT(*) FILTER (WHERE status IN ('ABERTO','EM_ANDAMENTO'))::int AS ativos,
-       COUNT(*) FILTER (WHERE criticidade IN ('ALTO','CRITICO') AND status <> 'FECHADO')::int AS criticos,
-       AVG(EXTRACT(EPOCH FROM (fechado_em - criado_em)))
-         FILTER (WHERE status = 'FECHADO' AND fechado_em IS NOT NULL) / 3600 AS tempo_medio_horas,
-       COUNT(*) FILTER (WHERE criado_em >= date_trunc('month', now()))::int AS total_mes
-     FROM chamados`,
+       COUNT(*) FILTER (WHERE c.status IN ('ABERTO','EM_ANDAMENTO'))::int AS ativos,
+       COUNT(*) FILTER (WHERE c.criticidade IN ('ALTO','CRITICO') AND c.status <> 'FECHADO')::int AS criticos,
+       AVG(EXTRACT(EPOCH FROM (c.fechado_em - c.criado_em)))
+         FILTER (WHERE c.status = 'FECHADO' AND c.fechado_em IS NOT NULL) / 3600 AS tempo_medio_horas,
+       COUNT(*) FILTER (WHERE c.criado_em >= date_trunc('month', now()))::int AS total_mes
+     FROM chamados c
+     JOIN usuarios u ON u.id = c.usuario_id
+    WHERE u.role <> $1`,
+    [Role.CX],
   );
   const k = kpisRes.rows[0];
 
   const porStatus = (
     await pool.query<ContagemRotulo>(
-      `SELECT status AS rotulo, COUNT(*)::int AS total FROM chamados GROUP BY status`,
+      `SELECT c.status AS rotulo, COUNT(*)::int AS total
+         FROM chamados c JOIN usuarios u ON u.id = c.usuario_id
+        WHERE u.role <> $1
+        GROUP BY c.status`,
+      [Role.CX],
     )
   ).rows;
 
@@ -424,14 +459,19 @@ export async function dashboardTI(): Promise<DashboardTI> {
     await pool.query<ContagemRotulo>(
       `SELECT u.role AS rotulo, COUNT(*)::int AS total
          FROM chamados c JOIN usuarios u ON u.id = c.usuario_id
+        WHERE u.role <> $1
         GROUP BY u.role ORDER BY total DESC`,
+      [Role.CX],
     )
   ).rows;
 
   const porCategoria = (
     await pool.query<ContagemRotulo>(
-      `SELECT categoria AS rotulo, COUNT(*)::int AS total
-         FROM chamados GROUP BY categoria ORDER BY total DESC`,
+      `SELECT c.categoria AS rotulo, COUNT(*)::int AS total
+         FROM chamados c JOIN usuarios u ON u.id = c.usuario_id
+        WHERE u.role <> $1
+        GROUP BY c.categoria ORDER BY total DESC`,
+      [Role.CX],
     )
   ).rows;
 
@@ -445,12 +485,13 @@ export async function dashboardTI(): Promise<DashboardTI> {
          )::date AS dia
        )
        SELECT to_char(d.dia, 'YYYY-MM-DD') AS dia,
-              (SELECT COUNT(*)::int FROM chamados
-                WHERE date_trunc('day', criado_em)::date = d.dia) AS abertos,
-              (SELECT COUNT(*)::int FROM chamados
-                WHERE fechado_em IS NOT NULL AND date_trunc('day', fechado_em)::date = d.dia) AS finalizados
+              (SELECT COUNT(*)::int FROM chamados c JOIN usuarios u ON u.id = c.usuario_id
+                WHERE u.role <> $1 AND date_trunc('day', c.criado_em)::date = d.dia) AS abertos,
+              (SELECT COUNT(*)::int FROM chamados c JOIN usuarios u ON u.id = c.usuario_id
+                WHERE u.role <> $1 AND c.fechado_em IS NOT NULL AND date_trunc('day', c.fechado_em)::date = d.dia) AS finalizados
          FROM dias d
         ORDER BY d.dia`,
+      [Role.CX],
     )
   ).rows;
 

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import ThemeToggle from '@/components/ThemeToggle'
 import { NotificacoesBlogProvider } from '@/notificacoes/NotificacoesBlogProvider'
 import { NotificacoesChamadosProvider } from '@/notificacoes/NotificacoesChamadosProvider'
+import AtualizacoesModal from '@/notificacoes/AtualizacoesModal'
 import ChatProvider from '@/chat/ChatProvider'
 import Sidebar from './Sidebar'
 
@@ -58,6 +59,9 @@ export default function AppLayout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Card modal de avisos de atualização (publicados pelo T.I.) */}
+      <AtualizacoesModal />
     </div>
     </ChatProvider>
     </NotificacoesChamadosProvider>
