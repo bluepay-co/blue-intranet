@@ -12,6 +12,7 @@ import Chamados from '@/pages/Chamados'
 import ChamadoDetalhe from '@/pages/ChamadoDetalhe'
 import ChamadosTI from '@/pages/ti/ChamadosTI'
 import DashboardTI from '@/pages/ti/DashboardTI'
+import Atualizacoes from '@/pages/ti/Atualizacoes'
 import ChamadosProdutos from '@/pages/produtos/ChamadosProdutos'
 import DashboardPessoal from '@/pages/metricas/DashboardPessoal'
 import ForecastPessoal from '@/pages/metricas/ForecastPessoal'
@@ -72,6 +73,14 @@ function App() {
           element={
             <ProtectedRoute roles={['TI', 'DESENVOLVEDOR']}>
               <ChamadosTI />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="ti/atualizacoes"
+          element={
+            <ProtectedRoute roles={['TI', 'DESENVOLVEDOR']}>
+              <Atualizacoes />
             </ProtectedRoute>
           }
         />

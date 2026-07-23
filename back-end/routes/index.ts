@@ -12,6 +12,7 @@ import { carteiraRouter } from './carteira.routes';
 import { backofficeRouter } from './backoffice.routes';
 import { chatRouter } from './chat.routes';
 import { gerenteRouter } from './gerente.routes';
+import { atualizacaoRouter } from './atualizacao.routes';
 
 const router = Router();
 
@@ -54,5 +55,8 @@ router.use('/api/chat', chatRouter);
 
 // Domínio: Gerência (visão de equipe para os cargos GERENTE_*, escopo por role)
 router.use('/api/gerente', gerenteRouter);
+
+// Domínio: Atualizações da intranet (avisos criados pelo T.I. — card modal para todos)
+router.use('/api/atualizacoes', atualizacaoRouter);
 
 export { router };
