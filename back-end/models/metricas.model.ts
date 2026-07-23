@@ -220,6 +220,33 @@ export interface NovosClientesMes {
   quantidade: number;
 }
 
+/** Consolidado anual da visão Geral (empresa toda, meta = IS + KAM) — alimenta a aba Anual. */
+export interface MetricasGeraisAnual {
+  meta: number;
+  realizado: number;
+  pct_meta: number;
+  em_aberto: number;
+  tpv: number;
+  qtdTickets: number;
+  clientesAtivos: number;
+  ticketMedio: number;
+  taxaMedia: number;
+  anterior: {
+    receita: number;
+    tpv: number;
+    qtdTickets: number;
+    clientesAtivos: number;
+    ateMes: number;
+  };
+  /** Ranking anual combinado de Inside Sales + KAM (mesmo formato do ranking mensal). */
+  membros: MetricasEquipeMembro[];
+  yoy: {
+    anoAtual: number;
+    anoAnterior: number;
+    meses: { mes: number; atual: number; anterior: number }[];
+  };
+}
+
 export interface MetricasGerais {
   resumo: ResumoGeral;
   hoje: MetricasHojeGeral;
@@ -233,6 +260,8 @@ export interface MetricasGerais {
   receitaMensalAno: number[];
   /** Ranking combinado de vendedores de Inside Sales + KAM, ordenado por receita. */
   rankingComercial: MetricasEquipeMembro[];
+  /** Consolidado anual da empresa (aba Anual). */
+  anual: MetricasGeraisAnual;
 }
 
 // ── Visão Geral (Inside Sales / KAM) ────────────────────────────────────

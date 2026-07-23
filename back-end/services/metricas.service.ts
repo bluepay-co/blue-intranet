@@ -7,7 +7,7 @@ import type {
   MetricasEquipe, MetricasEquipeMembro, MetricasEquipeHoje,
   ResumoGeral, MetricasHojeGeral, RetencaoClientes, MixProduto,
   CrescimentoMoM, TopClienteGeral, ComparativoYTD,
-  NovosClientesMes, MetricasGerais,
+  NovosClientesMes, MetricasGerais, MetricasGeraisAnual,
   VisaoGeral, VisaoGeralDia, VisaoGeralSemana, VisaoGeralResumoMes, VisaoGeralCliente,
   VisaoGeralDiaCliente,
 } from '../models/metricas.model';
@@ -1317,6 +1317,37 @@ async function buscarResumoGeral(mes: number, ano: number): Promise<ResumoGeral>
   };
 }
 
+/**
+ * Agregados anuais da empresa toda (mesmo escopo de `buscarResumoGeral`, mas do
+ * ano inteiro). `ateMes` limita ao mesmo recorte do ano corrente para um YoY justo.
+ */
+async function buscarResumoAnualGeral(ano: number, ateMes?: number) {
+  const filtroMes = ateMes != null ? 'AND EXTRACT(MONTH FROM t.invoice_payment_date) <= $2' : '';
+  const params = ateMes != null ? [ano, ateMes] : [ano];
+  const { rows } = await consultaPool.query(`
+    SELECT
+      COUNT(*)::int                              AS "qtdTickets",
+      COUNT(DISTINCT t.client_id)::int           AS "clientesAtivos",
+      COALESCE(SUM(t.excel_total_bonus), 0)::float   AS tpv,
+      COALESCE(SUM(t.excel_total_rate), 0)::float    AS receita,
+      COALESCE(AVG(t.excel_rate) * 100, 0)::float    AS "taxaMedia",
+      CASE WHEN COUNT(*) = 0 THEN 0
+           ELSE (COALESCE(SUM(t.excel_total_rate), 0) / COUNT(*))::float
+      END AS "ticketMedio"
+    FROM tickets t
+    LEFT JOIN clients c ON c.id = t.client_id
+    WHERE ${FILTROS_BASE}
+      AND EXTRACT(YEAR FROM t.invoice_payment_date) = $1
+      ${filtroMes}
+  `, params);
+
+  const r = rows[0];
+  return {
+    receita: r?.receita ?? 0, tpv: r?.tpv ?? 0, qtdTickets: r?.qtdTickets ?? 0,
+    clientesAtivos: r?.clientesAtivos ?? 0, ticketMedio: r?.ticketMedio ?? 0, taxaMedia: r?.taxaMedia ?? 0,
+  };
+}
+
 async function buscarHojeGeral(mes: number, ano: number): Promise<MetricasHojeGeral> {
   const { rows } = await consultaPool.query(`
     SELECT
@@ -1583,5 +1614,56 @@ export async function buscarMetricasGerais(
     buscarRankingMembros(['INSIGHT_SALES', 'KAM'], mesRef, anoRef),
   ]);
 
-  return { resumo, hoje, retencao, mixProduto, evolucaoMensal, topClientes, ytd, novosClientesMes, receitaMensalAno, rankingComercial };
+  // ── Consolidado anual da empresa (aba Anual) ────────────────────────────────
+  const hojeRef = new Date();
+  const ateMesAnual = anoRef > hojeRef.getFullYear() ? 0
+    : anoRef === hojeRef.getFullYear() ? hojeRef.getMonth() + 1
+    : 12;
+
+  const equipeComercial = await resolverManagerIdsDaEquipe(['INSIGHT_SALES', 'KAM']);
+  const managerIdsComercial = equipeComercial?.managerIds ?? [];
+  const nomeMapComercial = equipeComercial?.nomeMap ?? new Map<number, string>();
+
+  const [resumoAnual, resumoAnualAnterior, receitaMensalAnoAnterior, membrosAnual] = await Promise.all([
+    buscarResumoAnualGeral(anoRef),
+    buscarResumoAnualGeral(anoRef - 1, ateMesAnual),
+    buscarReceitaMensalAnoGeral(anoRef - 1),
+    managerIdsComercial.length
+      ? buscarMembrosAnualEquipe(managerIdsComercial, anoRef, nomeMapComercial)
+      : Promise.resolve([]),
+  ]);
+
+  let metaAnual = 0;
+  for (let m = 1; m <= 12; m++) metaAnual += getMetaEquipe('GERAL', m, anoRef);
+
+  const anual: MetricasGeraisAnual = {
+    meta:           metaAnual,
+    realizado:      resumoAnual.receita,
+    pct_meta:       metaAnual > 0 ? Math.round((resumoAnual.receita / metaAnual) * 1000) / 10 : 0,
+    em_aberto:      Math.max(0, metaAnual - resumoAnual.receita),
+    tpv:            resumoAnual.tpv,
+    qtdTickets:     resumoAnual.qtdTickets,
+    clientesAtivos: resumoAnual.clientesAtivos,
+    ticketMedio:    resumoAnual.ticketMedio,
+    taxaMedia:      resumoAnual.taxaMedia,
+    anterior: {
+      receita:        resumoAnualAnterior.receita,
+      tpv:            resumoAnualAnterior.tpv,
+      qtdTickets:     resumoAnualAnterior.qtdTickets,
+      clientesAtivos: resumoAnualAnterior.clientesAtivos,
+      ateMes:         ateMesAnual,
+    },
+    membros: membrosAnual,
+    yoy: {
+      anoAtual:    anoRef,
+      anoAnterior: anoRef - 1,
+      meses: Array.from({ length: 12 }, (_, i) => ({
+        mes:      i + 1,
+        atual:    receitaMensalAno[i] ?? 0,
+        anterior: receitaMensalAnoAnterior[i] ?? 0,
+      })),
+    },
+  };
+
+  return { resumo, hoje, retencao, mixProduto, evolucaoMensal, topClientes, ytd, novosClientesMes, receitaMensalAno, rankingComercial, anual };
 }

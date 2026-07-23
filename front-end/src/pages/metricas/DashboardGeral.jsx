@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { cn } from '@/lib/utils'
 import { getMetricasGerais } from '@/api/modules/metricas'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -17,6 +18,11 @@ import {
 } from 'lucide-react'
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+
+const ABAS = [
+  { id: 'mes',   label: 'Mês' },
+  { id: 'anual', label: 'Anual' },
+]
 
 const LABEL_PRODUTO = {
   bank_deposit:    'Depósito Bancário',
@@ -186,6 +192,7 @@ export default function DashboardGeral() {
   const agora = new Date()
   const [mes, setMes] = useState(agora.getMonth() + 1)
   const [ano, setAno] = useState(agora.getFullYear())
+  const [aba, setAba] = useState('mes')
   const [dados, setDados] = useState(null)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
@@ -211,6 +218,10 @@ export default function DashboardGeral() {
     setMes(m); setAno(a)
   }
 
+  function mudarAno(delta) {
+    setAno((a) => a + delta)
+  }
+
   if (carregando && !dados) {
     return (
       <div className="grid place-items-center py-24">
@@ -230,13 +241,13 @@ export default function DashboardGeral() {
             <RefreshCw className={`size-4 ${carregando ? 'animate-spin' : ''}`} />
           </Button>
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => mudarMes(-1)} disabled={carregando}>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => (aba === 'anual' ? mudarAno(-1) : mudarMes(-1))} disabled={carregando} title={aba === 'anual' ? 'Ano anterior' : 'Mês anterior'}>
               <ChevronLeft className="size-4" />
             </Button>
             <span className="min-w-[100px] text-center text-sm font-medium">
-              {MESES[mes - 1]} / {ano}
+              {aba === 'anual' ? ano : `${MESES[mes - 1]} / ${ano}`}
             </span>
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => mudarMes(1)} disabled={carregando}>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => (aba === 'anual' ? mudarAno(1) : mudarMes(1))} disabled={carregando} title={aba === 'anual' ? 'Próximo ano' : 'Próximo mês'}>
               <ChevronRight className="size-4" />
             </Button>
           </div>
@@ -251,7 +262,7 @@ export default function DashboardGeral() {
       )}
 
       {dados && (() => {
-        const { resumo, hoje, retencao, mixProduto, evolucaoMensal, ytd, novosClientesMes, receitaMensalAno, rankingComercial } = dados
+        const { resumo, hoje, retencao, mixProduto, evolucaoMensal, ytd, novosClientesMes, receitaMensalAno, rankingComercial, anual } = dados
         const ytdAtual    = ytd.find(y => y.ano === ano)
         const ytdAnterior = ytd.find(y => y.ano === ano - 1)
         const agora_ref   = new Date()
@@ -285,8 +296,37 @@ export default function DashboardGeral() {
           }
         })
 
+        // Comparativo Ano × Ano da aba Anual — usa os dois anos reais do backend (anual.yoy),
+        // reaproveitando as chaves r2026/r2025 do tooltip/legenda já existentes.
+        const dadosYoYAnual = (anual?.yoy?.meses ?? [])
+          .map(m => ({
+            mes:   m.mes,
+            r2026: m.atual > 0 ? m.atual : null,
+            r2025: m.anterior > 0 ? m.anterior : null,
+          }))
+          .filter(d => d.r2026 !== null || d.r2025 !== null)
+
         return (
           <>
+            {/* Abas Mês / Anual */}
+            <div className="flex gap-1 border-b border-border">
+              {ABAS.map(({ id, label }) => (
+                <button
+                  key={id}
+                  onClick={() => setAba(id)}
+                  className={cn(
+                    'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
+                    aba === id ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* ===================== ABA MÊS ===================== */}
+            {aba === 'mes' && (
+            <div className="space-y-6">
             {/* Cards de Meta — topo do dashboard */}
             {resumo.meta_total > 0 && (() => {
               const falta = Math.max(0, resumo.meta_total - resumo.receita)
@@ -613,6 +653,133 @@ export default function DashboardGeral() {
                   </ChartContainer>
                 </CardContent>
               </Card>
+            )}
+            </div>
+            )}
+
+            {/* ===================== ABA ANUAL ===================== */}
+            {aba === 'anual' && anual && (
+            <div className="space-y-6">
+              {/* Cards de Meta Anual */}
+              {anual.meta > 0 ? (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <KpiCard icon={Target} cor="bg-indigo-500/10 text-indigo-600"  valor={moeda(anual.meta)}      rotulo="Meta total da equipe comercial no ano" />
+                  <KpiCard icon={Wallet} cor="bg-emerald-500/10 text-emerald-600" valor={moeda(anual.realizado)} rotulo="Receita total do ano" />
+                  <Card>
+                    <CardContent className="flex items-center gap-3 py-4">
+                      <div className={`grid size-10 shrink-0 place-items-center rounded-lg ${anual.pct_meta >= 100 ? 'bg-emerald-500/10 text-emerald-600' : anual.pct_meta >= 70 ? 'bg-amber-500/10 text-amber-600' : 'bg-red-500/10 text-red-500'}`}>
+                        <Target className="size-5" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-2xl font-semibold leading-tight">{(anual.pct_meta ?? 0).toFixed(1)}%</p>
+                        <p className="text-xs text-muted-foreground">% da meta anual atingida</p>
+                        <div className="mt-1.5 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                          <div className={`h-full rounded-full transition-all ${anual.pct_meta >= 100 ? 'bg-emerald-500' : anual.pct_meta >= 70 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${Math.min(anual.pct_meta ?? 0, 100)}%` }} />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="flex items-center gap-3 py-4">
+                      <div className={`grid size-10 place-items-center rounded-lg ${anual.em_aberto === 0 ? 'bg-emerald-500/10 text-emerald-600' : 'bg-rose-500/10 text-rose-600'}`}>
+                        <Target className="size-5" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-semibold leading-tight">{anual.em_aberto === 0 ? 'Meta batida!' : moeda(anual.em_aberto)}</p>
+                        <p className="text-xs text-muted-foreground">Meta anual em aberto</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              ) : (
+                <KpiCard icon={Wallet} cor="bg-emerald-500/10 text-emerald-600" valor={moeda(anual.realizado)} rotulo="Receita total do ano" />
+              )}
+
+              {/* KPIs anuais */}
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <KpiCard icon={TrendingUp} cor="bg-sky-500/10 text-sky-600"       valor={moeda(anual.tpv)}                        rotulo="TPV no ano" />
+                <KpiCard icon={BarChart3}  cor="bg-amber-500/10 text-amber-600"   valor={numero(anual.qtdTickets)}                rotulo="Transações no ano" />
+                <KpiCard icon={Users}      cor="bg-violet-500/10 text-violet-600" valor={numero(anual.clientesAtivos)}            rotulo="Clientes ativos no ano" />
+                <KpiCard icon={Wallet}     cor="bg-pink-500/10 text-pink-600"     valor={moeda(anual.ticketMedio)}                rotulo="Ticket médio no ano" />
+              </div>
+
+              {/* Comparativo YoY (mesmo período) + gráfico Ano × Ano */}
+              <div className="grid gap-4 lg:grid-cols-3">
+                <Card className="lg:col-span-2">
+                  <CardHeader>
+                    <CardTitle>YoY — Comparativo Ano × Ano — Receita Total</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {dadosYoYAnual.length > 0 ? (
+                      <ChartContainer className="h-72">
+                        <LineChart data={dadosYoYAnual} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="currentColor" className="stroke-border/30" />
+                          <XAxis dataKey="mes" tickFormatter={m => MESES[m - 1]} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                          <YAxis tickFormatter={v => moeda(v)} tick={{ fontSize: 11 }} width={110} tickLine={false} axisLine={false} />
+                          <Tooltip content={<TooltipYoY />} />
+                          <Legend formatter={v => v === 'r2026' ? `${anual.yoy.anoAtual} (atual)` : `${anual.yoy.anoAnterior} (realizado)`} wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+                          <Line type="monotone" dataKey="r2025" stroke={`${CORES_GRAFICO[0]}88`} strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls />
+                          <Line type="monotone" dataKey="r2026" stroke={CORES_GRAFICO[0]} strokeWidth={2.5} dot={{ r: 3.5, fill: CORES_GRAFICO[0], strokeWidth: 0 }} activeDot={{ r: 5 }} connectNulls />
+                        </LineChart>
+                      </ChartContainer>
+                    ) : (
+                      <p className="py-8 text-center text-sm text-muted-foreground">Sem dados para o comparativo anual.</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>vs Ano Anterior</CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      {(anual.anterior?.ateMes ?? 12) >= 12 ? 'ano completo' : `mesmo período · Jan–${MESES[(anual.anterior?.ateMes ?? 1) - 1]}`}
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-4 pt-2">
+                    {[
+                      { label: 'Receita',        curr: anual.realizado,      prev: anual.anterior?.receita,        f: moeda },
+                      { label: 'TPV',            curr: anual.tpv,            prev: anual.anterior?.tpv,            f: moeda },
+                      { label: 'Transações',      curr: anual.qtdTickets,     prev: anual.anterior?.qtdTickets,     f: numero },
+                      { label: 'Clientes Ativos', curr: anual.clientesAtivos, prev: anual.anterior?.clientesAtivos, f: numero },
+                    ].map(({ label, curr, prev, f }) => {
+                      const delta = prev && curr ? Math.round(((curr - prev) / prev) * 1000) / 10 : null
+                      return (
+                        <div key={label} className="flex items-center justify-between text-sm border-b pb-3 last:border-0 last:pb-0">
+                          <span className="text-muted-foreground">{label}</span>
+                          <div className="text-right">
+                            <p className="font-semibold">{curr != null ? f(curr) : '—'}</p>
+                            <DeltaTag value={delta} />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Ranking Anual — Inside Sales + KAM */}
+              <RankingGeralTabela titulo={`Ranking Geral — Inside Sales + KAM — ${ano}`} membros={anual.membros} />
+
+              {/* Novos Clientes no Ano */}
+              {novosClientesMes.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Novos Clientes por Mês — {ano}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ChartContainer className="h-48">
+                      <BarChart data={novosClientesMes} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="currentColor" className="stroke-border/30" />
+                        <XAxis dataKey="mes" tickFormatter={m => MESES[m - 1]} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                        <YAxis allowDecimals={false} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                        <Tooltip content={<TooltipNovosClientes />} cursor={{ fill: 'currentColor', className: 'fill-muted/40' }} />
+                        <Bar dataKey="quantidade" fill={CORES_GRAFICO[3]} radius={[5, 5, 0, 0]} />
+                      </BarChart>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
             )}
           </>
         )
