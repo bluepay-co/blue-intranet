@@ -373,8 +373,17 @@ export async function adicionarComentario(
 }
 
 /** Resumo leve para o polling de notificações (dono → próprios; T.I. → todos). */
+/**
+ * Resumo leve p/ notificações (badge da sidebar). Para a equipe de T.I., só
+ * conta chamados ainda ativos (ABERTO/EM_ANDAMENTO) — chamados finalizados não
+ * precisam de mais atenção e não devem inflar a contagem de "não vistos".
+ * Para o autor comum, mantém todos os próprios chamados (ele deve ser avisado
+ * mesmo quando o chamado dele é fechado pela T.I.).
+ */
 export async function resumoChamados(usuario: AuthPayload): Promise<ChamadoResumo[]> {
-  const where = ehEquipeTI(usuario.role) ? '' : 'WHERE c.usuario_id = $1';
+  const where = ehEquipeTI(usuario.role)
+    ? `WHERE c.status <> '${StatusChamado.FECHADO}'`
+    : 'WHERE c.usuario_id = $1';
   const params = ehEquipeTI(usuario.role) ? [] : [usuario.id];
 
   const { rows } = await pool.query<ChamadoResumo>(
