@@ -224,7 +224,7 @@ function App() {
         <Route
           path="gerente/is/visao-geral"
           element={
-            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'DESENVOLVEDOR']}>
+            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
               <DashboardEquipe equipeFixa="IS" titulo="Insight Sales" mostrarSigilosas />
             </ProtectedRoute>
           }
@@ -232,7 +232,7 @@ function App() {
         <Route
           path="gerente/is/clientes"
           element={
-            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'DESENVOLVEDOR']}>
+            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
               <ClientesDaEquipe />
             </ProtectedRoute>
           }
@@ -240,7 +240,7 @@ function App() {
         <Route
           path="gerente/is/clientes/:id"
           element={
-            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'DESENVOLVEDOR']}>
+            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
               <ClienteEquipeDetalhe />
             </ProtectedRoute>
           }
@@ -248,7 +248,7 @@ function App() {
         <Route
           path="gerente/is/receitas"
           element={
-            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'DESENVOLVEDOR']}>
+            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
               <ReceitasEquipe />
             </ProtectedRoute>
           }
@@ -256,7 +256,7 @@ function App() {
         <Route
           path="gerente/is/equipe-pessoal"
           element={
-            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'DESENVOLVEDOR']}>
+            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
               <VisaoEquipePessoal />
             </ProtectedRoute>
           }
@@ -264,8 +264,58 @@ function App() {
         <Route
           path="gerente/is/forecast"
           element={
-            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'DESENVOLVEDOR']}>
+            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
               <ForecastIS />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Gerência — Comercial (KAM): mesmas telas do IS, escopadas ao time KAM */}
+        <Route
+          path="gerente/kam/visao-geral"
+          element={
+            <ProtectedRoute roles={['GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
+              <DashboardEquipe equipeFixa="KAM" titulo="KAM" mostrarSigilosas />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="gerente/kam/clientes"
+          element={
+            <ProtectedRoute roles={['GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
+              <ClientesDaEquipe equipe="KAM" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="gerente/kam/clientes/:id"
+          element={
+            <ProtectedRoute roles={['GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
+              <ClienteEquipeDetalhe equipe="KAM" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="gerente/kam/receitas"
+          element={
+            <ProtectedRoute roles={['GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
+              <ReceitasEquipe equipe="KAM" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="gerente/kam/equipe-pessoal"
+          element={
+            <ProtectedRoute roles={['GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
+              <VisaoEquipePessoal equipe="KAM" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="gerente/kam/forecast"
+          element={
+            <ProtectedRoute roles={['GERENTE_COMERCIAL', 'DESENVOLVEDOR']}>
+              <ForecastIS equipe="KAM" />
             </ProtectedRoute>
           }
         />

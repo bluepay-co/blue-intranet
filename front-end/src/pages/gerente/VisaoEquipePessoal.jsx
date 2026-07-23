@@ -201,7 +201,7 @@ function EvolucaoReceita({ historico, mes, ano, className }) {
  * componente com a página do funcionário, para futuras mudanças de layout aqui
  * não afetarem o Dashboard Pessoal real.
  */
-function DashboardPessoalFuncionario({ vendedorId, nome }) {
+function DashboardPessoalFuncionario({ vendedorId, nome, equipe = 'IS' }) {
   const agora = new Date()
   const [mes, setMes] = useState(agora.getMonth() + 1)
   const [ano, setAno] = useState(agora.getFullYear())
@@ -215,7 +215,7 @@ function DashboardPessoalFuncionario({ vendedorId, nome }) {
     setErro('')
     setCarregando(true)
     try {
-      const { resumo, topClientesMes } = await getPessoalEquipeGerente(vendedorId, mes, ano)
+      const { resumo, topClientesMes } = await getPessoalEquipeGerente(vendedorId, mes, ano, equipe)
       setDados(resumo)
       setClientes(topClientesMes)
     } catch (e) {
@@ -228,7 +228,7 @@ function DashboardPessoalFuncionario({ vendedorId, nome }) {
     } finally {
       setCarregando(false)
     }
-  }, [vendedorId, mes, ano])
+  }, [vendedorId, mes, ano, equipe])
 
   useEffect(() => { carregar() }, [carregar])
 
@@ -624,17 +624,19 @@ function DashboardPessoalFuncionario({ vendedorId, nome }) {
 }
 
 /** Visão da Equipe — lista os funcionários como subcategorias; clicar mostra o dashboard pessoal dele. */
-export default function VisaoEquipePessoal() {
+export default function VisaoEquipePessoal({ equipe = 'IS' }) {
   const [membros, setMembros] = useState([])
   const [carregandoMembros, setCarregandoMembros] = useState(true)
   const [vendedorSelecionado, setVendedorSelecionado] = useState(null)
 
   useEffect(() => {
-    getMembrosEquipeGerente()
+    setCarregandoMembros(true)
+    setVendedorSelecionado(null)
+    getMembrosEquipeGerente(equipe)
       .then(setMembros)
       .catch(() => {})
       .finally(() => setCarregandoMembros(false))
-  }, [])
+  }, [equipe])
 
   return (
     <div className="space-y-6">
@@ -673,6 +675,7 @@ export default function VisaoEquipePessoal() {
           key={vendedorSelecionado.id}
           vendedorId={vendedorSelecionado.id}
           nome={vendedorSelecionado.nome}
+          equipe={equipe}
         />
       ) : (
         !carregandoMembros && (

@@ -76,13 +76,24 @@ export const NAV_SECTIONS = [
   },
   {
     label: 'Ger. Inside Sales & CX',
-    roles: ['GERENTE_INSIDE_CX', 'DESENVOLVEDOR'],
+    roles: ['GERENTE_INSIDE_CX', 'GERENTE_COMERCIAL', 'DESENVOLVEDOR'],
     items: [
       { to: '/gerente/is/receitas',       label: 'Visão Geral IS', icon: CalendarDays },
       { to: '/gerente/is/visao-geral',    label: 'Insights IS',    icon: Target },
       { to: '/gerente/is/equipe-pessoal', label: 'Métricas IS',    icon: UserRound },
       { to: '/gerente/is/forecast',       label: 'Forecast IS',    icon: TrendingUp },
       { to: '/gerente/is/clientes',       label: 'Clientes do IS', icon: Building2 },
+    ],
+  },
+  {
+    label: 'Ger. Comercial — KAM',
+    roles: ['GERENTE_COMERCIAL', 'DESENVOLVEDOR'],
+    items: [
+      { to: '/gerente/kam/receitas',       label: 'Visão Geral KAM', icon: CalendarDays },
+      { to: '/gerente/kam/visao-geral',    label: 'Insights KAM',    icon: Target },
+      { to: '/gerente/kam/equipe-pessoal', label: 'Métricas KAM',    icon: UserRound },
+      { to: '/gerente/kam/forecast',       label: 'Forecast KAM',    icon: TrendingUp },
+      { to: '/gerente/kam/clientes',       label: 'Clientes do KAM', icon: Building2 },
     ],
   },
   {

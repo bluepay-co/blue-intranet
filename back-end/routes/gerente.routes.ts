@@ -15,7 +15,7 @@ export const gerenteRouter = Router();
 
 gerenteRouter.use(authMiddleware);
 
-const ACESSO = roleMiddleware(Role.GERENTE_INSIDE_CX, Role.DESENVOLVEDOR);
+const ACESSO = roleMiddleware(Role.GERENTE_INSIDE_CX, Role.GERENTE_COMERCIAL, Role.DESENVOLVEDOR);
 
 // GET /api/gerente/membros — lista {id, nome} do time gerenciado (dropdown de filtro)
 gerenteRouter.get('/membros', ACESSO, getMembrosEquipe);

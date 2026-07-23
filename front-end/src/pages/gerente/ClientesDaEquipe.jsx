@@ -60,8 +60,9 @@ function KpiCard({ icon: Icon, cor, valor, rotulo }) {
 const selectCls =
   'h-9 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
 
-export default function ClientesDaEquipe() {
+export default function ClientesDaEquipe({ equipe = 'IS' }) {
   const navigate = useNavigate()
+  const basePath = `/gerente/${equipe.toLowerCase()}`
   const [clientes, setClientes] = useState([])
   const [total, setTotal] = useState(0)
   const [pagina, setPagina] = useState(1)
@@ -81,8 +82,8 @@ export default function ClientesDaEquipe() {
   const [erro, setErro] = useState('')
 
   useEffect(() => {
-    getMembrosEquipeGerente().then(setMembros).catch(() => {})
-  }, [])
+    getMembrosEquipeGerente(equipe).then(setMembros).catch(() => {})
+  }, [equipe])
 
   // Debounce: só propaga a busca digitada para a query depois de parar de digitar.
   useEffect(() => {
@@ -105,7 +106,7 @@ export default function ClientesDaEquipe() {
         vendedorId: vendedorId || undefined,
         page: pagina,
         limit: POR_PAGINA,
-      })
+      }, equipe)
       setClientes(data.clientes)
       setTotal(data.total)
       setResumo(data.resumo)
@@ -118,7 +119,7 @@ export default function ClientesDaEquipe() {
       setCarregando(false)
       setCarregouUmaVez(true)
     }
-  }, [busca, uf, cidade, segmento, status, vendedorId, pagina])
+  }, [busca, uf, cidade, segmento, status, vendedorId, pagina, equipe])
 
   useEffect(() => { carregar() }, [carregar])
 
@@ -241,7 +242,7 @@ export default function ClientesDaEquipe() {
                     return (
                       <tr
                         key={c.id}
-                        onClick={() => navigate(`/gerente/is/clientes/${c.id}`)}
+                        onClick={() => navigate(`${basePath}/clientes/${c.id}`)}
                         className="border-b last:border-0 cursor-pointer hover:bg-muted/40 transition-colors"
                       >
                         <td className="px-4 py-2.5 max-w-[240px]">

@@ -248,7 +248,7 @@ function SemanaMiniCard({ numeroSemana, semana, onClick }) {
 }
 
 /** Mesmo padrão visual do Ranking Geral, adaptado para clientes da equipe. */
-function RankingClientesTabela({ titulo, clientes, mostrarPrimeiraCompra, mostrarVendedor }) {
+function RankingClientesTabela({ titulo, clientes, mostrarPrimeiraCompra, mostrarVendedor, basePath = '/gerente/is' }) {
   const navigate = useNavigate()
   const totais = (clientes ?? []).reduce((acc, c) => ({
     receita: acc.receita + c.receita,
@@ -283,7 +283,7 @@ function RankingClientesTabela({ titulo, clientes, mostrarPrimeiraCompra, mostra
                 {clientes.map((c, i) => (
                   <tr
                     key={c.clienteId}
-                    onClick={() => navigate(`/gerente/is/clientes/${c.clienteId}`)}
+                    onClick={() => navigate(`${basePath}/clientes/${c.clienteId}`)}
                     className="border-b last:border-0 cursor-pointer hover:bg-muted/30 transition-colors"
                   >
                     <td className="px-4 py-2.5">
@@ -332,8 +332,9 @@ function RankingClientesTabela({ titulo, clientes, mostrarPrimeiraCompra, mostra
  * `DashboardVisaoGeral.jsx` (individual), generalizado para "Toda a equipe"
  * ou um funcionário específico via seletor no cabeçalho.
  */
-export default function ReceitasEquipe() {
+export default function ReceitasEquipe({ equipe = 'IS' }) {
   const navigate = useNavigate()
+  const basePath = `/gerente/${equipe.toLowerCase()}`
   const agora = new Date()
   const [mes, setMes] = useState(agora.getMonth() + 1)
   const [ano, setAno] = useState(agora.getFullYear())
@@ -354,18 +355,18 @@ export default function ReceitasEquipe() {
   const anoAnterior = ano - 1
 
   useEffect(() => {
-    getMembrosEquipeGerente().then(setMembros).catch(() => {})
-  }, [])
+    getMembrosEquipeGerente(equipe).then(setMembros).catch(() => {})
+  }, [equipe])
 
   const carregar = useCallback(async () => {
     setErro('')
     setCarregando(true)
     try {
       const chamadas = [
-        getReceitasEquipeGerente(mes, ano, vendedorId || undefined),
-        getReceitasEquipeGerente(mes, ano - 1, vendedorId || undefined),
+        getReceitasEquipeGerente(mes, ano, vendedorId || undefined, equipe),
+        getReceitasEquipeGerente(mes, ano - 1, vendedorId || undefined, equipe),
       ]
-      if (!vendedorId) chamadas.push(getEquipe(mes, ano, 'IS'))
+      if (!vendedorId) chamadas.push(getEquipe(mes, ano, equipe))
       const [data, dataAnterior, dataEquipe] = await Promise.all(chamadas)
       setDados(data)
       setDadosAnterior(dataAnterior)
@@ -376,7 +377,7 @@ export default function ReceitasEquipe() {
     } finally {
       setCarregando(false)
     }
-  }, [mes, ano, vendedorId])
+  }, [mes, ano, vendedorId, equipe])
 
   useEffect(() => { carregar() }, [carregar])
 
@@ -384,14 +385,14 @@ export default function ReceitasEquipe() {
     if (vendedorId) return
     setCarregandoRankingPeriodo(true)
     try {
-      const data = await getRankingPeriodoGerente(periodoRanking)
+      const data = await getRankingPeriodoGerente(periodoRanking, equipe)
       setRankingPeriodo(data.membros)
     } catch {
       setRankingPeriodo([])
     } finally {
       setCarregandoRankingPeriodo(false)
     }
-  }, [vendedorId, periodoRanking])
+  }, [vendedorId, periodoRanking, equipe])
 
   useEffect(() => { carregarRankingPeriodo() }, [carregarRankingPeriodo])
 
@@ -843,8 +844,8 @@ export default function ReceitasEquipe() {
           </Card>
 
           {/* Clientes que faturaram + clientes novos do mês */}
-          <RankingClientesTabela titulo="Clientes que Faturaram no Mês" clientes={dados.clientesDoMes} mostrarVendedor={!vendedorId} />
-          <RankingClientesTabela titulo="Clientes Novos do Mês" clientes={dados.clientesNovosDoMes} mostrarPrimeiraCompra mostrarVendedor={!vendedorId} />
+          <RankingClientesTabela titulo="Clientes que Faturaram no Mês" clientes={dados.clientesDoMes} mostrarVendedor={!vendedorId} basePath={basePath} />
+          <RankingClientesTabela titulo="Clientes Novos do Mês" clientes={dados.clientesNovosDoMes} mostrarPrimeiraCompra mostrarVendedor={!vendedorId} basePath={basePath} />
         </>
       )}
 
@@ -902,7 +903,7 @@ export default function ReceitasEquipe() {
                       <button
                         key={c.clienteId}
                         type="button"
-                        onClick={() => { setDiaSelecionado(null); navigate(`/gerente/is/clientes/${c.clienteId}`) }}
+                        onClick={() => { setDiaSelecionado(null); navigate(`${basePath}/clientes/${c.clienteId}`) }}
                         className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted/50"
                       >
                         <span className="flex min-w-0 items-center gap-2">

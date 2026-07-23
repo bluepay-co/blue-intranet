@@ -29,7 +29,7 @@ function pct(v) {
   return `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`
 }
 
-export default function ForecastIS() {
+export default function ForecastIS({ equipe = 'IS' }) {
   const agora = new Date()
   const mes = agora.getMonth() + 1
   const ano = agora.getFullYear()
@@ -49,7 +49,7 @@ export default function ForecastIS() {
     setErro('')
     setCarregando(true)
     try {
-      setDados(await getEquipe(mes, ano, 'IS'))
+      setDados(await getEquipe(mes, ano, equipe))
     } catch (e) {
       if (e.response?.status === 404) setErro('Nenhum dado de equipe encontrado para este mês.')
       else setErro('Erro ao carregar o forecast. Tente novamente.')
@@ -60,8 +60,8 @@ export default function ForecastIS() {
     // Insights de tendência/comparativo são "nice to have" — se falharem, a página principal continua de pé.
     try {
       const [atual, anterior] = await Promise.all([
-        getReceitasEquipeGerente(mes, ano),
-        getReceitasEquipeGerente(mesAnteriorNum, anoAnteriorNum),
+        getReceitasEquipeGerente(mes, ano, undefined, equipe),
+        getReceitasEquipeGerente(mesAnteriorNum, anoAnteriorNum, undefined, equipe),
       ])
       setDiasAtual(atual.dias ?? [])
       setDiasAnterior(anterior.dias ?? [])
@@ -72,7 +72,7 @@ export default function ForecastIS() {
 
     setCarregando(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [equipe])
 
   useEffect(() => { carregar() }, [carregar])
 
@@ -116,7 +116,7 @@ export default function ForecastIS() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Forecast IS"
+        title={`Forecast ${equipe}`}
         subtitle={`Projeção de fechamento de ${MESES[mes - 1]}/${ano} com base no ritmo atual da equipe`}
       >
         <Button variant="outline" size="icon" className="h-8 w-8" onClick={carregar} disabled={carregando} title="Atualizar">

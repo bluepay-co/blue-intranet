@@ -18,6 +18,7 @@ export const ROLES = [
   'DIRETORIA',
   'COLABORADOR',
   'GERENTE_INSIDE_CX',
+  'GERENTE_COMERCIAL',
 ]
 
 /**
@@ -39,6 +40,7 @@ export const ROTULOS_ROLE = {
   PRODUTOS: 'Produtos',
   PRE_VENDAS: 'Pré-Vendas',
   GERENTE_INSIDE_CX: 'Ger. Inside Sales & CX',
+  GERENTE_COMERCIAL: 'Ger. Comercial',
 }
 
 /** Retorna o rótulo de exibição de um setor (fallback: o próprio valor). */

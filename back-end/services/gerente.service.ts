@@ -28,7 +28,20 @@ import type { MembroEquipe } from '../models/gerente.model';
  * direto do request.
  */
 
-const ROLES_TIME_IS = ['INSIGHT_SALES'];
+/** Times gerenciáveis. Cada gerente enxerga um time por vez (IS ou KAM). */
+export type EquipeGerente = 'IS' | 'KAM';
+
+/** Roles de produção que compõem cada time — usadas para resolver os `managerIds`. */
+const ROLES_POR_EQUIPE: Record<EquipeGerente, string[]> = {
+  IS: ['INSIGHT_SALES'],
+  KAM: ['KAM'],
+};
+
+/** Chave da meta de equipe (`getMetaEquipe`) correspondente a cada time. */
+const META_POR_EQUIPE: Record<EquipeGerente, 'IS' | 'KAM'> = {
+  IS: 'IS',
+  KAM: 'KAM',
+};
 
 interface EquipeResolvida {
   managerIds: number[];
@@ -43,8 +56,8 @@ interface EquipeResolvida {
  * `Map.get`) funcionem contra o `vendedorId` vindo da query string, que já é
  * um number de verdade (`Number(req.query.vendedorId)`).
  */
-export async function resolverEquipeGerente(): Promise<EquipeResolvida | null> {
-  const resolvido = await resolverManagerIdsDaEquipe(ROLES_TIME_IS);
+export async function resolverEquipeGerente(equipe: EquipeGerente): Promise<EquipeResolvida | null> {
+  const resolvido = await resolverManagerIdsDaEquipe(ROLES_POR_EQUIPE[equipe]);
   if (!resolvido) return null;
   return {
     managerIds: resolvido.managerIds.map(Number),
@@ -59,23 +72,24 @@ function validarVendedorNaEquipe(vendedorId: number | undefined, equipe: EquipeR
   }
 }
 
-export async function listarMembrosEquipeGerente(): Promise<MembroEquipe[]> {
-  const equipe = await resolverEquipeGerente();
-  if (!equipe) return [];
-  return equipe.managerIds
-    .map((id) => ({ id, nome: equipe.nomeMap.get(id) ?? 'Desconhecido' }))
+export async function listarMembrosEquipeGerente(equipe: EquipeGerente): Promise<MembroEquipe[]> {
+  const time = await resolverEquipeGerente(equipe);
+  if (!time) return [];
+  return time.managerIds
+    .map((id) => ({ id, nome: time.nomeMap.get(id) ?? 'Desconhecido' }))
     .sort((a, b) => a.nome.localeCompare(b.nome));
 }
 
 export async function listarClientesEquipeGerente(
+  equipe: EquipeGerente,
   vendedorId: number | undefined,
   filtros: FiltrosListaClientes,
 ): Promise<(ClientesPaginados & { resumo: ResumoCarteira; filtros: FiltrosClientes }) | null> {
-  const equipe = await resolverEquipeGerente();
-  if (!equipe) return null;
-  validarVendedorNaEquipe(vendedorId, equipe);
+  const time = await resolverEquipeGerente(equipe);
+  if (!time) return null;
+  validarVendedorNaEquipe(vendedorId, time);
 
-  const ids = vendedorId !== undefined ? [vendedorId] : equipe.managerIds;
+  const ids = vendedorId !== undefined ? [vendedorId] : time.managerIds;
   const [pagina, resumo, filtrosDisponiveis] = await Promise.all([
     listarClientesDoVendedor(ids, filtros),
     buscarResumoCarteira(ids),
@@ -86,14 +100,15 @@ export async function listarClientesEquipeGerente(
 }
 
 export async function buscarClienteEquipeGerente(
+  equipe: EquipeGerente,
   clienteId: number,
   mes?: number,
   ano?: number,
 ): Promise<ClienteDetalheResposta | null> {
-  const equipe = await resolverEquipeGerente();
-  if (!equipe) return null;
+  const time = await resolverEquipeGerente(equipe);
+  if (!time) return null;
 
-  const cliente = await buscarClienteDoVendedor(equipe.managerIds, clienteId);
+  const cliente = await buscarClienteDoVendedor(time.managerIds, clienteId);
   if (!cliente) return null;
 
   const metricas = await buscarMetricasCliente(clienteId, mes, ano);
@@ -101,44 +116,46 @@ export async function buscarClienteEquipeGerente(
 }
 
 export async function buscarReceitasEquipeGerente(
+  equipe: EquipeGerente,
   vendedorId: number | undefined,
   mes: number,
   ano: number,
 ): Promise<VisaoGeral | null> {
-  const equipe = await resolverEquipeGerente();
-  if (!equipe) return null;
-  validarVendedorNaEquipe(vendedorId, equipe);
+  const time = await resolverEquipeGerente(equipe);
+  if (!time) return null;
+  validarVendedorNaEquipe(vendedorId, time);
 
-  const ids = vendedorId !== undefined ? [vendedorId] : equipe.managerIds;
+  const ids = vendedorId !== undefined ? [vendedorId] : time.managerIds;
   const meta = vendedorId !== undefined
-    ? getMetaIndividual(equipe.nomeMap.get(vendedorId) ?? '', mes, ano, vendedorId)
-    : getMetaEquipe('IS', mes, ano);
+    ? getMetaIndividual(time.nomeMap.get(vendedorId) ?? '', mes, ano, vendedorId)
+    : getMetaEquipe(META_POR_EQUIPE[equipe], mes, ano);
 
   return buscarVisaoGeralMes(ids, meta, mes, ano);
 }
 
 /** Ranking da equipe de hoje ou da semana atual (domingo–sábado) — sem meta, período menor que um mês. */
-export async function buscarRankingPeriodoGerente(periodo: 'dia' | 'semana'): Promise<MetricasEquipeMembro[] | null> {
-  const equipe = await resolverEquipeGerente();
-  if (!equipe) return null;
+export async function buscarRankingPeriodoGerente(equipe: EquipeGerente, periodo: 'dia' | 'semana'): Promise<MetricasEquipeMembro[] | null> {
+  const time = await resolverEquipeGerente(equipe);
+  if (!time) return null;
 
   const hoje = await buscarDataHojeSaoPaulo();
   const { inicio, fim } = periodo === 'semana' ? semanaDoDia(hoje) : { inicio: hoje, fim: hoje };
 
-  return buscarRankingPeriodoEquipe(equipe.managerIds, inicio, fim, equipe.nomeMap);
+  return buscarRankingPeriodoEquipe(time.managerIds, inicio, fim, time.nomeMap);
 }
 
 /** Dashboard pessoal (réplica do Dashboard Pessoal do vendedor) de um funcionário específico da equipe. */
 export async function buscarPessoalEquipeGerente(
+  equipe: EquipeGerente,
   vendedorId: number,
   mes?: number,
   ano?: number,
 ): Promise<{ resumo: Omit<MetricasVendedor, 'email'>; topClientesMes: TopCliente[] } | null> {
-  const equipe = await resolverEquipeGerente();
-  if (!equipe) return null;
-  validarVendedorNaEquipe(vendedorId, equipe);
+  const time = await resolverEquipeGerente(equipe);
+  if (!time) return null;
+  validarVendedorNaEquipe(vendedorId, time);
 
-  const nome = equipe.nomeMap.get(vendedorId) ?? 'Desconhecido';
+  const nome = time.nomeMap.get(vendedorId) ?? 'Desconhecido';
   const agora = new Date();
   const mesConsulta = mes ?? agora.getMonth() + 1;
   const anoConsulta = ano ?? agora.getFullYear();

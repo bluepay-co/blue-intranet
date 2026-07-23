@@ -14,8 +14,8 @@ import { getMetaIndividual } from '../data/metas2026';
 
 /** Roles "donas" de cada time — só elas veem as colunas sensíveis por membro. */
 const DONOS_POR_EQUIPE: Record<string, string[]> = {
-  IS:  ['INSIGHT_SALES', 'GERENTE_INSIDE_CX', 'DESENVOLVEDOR'],
-  KAM: ['KAM', 'DESENVOLVEDOR'],
+  IS:  ['INSIGHT_SALES', 'GERENTE_INSIDE_CX', 'GERENTE_COMERCIAL', 'DESENVOLVEDOR'],
+  KAM: ['KAM', 'GERENTE_COMERCIAL', 'DESENVOLVEDOR'],
 };
 
 /** Zera taxaMedia/ticketMedio/qtdTickets/clientesAtivos/clientesNovos — mesmos campos que o front já esconde via `ocultarSigilosas`. */

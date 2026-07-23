@@ -134,7 +134,7 @@ function ComparativoAnoAno({ yoy }) {
 }
 
 /** Ficha de cliente vista pelo gerente — mesmo layout de ClienteDetalhe.jsx, buscando via escopo da equipe. */
-export default function ClienteEquipeDetalhe() {
+export default function ClienteEquipeDetalhe({ equipe = 'IS' }) {
   const { id } = useParams()
   const [dados, setDados] = useState(null)
   const [carregando, setCarregando] = useState(true)
@@ -144,14 +144,14 @@ export default function ClienteEquipeDetalhe() {
     setErro('')
     setCarregando(true)
     try {
-      setDados(await getClienteEquipeGerente(id))
+      setDados(await getClienteEquipeGerente(id, undefined, undefined, equipe))
     } catch (e) {
       if (e.response?.status === 404) setErro('Cliente não encontrado ou sem acesso.')
       else setErro('Erro ao carregar o cliente. Tente novamente.')
     } finally {
       setCarregando(false)
     }
-  }, [id])
+  }, [id, equipe])
 
   useEffect(() => { carregar() }, [carregar])
 

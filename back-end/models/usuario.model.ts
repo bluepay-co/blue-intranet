@@ -19,6 +19,7 @@ export enum Role {
   PRODUTOS = 'PRODUTOS',
   PRE_VENDAS = 'PRE_VENDAS',
   GERENTE_INSIDE_CX = 'GERENTE_INSIDE_CX',
+  GERENTE_COMERCIAL = 'GERENTE_COMERCIAL',
 }
 
 export interface Usuario {
