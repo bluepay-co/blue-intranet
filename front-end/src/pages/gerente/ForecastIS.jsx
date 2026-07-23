@@ -121,9 +121,10 @@ function calcularForecastSemanaPorFuncionario(diasPorChave, inicioSemanaAtual, d
     .sort((a, b) => b.receita - a.receita)
 }
 
-function KpiCard({ icon: Icon, cor, valor, rotulo }) {
+/** `dica` é uma explicação curta em linguagem simples, mostrada ao passar o mouse (title nativo). */
+function KpiCard({ icon: Icon, cor, valor, rotulo, dica }) {
   return (
-    <Card>
+    <Card title={dica} className={dica ? 'cursor-help' : undefined}>
       <CardContent className="flex items-center gap-3 py-4">
         <div className={`grid size-10 place-items-center rounded-lg ${cor}`}>
           <Icon className="size-5" />
@@ -138,9 +139,9 @@ function KpiCard({ icon: Icon, cor, valor, rotulo }) {
 }
 
 /** Card compacto de insight (tendência / comparativo), no mesmo padrão visual do card de meta. */
-function InsightCard({ icon: Icon, cor, bg, titulo, valor, descricao }) {
+function InsightCard({ icon: Icon, cor, bg, titulo, valor, descricao, dica }) {
   return (
-    <Card>
+    <Card title={dica} className={dica ? 'cursor-help' : undefined}>
       <CardContent className="flex items-center gap-4 py-4 px-5">
         <div className={cn('grid size-10 shrink-0 place-items-center rounded-lg', bg, cor)}>
           <Icon className="size-5" />
@@ -268,14 +269,21 @@ export default function ForecastIS() {
         <>
           {/* KPIs da equipe */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <KpiCard icon={Wallet}     cor="bg-blue-500/10 text-blue-600"     valor={moeda(dados.totalReceita)}            rotulo="Realizado até hoje" />
-            <KpiCard icon={Gauge}      cor="bg-sky-500/10 text-sky-600"       valor={moeda(forecastEquipe.ritmoDiario)}     rotulo="Ritmo diário (média/dia)" />
-            <KpiCard icon={TrendingUp} cor="bg-violet-500/10 text-violet-600" valor={moeda(forecastEquipe.projecao)}        rotulo="Projeção de fechamento" />
-            <KpiCard icon={Target}     cor="bg-indigo-500/10 text-indigo-600" valor={moeda(dados.meta_equipe)}              rotulo="Meta da equipe" />
+            <KpiCard icon={Wallet}     cor="bg-blue-500/10 text-blue-600"     valor={moeda(dados.totalReceita)}            rotulo="Realizado até hoje"
+              dica="Quanto a equipe já vendeu (receita) neste mês, do dia 1 até hoje." />
+            <KpiCard icon={Gauge}      cor="bg-sky-500/10 text-sky-600"       valor={moeda(forecastEquipe.ritmoDiario)}     rotulo="Ritmo diário (média/dia)"
+              dica="Média de quanto a equipe vendeu por dia neste mês (receita total até hoje ÷ dias já passados)." />
+            <KpiCard icon={TrendingUp} cor="bg-violet-500/10 text-violet-600" valor={moeda(forecastEquipe.projecao)}        rotulo="Projeção de fechamento"
+              dica="Se a equipe mantiver esse mesmo ritmo diário até o fim do mês, é esse o total que deve fechar." />
+            <KpiCard icon={Target}     cor="bg-indigo-500/10 text-indigo-600" valor={moeda(dados.meta_equipe)}              rotulo="Meta da equipe"
+              dica="Quanto a equipe precisa vender no mês inteiro para bater a meta." />
           </div>
 
           {/* Card de destaque: % projetado da meta + ritmo necessário */}
-          <Card>
+          <Card
+            title="Compara a projeção de fechamento com a meta do mês. Acima de 100% quer dizer que, no ritmo atual, a equipe deve ultrapassar a meta."
+            className="cursor-help"
+          >
             <CardContent className="flex items-center gap-4 py-4 px-5">
               <div className={cn('grid size-10 shrink-0 place-items-center rounded-lg', corEquipe.bg, corEquipe.texto)}>
                 <Target className="size-5" />
@@ -323,9 +331,11 @@ export default function ForecastIS() {
                       ? `Desacelerando: ${pct(tendencia.variacao)} vs a média do mês`
                       : `Estável — próximo da média do mês (${pct(tendencia.variacao)})`
                 }
+                dica="Compara quanto a equipe vendeu por dia nos últimos dias com a média de todo o mês — mostra se o time está vendendo mais rápido ou mais devagar do que vinha vendendo."
               />
             ) : (
-              <InsightCard icon={Minus} cor="text-muted-foreground" bg="bg-muted" titulo="Tendência recente" valor="—" descricao="Sem dados suficientes ainda." />
+              <InsightCard icon={Minus} cor="text-muted-foreground" bg="bg-muted" titulo="Tendência recente" valor="—" descricao="Sem dados suficientes ainda."
+                dica="Compara quanto a equipe vendeu por dia nos últimos dias com a média de todo o mês." />
             )}
 
             <InsightCard
@@ -339,6 +349,7 @@ export default function ForecastIS() {
                   ? `Até o dia ${diasDecorridos}: ${moeda(dados.totalReceita)} vs ${moeda(receitaMesmoPeriodoAnterior)}`
                   : 'Sem dados do mês anterior para comparar.'
               }
+              dica="Compara o quanto a equipe já vendeu este mês (até hoje) com o quanto tinha vendido no mesmo dia do mês passado."
             />
           </div>
 
@@ -352,14 +363,18 @@ export default function ForecastIS() {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <KpiCard icon={Wallet}        cor="bg-blue-500/10 text-blue-600"     valor={moeda(forecastSemana.realizado)}  rotulo="Realizado na semana" />
-              <KpiCard icon={Gauge}         cor="bg-sky-500/10 text-sky-600"       valor={moeda(forecastSemana.ritmoDiario)} rotulo="Ritmo diário da semana" />
-              <KpiCard icon={CalendarRange} cor="bg-violet-500/10 text-violet-600" valor={moeda(forecastSemana.projecao)}    rotulo="Projeção de fechamento da semana" />
+              <KpiCard icon={Wallet}        cor="bg-blue-500/10 text-blue-600"     valor={moeda(forecastSemana.realizado)}  rotulo="Realizado na semana"
+                dica="Quanto a equipe já vendeu (receita) nesta semana, de domingo até hoje." />
+              <KpiCard icon={Gauge}         cor="bg-sky-500/10 text-sky-600"       valor={moeda(forecastSemana.ritmoDiario)} rotulo="Ritmo diário da semana"
+                dica="Média de venda por dia dentro desta semana (receita da semana ÷ dias já passados dela)." />
+              <KpiCard icon={CalendarRange} cor="bg-violet-500/10 text-violet-600" valor={moeda(forecastSemana.projecao)}    rotulo="Projeção de fechamento da semana"
+                dica="Se a equipe mantiver o ritmo diário desta semana até sábado, é esse o total que a semana deve fechar." />
               <KpiCard
                 icon={TrendingUp}
                 cor={semanaAjudaMeta === null ? 'bg-muted text-muted-foreground' : semanaAjudaMeta === false ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-600'}
                 valor={forecastEquipe?.ritmoNecessario !== null && forecastEquipe?.ritmoNecessario !== undefined ? moeda(forecastEquipe.ritmoNecessario) : '—'}
                 rotulo="Ritmo necessário do mês (referência)"
+                dica="Quanto a equipe precisa vender por dia, nos dias que restam do mês inteiro, para bater a meta mensal — não é sobre a semana, é uma referência pra comparar com o ritmo da semana."
               />
             </div>
 
@@ -375,6 +390,7 @@ export default function ForecastIS() {
                     ? `${moeda(forecastSemana.realizado)} vs ${moeda(forecastSemana.realizadoSemanaPassada)} até o mesmo dia`
                     : 'Sem dados da semana passada para comparar.'
                 }
+                dica="Compara o quanto a equipe já vendeu nesta semana (de domingo até hoje) com o quanto tinha vendido na semana passada, contando até o mesmo dia da semana."
               />
               <InsightCard
                 icon={Target}
@@ -387,6 +403,7 @@ export default function ForecastIS() {
                     ? 'Mês em fase final — sem margem de dias pra recalcular o ritmo necessário.'
                     : `Ritmo da semana: ${moeda(forecastSemana.ritmoDiario)}/dia vs necessário: ${moeda(forecastEquipe.ritmoNecessario)}/dia`
                 }
+                dica="Se o ritmo diário desta semana for igual ou maior que o ritmo diário que falta pra bater a meta do mês, essa semana está no caminho certo. Se for menor, essa semana sozinha não seria suficiente."
               />
             </div>
 
@@ -402,8 +419,8 @@ export default function ForecastIS() {
                         <tr className="border-b text-xs text-muted-foreground">
                           <th className="px-4 py-2 text-left font-medium">#</th>
                           <th className="px-4 py-2 text-left font-medium">Funcionário</th>
-                          <th className="px-4 py-2 text-right font-medium">Receita na Semana</th>
-                          <th className="px-4 py-2 text-right font-medium">Ritmo Diário</th>
+                          <th className="px-4 py-2 text-right font-medium cursor-help" title="Quanto esse funcionário vendeu nesta semana, de domingo até hoje.">Receita na Semana</th>
+                          <th className="px-4 py-2 text-right font-medium cursor-help" title="Média de venda por dia desse funcionário dentro desta semana.">Ritmo Diário</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -440,13 +457,13 @@ export default function ForecastIS() {
                       <tr className="border-b text-xs text-muted-foreground">
                         <th className="px-4 py-2 text-left font-medium">#</th>
                         <th className="px-4 py-2 text-left font-medium">Funcionário</th>
-                        <th className="px-4 py-2 text-right font-medium">Realizado</th>
-                        <th className="px-4 py-2 text-right font-medium">Meta</th>
-                        <th className="px-4 py-2 text-right font-medium">Ritmo Diário</th>
-                        <th className="px-4 py-2 text-right font-medium">Ritmo Necessário</th>
-                        <th className="px-4 py-2 text-right font-medium">Projeção</th>
-                        <th className="px-4 py-2 text-right font-medium">% Projetado</th>
-                        <th className="px-4 py-2 text-left font-medium">Situação</th>
+                        <th className="px-4 py-2 text-right font-medium cursor-help" title="Quanto esse funcionário já vendeu neste mês, até hoje.">Realizado</th>
+                        <th className="px-4 py-2 text-right font-medium cursor-help" title="Meta mensal desse funcionário.">Meta</th>
+                        <th className="px-4 py-2 text-right font-medium cursor-help" title="Média de venda por dia desse funcionário neste mês (até hoje).">Ritmo Diário</th>
+                        <th className="px-4 py-2 text-right font-medium cursor-help" title="Quanto esse funcionário precisa vender por dia, no que resta do mês, para bater a própria meta.">Ritmo Necessário</th>
+                        <th className="px-4 py-2 text-right font-medium cursor-help" title="Se ele mantiver o ritmo diário atual até o fim do mês, é esse o total que deve fechar.">Projeção</th>
+                        <th className="px-4 py-2 text-right font-medium cursor-help" title="Quanto a projeção de fechamento representa da meta dele (100% = bate a meta certinho).">% Projetado</th>
+                        <th className="px-4 py-2 text-left font-medium cursor-help" title="Resumo visual do % projetado: verde = vai bater a meta, amarelo = perto, vermelho = abaixo.">Situação</th>
                       </tr>
                     </thead>
                     <tbody>
