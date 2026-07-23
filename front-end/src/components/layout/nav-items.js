@@ -79,6 +79,7 @@ export const NAV_SECTIONS = [
       { to: '/gerente/is/receitas',       label: 'Visão Geral IS', icon: CalendarDays },
       { to: '/gerente/is/visao-geral',    label: 'Insights IS',    icon: Target },
       { to: '/gerente/is/equipe-pessoal', label: 'Métricas IS',    icon: UserRound },
+      { to: '/gerente/is/forecast',       label: 'Forecast IS',    icon: TrendingUp },
       { to: '/gerente/is/clientes',       label: 'Clientes do IS', icon: Building2 },
     ],
   },

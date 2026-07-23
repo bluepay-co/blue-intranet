@@ -34,6 +34,7 @@ import ClientesDaEquipe from '@/pages/gerente/ClientesDaEquipe'
 import ClienteEquipeDetalhe from '@/pages/gerente/ClienteEquipeDetalhe'
 import ReceitasEquipe from '@/pages/gerente/ReceitasEquipe'
 import VisaoEquipePessoal from '@/pages/gerente/VisaoEquipePessoal'
+import ForecastIS from '@/pages/gerente/ForecastIS'
 
 function App() {
   return (
@@ -248,6 +249,14 @@ function App() {
           element={
             <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'DESENVOLVEDOR']}>
               <VisaoEquipePessoal />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="gerente/is/forecast"
+          element={
+            <ProtectedRoute roles={['GERENTE_INSIDE_CX', 'DESENVOLVEDOR']}>
+              <ForecastIS />
             </ProtectedRoute>
           }
         />
