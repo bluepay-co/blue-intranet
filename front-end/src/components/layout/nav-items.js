@@ -54,6 +54,7 @@ export const NAV_SECTIONS = [
     items: [
       { to: '/metricas/visao-geral', label: 'Visão Geral',       icon: CalendarDays },
       { to: '/metricas/pessoal',     label: 'Dashboard Pessoal', icon: TrendingUp },
+      { to: '/metricas/forecast',    label: 'Meu Forecast',      icon: Target },
       { to: '/metricas/kam/equipe',  label: 'Dashboard Equipe',  icon: Users },
       { to: '/clientes',             label: 'Meus Clientes',     icon: Building2 },
       { to: '/carteira/risco',      label: 'Radar de Risco',    icon: AlertTriangle },
@@ -66,6 +67,7 @@ export const NAV_SECTIONS = [
     items: [
       { to: '/metricas/visao-geral', label: 'Visão Geral',       icon: CalendarDays },
       { to: '/metricas/pessoal',     label: 'Dashboard Pessoal', icon: TrendingUp },
+      { to: '/metricas/forecast',    label: 'Meu Forecast',      icon: Target },
       { to: '/metricas/is/equipe',   label: 'Dashboard Equipe',  icon: Users },
       { to: '/clientes',             label: 'Meus Clientes',     icon: Building2 },
       { to: '/carteira/risco',      label: 'Radar de Risco',    icon: AlertTriangle },
