@@ -76,6 +76,9 @@ export const NAV_SECTIONS = [
   },
   {
     label: 'Ger. Inside Sales & CX',
+    // O Gerente Comercial gerencia os dois times, então enxerga esta seção como
+    // "Equipe - Inside Sales" (o rótulo padrão fica para o Gerente de IS).
+    labelPorRole: { GERENTE_COMERCIAL: 'Equipe - Inside Sales' },
     roles: ['GERENTE_INSIDE_CX', 'GERENTE_COMERCIAL', 'DESENVOLVEDOR'],
     items: [
       { to: '/gerente/is/receitas',       label: 'Visão Geral IS', icon: CalendarDays },
@@ -87,6 +90,7 @@ export const NAV_SECTIONS = [
   },
   {
     label: 'Ger. Comercial — KAM',
+    labelPorRole: { GERENTE_COMERCIAL: 'Equipe - KAM' },
     roles: ['GERENTE_COMERCIAL', 'DESENVOLVEDOR'],
     items: [
       { to: '/gerente/kam/receitas',       label: 'Visão Geral KAM', icon: CalendarDays },
@@ -114,7 +118,16 @@ export const NAV_SECTIONS = [
   },
 ]
 
-/** Filtra as seções visíveis para o cargo informado (RBAC). */
+/**
+ * Filtra as seções visíveis para o cargo informado (RBAC) e resolve o rótulo
+ * da seção. Se a seção tiver `labelPorRole[role]`, esse rótulo substitui o
+ * `label` padrão só para aquele cargo (ex.: o Gerente Comercial vê as seções
+ * de gerência como "Equipe - Inside Sales" / "Equipe KAM").
+ */
 export function secoesVisiveis(role) {
-  return NAV_SECTIONS.filter((secao) => !secao.roles || secao.roles.includes(role))
+  return NAV_SECTIONS
+    .filter((secao) => !secao.roles || secao.roles.includes(role))
+    .map((secao) =>
+      secao.labelPorRole?.[role] ? { ...secao, label: secao.labelPorRole[role] } : secao,
+    )
 }
