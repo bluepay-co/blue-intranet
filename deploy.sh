@@ -43,5 +43,5 @@ ssh -t "${VM_USER}@${VM_HOST}" "cd ${REMOTE_DIR} && docker compose up -d --build
 echo -e "${BOLD}==> 3/3 Status dos containers:${RESET}"
 ssh "${VM_USER}@${VM_HOST}" "cd ${REMOTE_DIR} && docker compose ps"
 
-echo -e "${GREEN}${BOLD}✔ Deploy concluído!${RESET} Acesse: ${BOLD}https://192.168.0.145.sslip.io${RESET}"
+echo -e "${GREEN}${BOLD}✔ Deploy concluído!${RESET} Acesse: ${BOLD}https://bluepay-intranet.com.br${RESET}"
 echo -e "${YELLOW}Se mudou algo no banco, rode a migration manualmente (ver ATUALIZAR.md).${RESET}"

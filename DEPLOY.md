@@ -15,7 +15,7 @@ Navegador → :443 HTTPS Nginx (front) ──/api ─────→ backend:500
                                             35.198.37.22 (banco de consulta, remoto, read-only)
 ```
 
-Acesso: **https://192.168.0.145.sslip.io**
+Acesso: **https://bluepay-intranet.com.br**
 
 ---
 
@@ -66,9 +66,9 @@ cp .env.deploy.example .env
 ```
 Preencha no `.env` da raiz:
 - `DB_USER`, `DB_PASSWORD`, `DB_NAME` → **iguais** aos de `back-end/.env` (aqui: `postgres` / senha / `postgres`).
-- `SERVER_URL`, `VITE_API_BASE_URL`, `VITE_GOOGLE_REDIRECT_URI` → **`https://192.168.0.145.sslip.io`**
-  (hostname `sslip.io` resolve automaticamente pro IP — necessário pro login Google, que não
-  aceita IP puro nem HTTP).
+- `SERVER_URL`, `VITE_API_BASE_URL`, `VITE_GOOGLE_REDIRECT_URI` → **`https://bluepay-intranet.com.br`**
+  (domínio próprio, registrado no Registro.br — necessário pro login Google, que não aceita
+  IP puro nem HTTP).
 - Demais `VITE_*` conforme o `front-end/.env`.
 
 > Os segredos do back-end (`JWT_SECRET`, `*_ENCRYPTION_KEY`, `CONSULTA_DB_*`, `SLACK_*`)
@@ -85,17 +85,48 @@ scp intranet_dump.dump blueintranet@192.168.0.145:~/blue-intranet/
 > Confira que `back-end/.env`, `front-end/.env` e o `.env` da raiz chegaram na VM
 > (são ignorados pelo git, mas o rsync os copia).
 
-## Passo 6 — Gerar o certificado HTTPS (na VM)
+## Passo 6 — Apontar o domínio e gerar o certificado HTTPS
 
-Certificado autoassinado para o hostname `sslip.io`:
+**6a. DNS (no painel do Registro.br)**
+
+Crie um registro **A** apontando o domínio pro IP da VM na rede interna:
+```
+bluepay-intranet.com.br.   A   192.168.0.145
+```
+> O domínio resolve publicamente para um IP privado — isso é normal e intencional: só quem
+> está na VPN consegue de fato alcançar `192.168.0.145`. Quem não está na VPN resolve o nome
+> mas não consegue conectar.
+
+**6b. Certificado Let's Encrypt via desafio DNS (na VM)**
+
+Como a VM só é alcançável via VPN (não dá pra usar o desafio HTTP-01, que exige a porta 80
+acessível publicamente), o certificado é emitido com desafio **DNS-01 manual**:
+```bash
+sudo apt install -y certbot
+sudo certbot certonly --manual --preferred-challenges dns \
+  -d bluepay-intranet.com.br \
+  --agree-tos -m SEU_EMAIL@bluepaysolutions.com.br
+```
+O certbot vai mostrar um valor e pedir pra criar um registro **TXT** no Registro.br:
+```
+_acme-challenge.bluepay-intranet.com.br.   TXT   "valor-mostrado-pelo-certbot"
+```
+Crie o TXT no painel do Registro.br, espere a propagação (confira com
+`dig TXT _acme-challenge.bluepay-intranet.com.br +short`) e só então confirme no certbot
+apertando Enter.
+
+**6c. Copiar o certificado para a pasta que o Nginx usa**
 ```bash
 cd ~/blue-intranet
 mkdir -p certs
-openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
-  -keyout certs/server.key -out certs/server.crt \
-  -subj "/CN=192.168.0.145.sslip.io" \
-  -addext "subjectAltName=DNS:192.168.0.145.sslip.io"
+sudo cp /etc/letsencrypt/live/bluepay-intranet.com.br/fullchain.pem certs/server.crt
+sudo cp /etc/letsencrypt/live/bluepay-intranet.com.br/privkey.pem   certs/server.key
+sudo chown $USER:$USER certs/server.crt certs/server.key
 ```
+> ⚠️ **Renovação:** certificados Let's Encrypt expiram em 90 dias. Como o desafio é manual
+> (DNS-01), a renovação (`sudo certbot renew`) vai pedir um **novo TXT** no Registro.br a cada
+> vez — repita o passo 6b/6c. Se isso incomodar, dá pra automatizar depois com a API do
+> Registro.br + um hook do certbot.
 
 ## Passo 7 — Subir os containers (na VM)
 
@@ -117,14 +148,17 @@ Confira: `docker compose exec db psql -U postgres -d postgres -c "\dt blue_intra
 ## Passo 9 — Google OAuth
 
 No [Google Cloud Console → Credenciais](https://console.cloud.google.com/apis/credentials),
-no OAuth Client (Web), adicione **`https://192.168.0.145.sslip.io`** em:
+no OAuth Client (Web), adicione **`https://bluepay-intranet.com.br`** em:
 - **Authorized JavaScript origins**
 - **Authorized redirect URIs**
 
+> Se o cliente OAuth ainda tiver a URL antiga (`https://192.168.0.145.sslip.io`) cadastrada,
+> pode remover depois de confirmar que o novo domínio está funcionando.
+
 ## Passo 10 — Testar
 
-Acesse **https://192.168.0.145.sslip.io** → aceite o aviso do certificado autoassinado
-(*Avançado → Prosseguir*, uma vez) → faça login com Google.
+Acesse **https://bluepay-intranet.com.br** → como o certificado agora é Let's Encrypt (confiável),
+não deve aparecer mais aviso de segurança → faça login com Google.
 
 ---
 
@@ -140,9 +174,9 @@ Acesse **https://192.168.0.145.sslip.io** → aceite o aviso do certificado auto
 
 ## Notas
 
-- **Certificado autoassinado** gera aviso no navegador. Para remover, emita um cert real
-  (Let's Encrypt via desafio DNS) quando houver acesso ao DNS do domínio, ou distribua o
-  cert/CA interno nas máquinas.
+- **Certificado Let's Encrypt (DNS-01 manual)** expira em 90 dias e a renovação exige recriar
+  o TXT no Registro.br (ver Passo 6). Se ficar repetitivo, considerar automatizar via API do
+  Registro.br.
 - **Chat em tempo real (socket.io):** o `socket.io-client` já está nas dependências do front,
   mas o servidor ainda não instancia o `socket.io` no `server.ts` — quando ativarem, o Nginx
   já está preparado (proxy `/socket.io/`).

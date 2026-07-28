@@ -19,7 +19,7 @@ Isso faz tudo sozinho:
 3. Mostra o status no final
 
 Vai pedir a **senha da VM** (`blueintranet`) 1 ou 2 vezes durante o processo. No fim, acesse:
-**https://192.168.0.145.sslip.io**
+**https://bluepay-intranet.com.br**
 
 > **Primeira vez apenas:** se der erro de permissão, rode uma vez:
 > ```bash
