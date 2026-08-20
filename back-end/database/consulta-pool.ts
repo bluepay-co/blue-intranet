@@ -12,7 +12,7 @@ export const consultaPool = new Pool({
   database: process.env.CONSULTA_DB_NAME,
   user:     process.env.CONSULTA_DB_USER,
   password: process.env.CONSULTA_DB_PASSWORD,
-  options:  `-c search_path=${process.env.CONSULTA_DB_SCHEMA ?? 'public'},public`,
+  options:  `-c search_path=${process.env.CONSULTA_DB_SCHEMA ?? 'public'},public -c statement_timeout=30000`,
   ssl:      { rejectUnauthorized: false },
   max: 5,
   // Falha rápido quando o banco de produção está inacessível (ex.: fora da VPN),

@@ -202,12 +202,25 @@ export async function buscarVisaoGeralMes(
   ano: number
 ): Promise<VisaoGeral> {
   const ticketsResult = await consultaPool.query(`
-      WITH primeira AS (
+      WITH clientes_mes AS (
+        -- Clientes que transacionaram no mês consultado (conjunto pequeno ~500).
+        -- Evita que a CTE "primeira" varra a tabela inteira de tickets.
+        SELECT DISTINCT t.client_id
+        FROM tickets t
+        LEFT JOIN clients c ON c.id = t.client_id
+        WHERE ${FILTROS_BASE}
+          AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+          AND EXTRACT(YEAR  FROM (t.invoice_payment_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')) = $2
+          AND EXTRACT(MONTH FROM (t.invoice_payment_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')) = $3
+      ),
+      primeira AS (
+        -- Primeira transação histórica apenas dos clientes do mês (não mais full scan).
         SELECT t.client_id, MIN(t.invoice_payment_date) AS primeiro
         FROM tickets t
         LEFT JOIN clients c ON c.id = t.client_id
         WHERE ${FILTROS_BASE}
           AND ${MANAGER_ID_REMAPPED} = ANY($1::int[])
+          AND t.client_id IN (SELECT client_id FROM clientes_mes)
         GROUP BY t.client_id
       )
       SELECT
