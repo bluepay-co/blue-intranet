@@ -40,7 +40,7 @@ export default function PostCard({ post, onReagir }) {
         <img
           src={imagemSrc}
           alt={post.titulo}
-          className="aspect-[4/5] w-full rounded-t-xl object-cover"
+          className="aspect-[16/9] w-full rounded-t-xl object-cover"
         />
       )}
       <CardHeader>
@@ -56,7 +56,7 @@ export default function PostCard({ post, onReagir }) {
       </CardHeader>
 
       <CardContent>
-        <p className="line-clamp-5 whitespace-pre-wrap text-sm text-muted-foreground">
+        <p className="whitespace-pre-wrap text-sm text-muted-foreground">
           {post.conteudo}
         </p>
       </CardContent>
