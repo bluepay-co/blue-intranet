@@ -11,6 +11,10 @@ import AdminBlog from '@/pages/marketing/AdminBlog'
 import Formularios from '@/pages/marketing/Formularios'
 import FormularioEditor from '@/pages/marketing/FormularioEditor'
 import FormularioRespostas from '@/pages/marketing/FormularioRespostas'
+import Bluelovers from '@/pages/Bluelovers'
+import BlueloverPerfil from '@/pages/BlueloverPerfil'
+import AdminBluelovers from '@/pages/marketing/AdminBluelovers'
+import BlueloverEditor from '@/pages/marketing/BlueloverEditor'
 import Chamados from '@/pages/Chamados'
 import ChamadoDetalhe from '@/pages/ChamadoDetalhe'
 import ChamadosTI from '@/pages/ti/ChamadosTI'
@@ -60,6 +64,8 @@ function App() {
         <Route path="chat" element={<Chat />} />
         <Route path="tarefas" element={<Tarefas />} />
         <Route path="blog" element={<Blog />} />
+        <Route path="bluelovers" element={<Bluelovers />} />
+        <Route path="bluelovers/:id" element={<BlueloverPerfil />} />
         <Route path="chamados" element={<Chamados />} />
         <Route path="chamados/cx/:id" element={<ChamadoDetalhe fonte="cx" />} />
         <Route path="chamados/:id" element={<ChamadoDetalhe />} />
@@ -124,6 +130,22 @@ function App() {
           element={
             <ProtectedRoute roles={['MARKETING', 'DESENVOLVEDOR']}>
               <FormularioRespostas />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="marketing/bluelovers"
+          element={
+            <ProtectedRoute roles={['MARKETING', 'DESENVOLVEDOR']}>
+              <AdminBluelovers />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="marketing/bluelovers/:id"
+          element={
+            <ProtectedRoute roles={['MARKETING', 'DESENVOLVEDOR']}>
+              <BlueloverEditor />
             </ProtectedRoute>
           }
         />

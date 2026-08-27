@@ -21,6 +21,7 @@ export const NAV_SECTIONS = [
       { to: '/agenda', label: 'Agenda', icon: Calendar, end: true },
       { to: '/tarefas', label: 'Tarefas', icon: ListTodo },
       { to: '/blog', label: 'Blog', icon: Newspaper },
+      { to: '/bluelovers', label: 'Bluelovers', icon: UserRound },
       { to: '/chamados', label: 'Chamados', icon: LifeBuoy },
       { to: '/chat', label: 'Mensagens', icon: MessageSquare },
     ],
@@ -41,6 +42,7 @@ export const NAV_SECTIONS = [
     items: [
       { to: '/marketing/admin', label: 'Painel Blog', icon: LayoutList },
       { to: '/marketing/formularios', label: 'Formulários', icon: ClipboardList },
+      { to: '/marketing/bluelovers', label: 'Painel Bluelovers', icon: Sparkles },
     ],
   },
   {
