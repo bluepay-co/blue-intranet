@@ -13,6 +13,7 @@ import { backofficeRouter } from './backoffice.routes';
 import { chatRouter } from './chat.routes';
 import { gerenteRouter } from './gerente.routes';
 import { atualizacaoRouter } from './atualizacao.routes';
+import { blueloverRouter } from './bluelover.routes';
 
 const router = Router();
 
@@ -28,6 +29,9 @@ router.use('/api/tarefas', tarefasRouter);
 
 // Domínio: Blog de Marketing (feed público + admin exclusivo MARKETING)
 router.use('/api/blog', blogRouter);
+
+// Domínio: Bluelovers (perfis do time — vitrine para todos, gestão pelo MARKETING)
+router.use('/api/bluelovers', blueloverRouter);
 
 // Domínio: Usuários (gestão de acessos e cargos — exclusivo T.I)
 router.use('/api/usuarios', usuarioRouter);
