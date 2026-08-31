@@ -1,0 +1,433 @@
+{
+  "title": "Containers Docker",
+  "uid": "blue-containers",
+  "schemaVersion": 39,
+  "editable": true,
+  "tags": ["blue-intranet", "docker", "cadvisor"],
+  "timezone": "browser",
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "container",
+        "label": "Container",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(container_cpu_usage_seconds_total{name=~\".+\"}, name)",
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": false,
+        "current": { "text": "All", "value": "$__all" },
+        "refresh": 2,
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Containers rodando",
+      "description": "Quantidade de containers ativos agora",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "count(container_last_seen{name=~\".+\"}) OR vector(0)",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "green" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 8 },
+              { "color": "green", "value": 11 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "title": "CPU total",
+      "description": "Uso de CPU somado de todos os containers",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{name=~\".+\"}[5m])) * 100",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": { "mode": "fixed", "fixedColor": "blue" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 60 },
+              { "color": "red", "value": 90 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "title": "RAM total",
+      "description": "Memória usada por todos os containers somados",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(container_memory_usage_bytes{name=~\".+\"})",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": { "mode": "fixed", "fixedColor": "purple" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "purple", "value": null }]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "title": "Tráfego de rede total",
+      "description": "Bytes recebidos + enviados por todos os containers",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(container_network_receive_bytes_total{name=~\".+\"}[5m]) + rate(container_network_transmit_bytes_total{name=~\".+\"}[5m]))",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "color": { "mode": "fixed", "fixedColor": "blue" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "blue", "value": null }]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "title": "CPU por container",
+      "description": "Uso de CPU individual de cada container ao longo do tempo",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+      "targets": [
+        {
+          "expr": "rate(container_cpu_usage_seconds_total{name=~\"$container\"}[5m]) * 100",
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"], "sortBy": "Mean", "sortDesc": true }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "title": "RAM por container",
+      "description": "Uso de memória individual de cada container ao longo do tempo",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+      "targets": [
+        {
+          "expr": "container_memory_usage_bytes{name=~\"$container\"}",
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"], "sortBy": "Mean", "sortDesc": true }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "title": "Tráfego de rede por container",
+      "description": "Bytes recebidos e enviados por cada container",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
+      "targets": [
+        {
+          "expr": "rate(container_network_receive_bytes_total{name=~\"$container\"}[5m])",
+          "legendFormat": "⬇ {{name}}",
+          "refId": "A"
+        },
+        {
+          "expr": "-rate(container_network_transmit_bytes_total{name=~\"$container\"}[5m])",
+          "legendFormat": "⬆ {{name}}",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
+      "title": "I/O de disco por container",
+      "description": "Leituras e escritas em disco por container",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+      "targets": [
+        {
+          "expr": "rate(container_fs_reads_bytes_total{name=~\"$container\"}[5m])",
+          "legendFormat": "📖 {{name}}",
+          "refId": "A"
+        },
+        {
+          "expr": "-rate(container_fs_writes_bytes_total{name=~\"$container\"}[5m])",
+          "legendFormat": "✏️ {{name}}",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 9,
+      "title": "Restarts por container",
+      "description": "Quantas vezes cada container reiniciou. Se um container fica crashando e o Docker reinicia (restart: unless-stopped), aparece aqui.",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 21 },
+      "targets": [
+        {
+          "expr": "changes(container_start_time_seconds{name=~\".+\"}[1h])",
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["max"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "decimals": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineWidth": 0,
+            "stacking": { "mode": "normal" },
+            "showPoints": "never"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 3 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 10,
+      "title": "Visão geral dos containers",
+      "description": "Tabela com CPU, RAM e rede de cada container — equivalente visual do docker stats",
+      "type": "table",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 29 },
+      "targets": [
+        {
+          "expr": "rate(container_cpu_usage_seconds_total{name=~\".+\"}[5m]) * 100",
+          "legendFormat": "{{name}}",
+          "refId": "CPU",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "container_memory_usage_bytes{name=~\".+\"}",
+          "legendFormat": "{{name}}",
+          "refId": "RAM",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "rate(container_network_receive_bytes_total{name=~\".+\"}[5m])",
+          "legendFormat": "{{name}}",
+          "refId": "NET_IN",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "rate(container_network_transmit_bytes_total{name=~\".+\"}[5m])",
+          "legendFormat": "{{name}}",
+          "refId": "NET_OUT",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "CPU (%)", "desc": true }]
+      },
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": { "byField": "name" }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "Time 1": true, "Time 2": true, "Time 3": true, "Time 4": true, "__name__": true, "__name__ 1": true, "__name__ 2": true, "__name__ 3": true, "id": true, "id 1": true, "id 2": true, "id 3": true, "image": true, "image 1": true, "image 2": true, "image 3": true, "instance": true, "instance 1": true, "instance 2": true, "instance 3": true, "job": true, "job 1": true, "job 2": true, "job 3": true, "interface": true },
+            "renameByName": {
+              "name": "Container",
+              "Value #CPU": "CPU (%)",
+              "Value #RAM": "RAM",
+              "Value #NET_IN": "Rede ⬇",
+              "Value #NET_OUT": "Rede ⬆"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "CPU (%)" },
+            "properties": [
+              { "id": "unit", "value": "percent" },
+              { "id": "decimals", "value": 1 },
+              { "id": "custom.cellOptions", "value": { "type": "color-background" } },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 30 }, { "color": "red", "value": 70 }] } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "RAM" },
+            "properties": [{ "id": "unit", "value": "bytes" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Rede ⬇" },
+            "properties": [{ "id": "unit", "value": "Bps" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Rede ⬆" },
+            "properties": [{ "id": "unit", "value": "Bps" }]
+          }
+        ]
+      }
+    }
+  ],
+  "annotations": { "list": [] },
+  "links": [],
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "version": 0
+}

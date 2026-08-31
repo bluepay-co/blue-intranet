@@ -1,0 +1,656 @@
+{
+  "title": "PostgreSQL — Bancos de Dados",
+  "uid": "blue-postgres",
+  "schemaVersion": 39,
+  "editable": true,
+  "tags": ["blue-intranet", "postgresql", "database"],
+  "timezone": "browser",
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "15s",
+  "panels": [
+    {
+      "id": 100,
+      "title": "⚠️ BANCO DE PRODUÇÃO",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "id": 1,
+      "title": "Produção — Status",
+      "description": "O banco bluepay3_production está respondendo? VERMELHO = CAIU",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 5, "x": 0, "y": 1 },
+      "targets": [
+        {
+          "expr": "pg_up{job=\"postgres-producao\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "🔴 FORA DO AR", "color": "red" } } },
+            { "type": "value", "options": { "1": { "text": "🟢 ONLINE", "color": "green" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "title": "Produção — Tempo de resposta",
+      "description": "Latência da conexão com o banco de produção. Se subir, algo está errado.",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 5, "x": 5, "y": 1 },
+      "targets": [
+        {
+          "expr": "pg_scrape_duration_seconds{job=\"postgres-producao\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "orange", "value": 3 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "title": "Produção — Tamanho",
+      "description": "Tamanho total do banco bluepay3_production",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 4, "x": 10, "y": 1 },
+      "targets": [
+        {
+          "expr": "pg_database_size_bytes{job=\"postgres-producao\", datname=\"bluepay3_production\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": { "mode": "fixed", "fixedColor": "blue" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "blue", "value": null }]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "title": "Produção — Conexões",
+      "description": "Conexões abertas no banco de produção (visíveis com a permissão atual)",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 4, "x": 14, "y": 1 },
+      "targets": [
+        {
+          "expr": "pg_stat_database_numbackends{job=\"postgres-producao\", datname=\"bluepay3_production\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 10 },
+              { "color": "red", "value": 20 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "title": "Produção — Cache Hit Ratio",
+      "description": "Eficiência do cache do Postgres. Abaixo de 90% = muitas leituras em disco = lento",
+      "type": "gauge",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 1 },
+      "targets": [
+        {
+          "expr": "pg_stat_database_blks_hit{job=\"postgres-producao\", datname=\"bluepay3_production\"} / (pg_stat_database_blks_hit{job=\"postgres-producao\", datname=\"bluepay3_production\"} + pg_stat_database_blks_read{job=\"postgres-producao\", datname=\"bluepay3_production\"}) * 100",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "showThresholdMarkers": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 80 },
+              { "color": "yellow", "value": 90 },
+              { "color": "green", "value": 95 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "title": "Produção — Histórico UP/DOWN",
+      "description": "Timeline de disponibilidade do banco. Gaps ou quedas pra 0 = banco caiu",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 7 },
+      "targets": [
+        {
+          "expr": "pg_up{job=\"postgres-producao\"}",
+          "legendFormat": "bluepay3_production",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "single" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "decimals": 0,
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN" } } },
+            { "type": "value", "options": { "1": { "text": "UP" } } }
+          ],
+          "color": { "mode": "fixed", "fixedColor": "green" },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 30,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false,
+            "thresholdsStyle": { "mode": "area" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "title": "Produção — Transactions/s",
+      "description": "Commits e rollbacks por segundo no banco de produção",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 7 },
+      "targets": [
+        {
+          "expr": "rate(pg_stat_database_xact_commit{job=\"postgres-producao\", datname=\"bluepay3_production\"}[5m])",
+          "legendFormat": "Commits/s",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(pg_stat_database_xact_rollback{job=\"postgres-producao\", datname=\"bluepay3_production\"}[5m])",
+          "legendFormat": "Rollbacks/s",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Commits/s" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Rollbacks/s" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+          }
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "title": "Produção — Erros de conexão/timeout no Backend",
+      "description": "Logs do Express com erros de conexão ao banco de produção. Se aparecer linhas aqui, o banco está com problema.",
+      "type": "logs",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 13 },
+      "targets": [
+        {
+          "expr": "{service=\"backend\"} |~ `(?i)(timeout|ECONNREFUSED|connection terminated|statement_timeout|too many clients|remaining connection slots|could not connect|consulta.?pool|bluepay3)`",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    },
+    {
+      "id": 9,
+      "title": "Produção — Erros de timeout/conexão por hora",
+      "description": "Quantidade de erros de banco nos logs do backend ao longo do tempo. Picos = banco com problema.",
+      "type": "timeseries",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 21 },
+      "targets": [
+        {
+          "expr": "count_over_time({service=\"backend\"} |~ `(?i)(timeout|ECONNREFUSED|connection terminated|statement_timeout|too many clients|remaining connection slots|could not connect)` [$__interval])",
+          "legendFormat": "Erros de conexão/timeout",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "single" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "decimals": 0,
+          "color": { "mode": "fixed", "fixedColor": "red" },
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineWidth": 0,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 200,
+      "title": "BANCO LOCAL (Intranet)",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
+      "collapsed": false
+    },
+    {
+      "id": 10,
+      "title": "Local — Status",
+      "description": "O banco blue_intranet está respondendo?",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 4, "x": 0, "y": 28 },
+      "targets": [
+        {
+          "expr": "pg_up{job=\"postgres-local\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "🔴 FORA DO AR", "color": "red" } } },
+            { "type": "value", "options": { "1": { "text": "🟢 ONLINE", "color": "green" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 11,
+      "title": "Local — Tamanho",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 4, "x": 4, "y": 28 },
+      "targets": [
+        {
+          "expr": "pg_database_size_bytes{job=\"postgres-local\", datname=\"postgres\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": { "mode": "fixed", "fixedColor": "blue" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "blue", "value": null }]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 12,
+      "title": "Local — Conexões",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 4, "x": 8, "y": 28 },
+      "targets": [
+        {
+          "expr": "pg_stat_database_numbackends{job=\"postgres-local\", datname=\"postgres\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 8 },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 13,
+      "title": "Local — Cache Hit Ratio",
+      "type": "gauge",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 4, "x": 12, "y": 28 },
+      "targets": [
+        {
+          "expr": "pg_stat_database_blks_hit{job=\"postgres-local\", datname=\"postgres\"} / (pg_stat_database_blks_hit{job=\"postgres-local\", datname=\"postgres\"} + pg_stat_database_blks_read{job=\"postgres-local\", datname=\"postgres\"}) * 100",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "showThresholdMarkers": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 80 },
+              { "color": "yellow", "value": 90 },
+              { "color": "green", "value": 95 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 14,
+      "title": "Local — Transactions/s",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 28 },
+      "targets": [
+        {
+          "expr": "rate(pg_stat_database_xact_commit{job=\"postgres-local\", datname=\"postgres\"}[5m])",
+          "legendFormat": "Commits/s",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(pg_stat_database_xact_rollback{job=\"postgres-local\", datname=\"postgres\"}[5m])",
+          "legendFormat": "Rollbacks/s",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Commits/s" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Rollbacks/s" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+          }
+        ]
+      }
+    },
+    {
+      "id": 15,
+      "title": "Local — Queries mais pesadas (pg_stat_statements)",
+      "description": "Top 10 queries que mais consumiram tempo no banco local",
+      "type": "table",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 34 },
+      "targets": [
+        {
+          "expr": "topk(10, pg_stat_statements_mean_time_seconds{job=\"postgres-local\"})",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "Value", "desc": true }]
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true },
+            "renameByName": { "query": "Query", "Value": "Tempo médio (s)", "calls": "Chamadas" }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Tempo médio (s)" },
+            "properties": [
+              { "id": "unit", "value": "s" },
+              { "id": "decimals", "value": 3 }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 16,
+      "title": "Local — Histórico UP/DOWN",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 42 },
+      "targets": [
+        {
+          "expr": "pg_up{job=\"postgres-local\"}",
+          "legendFormat": "blue_intranet",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "single" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "decimals": 0,
+          "color": { "mode": "fixed", "fixedColor": "green" },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 30,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false,
+            "thresholdsStyle": { "mode": "area" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 17,
+      "title": "Local — Conexões ao longo do tempo",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 42 },
+      "targets": [
+        {
+          "expr": "pg_stat_database_numbackends{job=\"postgres-local\", datname=\"postgres\"}",
+          "legendFormat": "Conexões ativas",
+          "refId": "A"
+        },
+        {
+          "expr": "pg_settings_max_connections{job=\"postgres-local\"}",
+          "legendFormat": "Limite (max_connections)",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Conexões ativas" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Limite (max_connections)" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } },
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } },
+              { "id": "custom.fillOpacity", "value": 0 }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "annotations": { "list": [] },
+  "links": [],
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "version": 0
+}

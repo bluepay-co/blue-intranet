@@ -1,0 +1,442 @@
+{
+  "title": "VM — Desempenho",
+  "uid": "blue-vm",
+  "schemaVersion": 39,
+  "editable": true,
+  "tags": ["blue-intranet", "vm", "node-exporter"],
+  "timezone": "browser",
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Uptime",
+      "description": "Há quanto tempo a VM está ligada",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 4, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "time() - node_boot_time_seconds{job=\"node-exporter\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dtdurations",
+          "color": { "mode": "fixed", "fixedColor": "green" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "title": "CPU",
+      "description": "Uso atual do processador",
+      "type": "gauge",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 5, "x": 4, "y": 0 },
+      "targets": [
+        {
+          "expr": "100 - (avg(rate(node_cpu_seconds_total{job=\"node-exporter\", mode=\"idle\"}[5m])) * 100)",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 60 },
+              { "color": "orange", "value": 80 },
+              { "color": "red", "value": 90 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "title": "RAM",
+      "description": "Uso atual de memória",
+      "type": "gauge",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 5, "x": 9, "y": 0 },
+      "targets": [
+        {
+          "expr": "(1 - (node_memory_MemAvailable_bytes{job=\"node-exporter\"} / node_memory_MemTotal_bytes{job=\"node-exporter\"})) * 100",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 60 },
+              { "color": "orange", "value": 80 },
+              { "color": "red", "value": 90 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "title": "Disco",
+      "description": "Uso do disco principal",
+      "type": "gauge",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 5, "x": 14, "y": 0 },
+      "targets": [
+        {
+          "expr": "(1 - (node_filesystem_avail_bytes{job=\"node-exporter\", mountpoint=\"/\", fstype!=\"tmpfs\"} / node_filesystem_size_bytes{job=\"node-exporter\", mountpoint=\"/\", fstype!=\"tmpfs\"})) * 100",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "orange", "value": 85 },
+              { "color": "red", "value": 95 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "title": "CPU Cores",
+      "description": "Quantidade de cores do processador",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 2, "x": 19, "y": 0 },
+      "targets": [
+        {
+          "expr": "count(node_cpu_seconds_total{job=\"node-exporter\", mode=\"idle\"})",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "blue" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "blue", "value": null }]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "title": "RAM Total",
+      "description": "Memória total da VM",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 5, "w": 3, "x": 21, "y": 0 },
+      "targets": [
+        {
+          "expr": "node_memory_MemTotal_bytes{job=\"node-exporter\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": { "mode": "fixed", "fixedColor": "blue" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "blue", "value": null }]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "title": "CPU ao longo do tempo",
+      "description": "Uso do processador por modo (user, system, iowait)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+      "targets": [
+        {
+          "expr": "avg(rate(node_cpu_seconds_total{job=\"node-exporter\", mode=\"user\"}[5m])) * 100",
+          "legendFormat": "User",
+          "refId": "A"
+        },
+        {
+          "expr": "avg(rate(node_cpu_seconds_total{job=\"node-exporter\", mode=\"system\"}[5m])) * 100",
+          "legendFormat": "System",
+          "refId": "B"
+        },
+        {
+          "expr": "avg(rate(node_cpu_seconds_total{job=\"node-exporter\", mode=\"iowait\"}[5m])) * 100",
+          "legendFormat": "I/O Wait",
+          "refId": "C"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "User" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "System" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "I/O Wait" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+          }
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "title": "RAM ao longo do tempo",
+      "description": "Distribuição de memória: usada, cache/buffers e livre",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+      "targets": [
+        {
+          "expr": "node_memory_MemTotal_bytes{job=\"node-exporter\"} - node_memory_MemAvailable_bytes{job=\"node-exporter\"}",
+          "legendFormat": "Usada",
+          "refId": "A"
+        },
+        {
+          "expr": "node_memory_Cached_bytes{job=\"node-exporter\"} + node_memory_Buffers_bytes{job=\"node-exporter\"}",
+          "legendFormat": "Cache/Buffers",
+          "refId": "B"
+        },
+        {
+          "expr": "node_memory_MemFree_bytes{job=\"node-exporter\"}",
+          "legendFormat": "Livre",
+          "refId": "C"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 30,
+            "lineWidth": 2,
+            "stacking": { "mode": "normal" },
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Usada" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Cache/Buffers" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Livre" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }]
+          }
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "title": "Load Average",
+      "description": "Carga do sistema (1min, 5min, 15min). Acima do número de cores = sobrecarga",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
+      "targets": [
+        {
+          "expr": "node_load1{job=\"node-exporter\"}",
+          "legendFormat": "1 min",
+          "refId": "A"
+        },
+        {
+          "expr": "node_load5{job=\"node-exporter\"}",
+          "legendFormat": "5 min",
+          "refId": "B"
+        },
+        {
+          "expr": "node_load15{job=\"node-exporter\"}",
+          "legendFormat": "15 min",
+          "refId": "C"
+        },
+        {
+          "expr": "count(node_cpu_seconds_total{job=\"node-exporter\", mode=\"idle\"})",
+          "legendFormat": "CPU Cores (limite)",
+          "refId": "D"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "1 min" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "5 min" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "15 min" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "yellow" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "CPU Cores (limite)" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } },
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } },
+              { "id": "custom.fillOpacity", "value": 0 }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 10,
+      "title": "Tráfego de rede",
+      "description": "Bytes recebidos e enviados por segundo",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+      "targets": [
+        {
+          "expr": "rate(node_network_receive_bytes_total{job=\"node-exporter\", device!~\"lo|veth.*|br-.*|docker.*\"}[5m])",
+          "legendFormat": "⬇ Recebido ({{device}})",
+          "refId": "A"
+        },
+        {
+          "expr": "-rate(node_network_transmit_bytes_total{job=\"node-exporter\", device!~\"lo|veth.*|br-.*|docker.*\"}[5m])",
+          "legendFormat": "⬆ Enviado ({{device}})",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": ".*Recebido.*" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }]
+          },
+          {
+            "matcher": { "id": "byRegexp", "options": ".*Enviado.*" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }]
+          }
+        ]
+      }
+    }
+  ],
+  "annotations": { "list": [] },
+  "links": [],
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "version": 0
+}
