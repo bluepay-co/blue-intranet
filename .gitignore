@@ -67,3 +67,8 @@ Metas Bluepay*.csv
 
 # Especificações com credenciais/segredos coladas em texto puro (uso local)
 hubspot.md
+
+# Dados de monitoramento (volumes locais, se montados fora do Docker)
+monitoring/grafana/data/
+monitoring/prometheus/data/
+monitoring/loki/data/
