@@ -147,7 +147,9 @@ services:
     image: prometheuscommunity/postgres-exporter:latest
     restart: unless-stopped
     environment:
-      DATA_SOURCE_NAME: "postgresql://${CONSULTA_DB_USER}:${CONSULTA_DB_PASSWORD}@${CONSULTA_DB_HOST}:${CONSULTA_DB_PORT}/${CONSULTA_DB_NAME}?sslmode=require"
+      DATA_SOURCE_URI: "${CONSULTA_DB_HOST}:${CONSULTA_DB_PORT}/${CONSULTA_DB_NAME}?sslmode=require"
+      DATA_SOURCE_USER: "${CONSULTA_DB_USER}"
+      DATA_SOURCE_PASS: "${CONSULTA_DB_PASSWORD}"
     command:
       - "--web.listen-address=:9188"
 
