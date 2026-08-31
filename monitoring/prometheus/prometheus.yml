@@ -1,0 +1,51 @@
+# ============================================================================
+#  Prometheus — coleta de métricas de toda a stack Blue Intranet
+#  Cada job scrape /metrics do alvo em intervalos regulares.
+# ============================================================================
+
+global:
+  scrape_interval: 15s      # Padrão: coleta a cada 15s
+  evaluation_interval: 15s  # Avaliação de alertas (futuro)
+
+scrape_configs:
+  # ── Métricas do próprio Prometheus ──────────────────────────────────────
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # ── Node Exporter — métricas da VM host (CPU, RAM, disco, rede) ────────
+  - job_name: "node-exporter"
+    static_configs:
+      - targets: ["node-exporter:9100"]
+        labels:
+          instance: "vm-intranet"
+
+  # ── cAdvisor — métricas por container Docker (CPU, mem, I/O, rede) ─────
+  - job_name: "cadvisor"
+    static_configs:
+      - targets: ["cadvisor:8080"]
+        labels:
+          instance: "vm-intranet"
+
+  # ── Postgres Exporter — banco local (blue_intranet, CRUD) ──────────────
+  - job_name: "postgres-local"
+    static_configs:
+      - targets: ["postgres-exporter-local:9187"]
+        labels:
+          database: "intranet"
+          environment: "local"
+
+  # ── Postgres Exporter — banco produção (bluepay3_production, read-only) ─
+  - job_name: "postgres-producao"
+    static_configs:
+      - targets: ["postgres-exporter-prod:9188"]
+        labels:
+          database: "bluepay3_production"
+          environment: "producao"
+
+  # ── Nginx Exporter — métricas do reverse proxy (requests, conexões) ────
+  - job_name: "nginx"
+    static_configs:
+      - targets: ["nginx-exporter:9113"]
+        labels:
+          instance: "frontend-nginx"

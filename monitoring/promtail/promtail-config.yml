@@ -1,0 +1,55 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # ── Descoberta automática de containers Docker ──────────────────────────
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      # Usa o nome do container como label "container"
+      - source_labels: ["__meta_docker_container_name"]
+        regex: "/(.*)"
+        target_label: "container"
+      # Adiciona o nome do compose service como label
+      - source_labels: ["__meta_docker_container_label_com_docker_compose_service"]
+        target_label: "service"
+      # Adiciona o nome do projeto compose
+      - source_labels: ["__meta_docker_container_label_com_docker_compose_project"]
+        target_label: "project"
+    pipeline_stages:
+      # ── Nginx JSON logs: parseia campos individuais ──────────────────────
+      # Se a linha começa com {, tenta parsear como JSON do Nginx
+      - match:
+          selector: '{service="frontend"}'
+          stages:
+            - json:
+                expressions:
+                  remote_addr: remote_addr
+                  request_method: request_method
+                  request_uri: request_uri
+                  status: status
+                  body_bytes_sent: body_bytes_sent
+                  request_time: request_time
+                  http_user_agent: http_user_agent
+            - labels:
+                remote_addr:
+                request_method:
+                status:
+
+      # ── Demais containers: detecta nível de log nos logs brutos ──────────
+      - match:
+          selector: '{service!="frontend"}'
+          stages:
+            - regex:
+                expression: '(?i)(?P<level>error|warn|info|debug)'
+            - labels:
+                level:

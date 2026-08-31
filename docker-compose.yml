@@ -1,8 +1,19 @@
-# Orquestração de produção da Intranet Blue.
-# Sobe 3 serviços: banco (Postgres), back-end (Express) e front-end (Nginx).
-# Uso: copie .env.deploy.example -> .env, preencha, e rode `docker compose up -d --build`.
+# ============================================================================
+#  Blue Intranet — Orquestração de produção + Monitoramento
+#
+#  Serviços da aplicação:  db, backend, frontend
+#  Serviços de monitoring: prometheus, grafana, cadvisor, node-exporter,
+#                          postgres-exporter-local, postgres-exporter-prod,
+#                          nginx-exporter, loki, promtail
+#
+#  Uso: docker compose up -d --build
+# ============================================================================
 
 services:
+  # ════════════════════════════════════════════════════════════════════════
+  #  APLICAÇÃO (existentes — não mexer sem necessidade)
+  # ════════════════════════════════════════════════════════════════════════
+
   db:
     image: postgres:18
     restart: unless-stopped
@@ -10,8 +21,14 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
+    # Habilita pg_stat_statements para monitorar queries pesadas
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_preload_libraries=pg_stat_statements"
+      - "-c"
+      - "pg_stat_statements.track=all"
     volumes:
-      # Postgres 18+ usa layout por versão; monta a raiz (dados vão em /18/docker)
       - pgdata:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
@@ -22,11 +39,8 @@ services:
   backend:
     build: ./back-end
     restart: unless-stopped
-    # Reaproveita todos os segredos que já existem em back-end/.env
     env_file:
       - ./back-end/.env
-    # Sobrescreve o host do banco da intranet para apontar ao container `db`.
-    # (O banco de CONSULTA continua remoto, via CONSULTA_DB_HOST do .env.)
     environment:
       DB_HOST: db
       GOOGLE_REDIRECT_URI: ${SERVER_URL}
@@ -52,10 +66,125 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      # Certificado autoassinado gerado na VM (ver DEPLOY.md / passo de certs)
       - ./certs:/etc/nginx/certs:ro
     depends_on:
       - backend
+      - grafana
 
+  # ════════════════════════════════════════════════════════════════════════
+  #  MONITORAMENTO
+  # ════════════════════════════════════════════════════════════════════════
+
+  # ── Prometheus — coleta e armazena métricas (time-series DB) ───────────
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+
+  # ── Grafana — dashboards visuais (ponto de acesso do monitoramento) ───
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_INSTALL_PLUGINS: grafana-clock-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/grafana.ini:/etc/grafana/grafana.ini:ro
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+      - loki
+
+  # ── cAdvisor — métricas por container (CPU, mem, rede, I/O) ───────────
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    restart: unless-stopped
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+
+  # ── Node Exporter — métricas da VM host (CPU total, disco, RAM) ───────
+  node-exporter:
+    image: prom/node-exporter:latest
+    restart: unless-stopped
+    pid: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.rootfs=/rootfs"
+      - "--path.sysfs=/host/sys"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+
+  # ── Postgres Exporter — banco LOCAL (blue_intranet) ────────────────────
+  postgres-exporter-local:
+    image: prometheuscommunity/postgres-exporter:latest
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}?sslmode=disable"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ── Postgres Exporter — banco PRODUÇÃO (bluepay3_production, read-only)
+  postgres-exporter-prod:
+    image: prometheuscommunity/postgres-exporter:latest
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${CONSULTA_DB_USER}:${CONSULTA_DB_PASSWORD}@${CONSULTA_DB_HOST}:${CONSULTA_DB_PORT}/${CONSULTA_DB_NAME}?sslmode=require"
+    command:
+      - "--web.listen-address=:9188"
+
+  # ── Nginx Exporter — métricas do Nginx (requests/s, conexões) ─────────
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    restart: unless-stopped
+    command:
+      - "--nginx.scrape-uri=http://frontend:8080/nginx_status"
+    depends_on:
+      - frontend
+
+  # ── Loki — agregador de logs (consultável pelo Grafana) ────────────────
+  loki:
+    image: grafana/loki:latest
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+
+  # ── Promtail — coleta logs de todos os containers → Loki ───────────────
+  promtail:
+    image: grafana/promtail:latest
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+
+# ════════════════════════════════════════════════════════════════════════
+#  VOLUMES persistentes
+# ════════════════════════════════════════════════════════════════════════
 volumes:
   pgdata:
+  prometheus_data:
+  grafana_data:
+  loki_data:
