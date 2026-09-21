@@ -23,6 +23,8 @@ function montarUrlGoogle() {
     scope: import.meta.env.VITE_GOOGLE_SCOPE ?? 'openid email profile',
     access_type: 'offline',
     prompt: 'consent',
+    // Preserva scopes concedidos depois (ex.: Google Forms do Marketing).
+    include_granted_scopes: 'true',
   })
   const dominio = import.meta.env.VITE_CORPORATE_DOMAIN
   if (dominio) params.set('hd', dominio) // restringe ao Workspace corporativo
