@@ -1,6 +1,9 @@
 {
   // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
+    // Só checagem de tipos: produção roda via tsx (ver Dockerfile), sem etapa de build
+    "noEmit": true,
+
     // File Layout
     // "rootDir": "./src",
     // "outDir": "./dist",
