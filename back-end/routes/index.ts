@@ -13,6 +13,7 @@ import { backofficeRouter } from './backoffice.routes';
 import { chatRouter } from './chat.routes';
 import { gerenteRouter } from './gerente.routes';
 import { atualizacaoRouter } from './atualizacao.routes';
+import { formularioRouter } from './formulario.routes';
 
 const router = Router();
 
@@ -58,5 +59,8 @@ router.use('/api/gerente', gerenteRouter);
 
 // Domínio: Atualizações da intranet (avisos criados pelo T.I. — card modal para todos)
 router.use('/api/atualizacoes', atualizacaoRouter);
+
+// Domínio: Formulários do Marketing (Google Forms API — exclusivo MARKETING)
+router.use('/api/formularios', formularioRouter);
 
 export { router };
