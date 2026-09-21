@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Check, Copy, ExternalLink, Loader2, Plus, Save } from 'lucide-react'
+import { ArrowLeft, BarChart3, Check, Copy, ExternalLink, Loader2, Plus, Save } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -197,6 +197,13 @@ export default function FormularioEditor() {
               <Button variant="outline" size="sm" disabled={alternando} onClick={alternarRecebimento}>
                 {alternando && <Loader2 className="animate-spin" />}
                 {meta.aceitandoRespostas ? 'Fechar respostas' : 'Abrir respostas'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate(`/marketing/formularios/${meta.id}/respostas`)}
+              >
+                <BarChart3 /> Respostas
               </Button>
               <Button variant="outline" size="sm" onClick={copiarLink}>
                 {copiado ? <Check /> : <Copy />} {copiado ? 'Copiado' : 'Copiar link'}

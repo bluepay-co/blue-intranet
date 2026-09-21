@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
+  BarChart3,
   Check,
   CheckCircle2,
   ClipboardList,
@@ -212,6 +213,14 @@ export default function Formularios() {
                   </p>
                 </button>
                 <div className="flex shrink-0 items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="Respostas"
+                    onClick={() => navigate(`/marketing/formularios/${f.id}/respostas`)}
+                  >
+                    <BarChart3 className="size-4" />
+                  </Button>
                   <Button variant="ghost" size="icon" title="Copiar link de resposta" onClick={() => copiarLink(f)}>
                     {copiado === f.id ? <Check className="size-4" /> : <Copy className="size-4" />}
                   </Button>
