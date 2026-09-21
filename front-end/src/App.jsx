@@ -8,6 +8,8 @@ import Tarefas from '@/pages/Tarefas'
 import Usuarios from '@/pages/Usuarios'
 import Blog from '@/pages/Blog'
 import AdminBlog from '@/pages/marketing/AdminBlog'
+import Formularios from '@/pages/marketing/Formularios'
+import FormularioEditor from '@/pages/marketing/FormularioEditor'
 import Chamados from '@/pages/Chamados'
 import ChamadoDetalhe from '@/pages/ChamadoDetalhe'
 import ChamadosTI from '@/pages/ti/ChamadosTI'
@@ -89,6 +91,30 @@ function App() {
           element={
             <ProtectedRoute roles={['MARKETING', 'DESENVOLVEDOR']}>
               <AdminBlog />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="marketing/formularios"
+          element={
+            <ProtectedRoute roles={['MARKETING', 'DESENVOLVEDOR']}>
+              <Formularios />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="marketing/formularios/novo"
+          element={
+            <ProtectedRoute roles={['MARKETING', 'DESENVOLVEDOR']}>
+              <FormularioEditor />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="marketing/formularios/:id"
+          element={
+            <ProtectedRoute roles={['MARKETING', 'DESENVOLVEDOR']}>
+              <FormularioEditor />
             </ProtectedRoute>
           }
         />

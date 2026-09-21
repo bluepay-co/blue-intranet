@@ -1,4 +1,4 @@
-import { Calendar, ListTodo, Users, Newspaper, LayoutList, LifeBuoy, Headset, BarChart3, PackageSearch, TrendingUp, Activity, PhoneCall, Building2, AlertTriangle, Sparkles, MessageSquare, CalendarDays, Target, UserRound, Megaphone } from 'lucide-react'
+import { Calendar, ListTodo, Users, Newspaper, LayoutList, LifeBuoy, Headset, BarChart3, PackageSearch, TrendingUp, Activity, PhoneCall, Building2, AlertTriangle, Sparkles, MessageSquare, CalendarDays, Target, UserRound, Megaphone, ClipboardList } from 'lucide-react'
 
 /**
  * Navegação principal da sidebar, organizada em SEÇÕES por setor.
@@ -40,6 +40,7 @@ export const NAV_SECTIONS = [
     roles: ['MARKETING', 'DESENVOLVEDOR'],
     items: [
       { to: '/marketing/admin', label: 'Painel Blog', icon: LayoutList },
+      { to: '/marketing/formularios', label: 'Formulários', icon: ClipboardList },
     ],
   },
   {
