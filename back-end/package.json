@@ -4,7 +4,7 @@
   "description": "",
   "main": "server.ts",
   "scripts": {
-    "dev": "tsx watch server.ts",
+    "dev": "tsx watch --ignore \"uploads/**\" server.ts",
     "build": "tsc",
     "start": "node dist/server.js"
   },
