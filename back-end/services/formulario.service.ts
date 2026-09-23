@@ -111,6 +111,30 @@ export async function conectarGoogleForms(
   );
 }
 
+/**
+ * Um login feito sem `include_granted_scopes` devolve um token sem os scopes do
+ * Forms. Nesse caso o flag de conexão está mentindo: derruba-o para a tela
+ * voltar a oferecer "Conectar Google Forms".
+ */
+async function lancarErroForms(err: unknown, donoId: number): Promise<never> {
+  const e = err as { code?: number; message?: string; response?: { status?: number } };
+  const semEscopo =
+    (e.code ?? e.response?.status) === 403 &&
+    /insufficient authentication scopes/i.test(e.message ?? '');
+
+  if (semEscopo) {
+    await pool.query(
+      `UPDATE usuarios SET google_forms_conectado = FALSE, atualizado_em = now() WHERE id = $1`,
+      [donoId],
+    );
+    throw new AppError(
+      'O acesso ao Google Forms expirou. Clique em "Conectar Google Forms" para autorizar de novo.',
+      403,
+    );
+  }
+  lancarErroGoogle(err, 'formularios');
+}
+
 // ── Validação ────────────────────────────────────────────────────────────────
 
 function texto(valor: unknown, campo: string, max: number): string {
@@ -442,12 +466,16 @@ async function buscarRegistro(id: unknown): Promise<RegistroComCriador> {
   return rows[0];
 }
 
-async function lerForm(forms: forms_v1.Forms, formId: string): Promise<forms_v1.Schema$Form> {
+async function lerForm(
+  forms: forms_v1.Forms,
+  formId: string,
+  donoId: number,
+): Promise<forms_v1.Schema$Form> {
   try {
     const { data } = await forms.forms.get({ formId });
     return data;
   } catch (err) {
-    lancarErroGoogle(err, 'formularios');
+    return lancarErroForms(err, donoId);
   }
 }
 
@@ -464,7 +492,7 @@ export async function listarFormularios(): Promise<FormularioResumo[]> {
 export async function obterFormulario(id: unknown): Promise<Formulario> {
   const registro = await buscarRegistro(id);
   const { forms } = await clientesGoogle(registro.criado_por);
-  const form = await lerForm(forms, registro.google_form_id);
+  const form = await lerForm(forms, registro.google_form_id, registro.criado_por);
 
   // Mantém a listagem coerente quando o título é alterado direto no Google.
   const titulo = form.info?.title;
@@ -496,7 +524,7 @@ export async function criarFormulario(usuarioId: number, entrada: EntradaFormula
     });
     formId = data.formId!;
   } catch (err) {
-    lancarErroGoogle(err, 'formularios');
+    return lancarErroForms(err, usuarioId);
   }
 
   // O create só aceita o título; o resto vai em seguida. Se falhar, o form vai para a lixeira.
@@ -524,7 +552,7 @@ export async function criarFormulario(usuarioId: number, entrada: EntradaFormula
     ({ data: form } = await forms.forms.get({ formId }));
   } catch (err) {
     await drive.files.update({ fileId: formId, requestBody: { trashed: true } }).catch(() => undefined);
-    lancarErroGoogle(err, 'formularios');
+    return lancarErroForms(err, usuarioId);
   }
 
   let novoId: number;
@@ -547,7 +575,7 @@ export async function atualizarFormulario(id: unknown, entrada: EntradaFormulari
   const dados = validarEntrada(entrada);
   const registro = await buscarRegistro(id);
   const { forms, drive } = await clientesGoogle(registro.criado_por);
-  const atual = await lerForm(forms, registro.google_form_id);
+  const atual = await lerForm(forms, registro.google_form_id, registro.criado_por);
 
   if (entrada.revisao && entrada.revisao !== atual.revisionId) {
     throw new AppError('O formulário foi alterado por outra pessoa. Recarregue e tente novamente.', 409);
@@ -577,7 +605,7 @@ export async function atualizarFormulario(id: unknown, entrada: EntradaFormulari
     }
     ({ data: form } = await forms.forms.get({ formId: registro.google_form_id }));
   } catch (err) {
-    lancarErroGoogle(err, 'formularios');
+    return lancarErroForms(err, registro.criado_por);
   }
 
   await pool.query(`UPDATE formularios SET titulo = $1, atualizado_em = now() WHERE id = $2`, [
@@ -603,7 +631,7 @@ export async function alterarRecebimento(id: unknown, aceitando: unknown): Promi
       },
     });
   } catch (err) {
-    lancarErroGoogle(err, 'formularios');
+    return lancarErroForms(err, registro.criado_por);
   }
   return aceitando;
 }
@@ -616,7 +644,7 @@ export async function excluirFormulario(id: unknown): Promise<void> {
     await drive.files.update({ fileId: registro.google_form_id, requestBody: { trashed: true } });
   } catch (err) {
     const e = err as { code?: number; response?: { status?: number } };
-    if ((e.code ?? e.response?.status) !== 404) lancarErroGoogle(err, 'formularios');
+    if ((e.code ?? e.response?.status) !== 404) await lancarErroForms(err, registro.criado_por);
   }
   await pool.query(`DELETE FROM formularios WHERE id = $1`, [registro.id]);
 }
@@ -646,7 +674,7 @@ function colunasDoForm(form: forms_v1.Schema$Form): ColunaResposta[] {
 export async function listarRespostas(id: unknown): Promise<RespostasFormulario> {
   const registro = await buscarRegistro(id);
   const { forms } = await clientesGoogle(registro.criado_por);
-  const form = await lerForm(forms, registro.google_form_id);
+  const form = await lerForm(forms, registro.google_form_id, registro.criado_por);
 
   const brutas: forms_v1.Schema$FormResponse[] = [];
   try {
@@ -661,7 +689,7 @@ export async function listarRespostas(id: unknown): Promise<RespostasFormulario>
       pageToken = data.nextPageToken ?? undefined;
     } while (pageToken);
   } catch (err) {
-    lancarErroGoogle(err, 'formularios');
+    return lancarErroForms(err, registro.criado_por);
   }
 
   const respostas: RespostaFormulario[] = brutas
