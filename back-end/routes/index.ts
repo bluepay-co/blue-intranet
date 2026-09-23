@@ -13,6 +13,8 @@ import { backofficeRouter } from './backoffice.routes';
 import { chatRouter } from './chat.routes';
 import { gerenteRouter } from './gerente.routes';
 import { atualizacaoRouter } from './atualizacao.routes';
+import { formularioRouter } from './formulario.routes';
+import { blueloverRouter } from './bluelover.routes';
 
 const router = Router();
 
@@ -25,6 +27,9 @@ router.use('/api/agenda', agendaRouter);
 
 // Domínio: Tarefas (Google Tasks do usuário logado)
 router.use('/api/tarefas', tarefasRouter);
+
+// Domínio: Bluelovers (perfis do time — vitrine para todos, gestão pelo MARKETING)
+router.use('/api/bluelovers', blueloverRouter);
 
 // Domínio: Blog de Marketing (feed público + admin exclusivo MARKETING)
 router.use('/api/blog', blogRouter);
@@ -58,5 +63,8 @@ router.use('/api/gerente', gerenteRouter);
 
 // Domínio: Atualizações da intranet (avisos criados pelo T.I. — card modal para todos)
 router.use('/api/atualizacoes', atualizacaoRouter);
+
+// Domínio: Formulários do Marketing (Google Forms API — exclusivo MARKETING)
+router.use('/api/formularios', formularioRouter);
 
 export { router };

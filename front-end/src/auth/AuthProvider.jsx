@@ -7,6 +7,7 @@ import {
   buscarUsuarioLogado,
   logout as limparSessao,
 } from '@/api/modules/auth'
+import { ehRetornoGoogleForms } from './google-forms'
 
 /**
  * Provedor de autenticação. Faz o "bootstrap" da sessão ao carregar o app:
@@ -29,10 +30,23 @@ export default function AuthProvider({ children }) {
     if (iniciado.current) return
     iniciado.current = true
 
-    const code = new URLSearchParams(window.location.search).get('code')
+    const params = new URLSearchParams(window.location.search)
+    // Retorno do consentimento do Google Forms: a sessão continua a mesma.
+    const retornoForms = ehRetornoGoogleForms(params)
+    const code = retornoForms ? null : params.get('code')
+
+    // Navega antes do await: depois de setUsuario, a rota "/" venceria a transition do router.
+    if (retornoForms) {
+      navigate(`/marketing/formularios${window.location.search}`, { replace: true })
+    }
 
     async function iniciar() {
       try {
+        if (retornoForms) {
+          setUsuario(await buscarUsuarioLogado())
+          return
+        }
+
         if (code) {
           const { token, usuario: logado } = await loginComGoogle(code)
           localStorage.setItem(TOKEN_KEY, token)

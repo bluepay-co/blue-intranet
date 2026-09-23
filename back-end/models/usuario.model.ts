@@ -31,6 +31,8 @@ export interface Usuario {
   bloqueado: boolean;
   google_access_token: string | null;
   google_refresh_token: string | null;
+  /** Autorizou os scopes do Google Forms (fluxo incremental, só Marketing). */
+  google_forms_conectado: boolean;
   criado_em: Date;
   atualizado_em: Date;
 }
