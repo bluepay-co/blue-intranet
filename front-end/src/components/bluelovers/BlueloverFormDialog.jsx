@@ -3,8 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import CampoImagem from '@/components/bluelovers/CampoImagem'
-import { IMAGEM_VAZIA, imagemDoBanco } from '@/components/bluelovers/imagem-utils'
-import { criarPerfil, editarPerfil, urlFoto } from '@/api/modules/bluelovers'
+import { IMAGEM_VAZIA, IMAGENS_PERFIL, imagemDoBanco } from '@/components/bluelovers/imagem-utils'
+import { criarPerfil, editarPerfil, payloadDoPerfil, urlFoto } from '@/api/modules/bluelovers'
+
+const CLASSE_TEXTAREA =
+  'flex w-full resize-y rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
 /**
  * Formulário de dados do perfil (identidade + as duas imagens fixas).
@@ -22,6 +25,16 @@ export default function BlueloverFormDialog({ aberto, onFechar, perfilEditando, 
   const [setor, setSetor] = useState(perfilEditando?.setor ?? '')
   const [frase, setFrase] = useState(perfilEditando?.frase ?? '')
   const [ordem, setOrdem] = useState(String(perfilEditando?.ordem ?? 0))
+  const [apelido, setApelido] = useState(perfilEditando?.apelido ?? '')
+  const [talento, setTalento] = useState(perfilEditando?.talento ?? '')
+  const [nascimento, setNascimento] = useState(
+    (perfilEditando?.data_nascimento ?? '').slice(0, 10),
+  )
+  const [bio, setBio] = useState(perfilEditando?.bio ?? '')
+  const [habilidades, setHabilidades] = useState(() => {
+    const atuais = perfilEditando?.habilidades ?? []
+    return [atuais[0] ?? '', atuais[1] ?? '', atuais[2] ?? '']
+  })
 
   const [capa, setCapa] = useState(
     perfilEditando ? imagemDoBanco(perfilEditando.foto_capa_url, urlFoto) : IMAGEM_VAZIA,
@@ -49,10 +62,16 @@ export default function BlueloverFormDialog({ aberto, onFechar, perfilEditando, 
     setErro('')
 
     const payload = {
+      ...(perfilEditando ? payloadDoPerfil(perfilEditando) : {}),
       nome,
       cargo,
       setor,
       frase,
+      apelido,
+      data_nascimento: nascimento,
+      bio,
+      talento,
+      habilidades: habilidades.map((h) => h.trim()).filter(Boolean),
       ordem: Number(ordem) || 0,
       foto_capa: capa.file || undefined,
       foto_capa_url: capa.file ? undefined : capa.urlRaw,
@@ -117,6 +136,29 @@ export default function BlueloverFormDialog({ aberto, onFechar, perfilEditando, 
             </div>
 
             <div className="flex flex-col gap-1.5">
+              <label htmlFor="bl-apelido" className="text-sm font-medium">
+                Como prefere ser chamado(a)
+              </label>
+              <Input
+                id="bl-apelido"
+                placeholder="Ex.: Lukinhas"
+                value={apelido}
+                onChange={(e) => setApelido(e.target.value)}
+                maxLength={80}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="bl-nascimento" className="text-sm font-medium">Data de nascimento</label>
+              <Input
+                id="bl-nascimento"
+                type="date"
+                value={nascimento}
+                onChange={(e) => setNascimento(e.target.value)}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
               <label htmlFor="bl-ordem" className="text-sm font-medium">Ordem na vitrine</label>
               <Input
                 id="bl-ordem"
@@ -126,6 +168,52 @@ export default function BlueloverFormDialog({ aberto, onFechar, perfilEditando, 
                 onChange={(e) => setOrdem(e.target.value)}
               />
             </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-baseline justify-between">
+              <label htmlFor="bl-bio" className="text-sm font-medium">Descrição curta</label>
+              <span className="text-xs text-muted-foreground">{bio.length}/400</span>
+            </div>
+            <textarea
+              id="bl-bio"
+              placeholder="Uma breve descrição sobre a pessoa…"
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              rows={2}
+              maxLength={400}
+              className={CLASSE_TEXTAREA}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium">Três palavras que te definem</label>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {habilidades.map((valor, i) => (
+                <Input
+                  key={i}
+                  placeholder={`Palavra ${i + 1}`}
+                  value={valor}
+                  maxLength={60}
+                  onChange={(e) =>
+                    setHabilidades(habilidades.map((h, k) => (k === i ? e.target.value : h)))
+                  }
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="bl-talento" className="text-sm font-medium">
+              Maior talento ou habilidade
+            </label>
+            <Input
+              id="bl-talento"
+              placeholder="Ex.: Escutar as pessoas de verdade"
+              value={talento}
+              onChange={(e) => setTalento(e.target.value)}
+              maxLength={200}
+            />
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -140,23 +228,23 @@ export default function BlueloverFormDialog({ aberto, onFechar, perfilEditando, 
               onChange={(e) => setFrase(e.target.value)}
               rows={2}
               maxLength={300}
-              className="flex w-full resize-y rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              className={CLASSE_TEXTAREA}
             />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <CampoImagem
               rotulo="Capa do card"
-              dica="4:5 — 1080 x 1350"
-              aspecto="aspect-[4/5]"
+              dica={IMAGENS_PERFIL.capa.dica}
+              aspecto={IMAGENS_PERFIL.capa.aspecto}
               valor={capa}
               onChange={setCapa}
               onErro={setErro}
             />
             <CampoImagem
-              rotulo="Imagem de destaque"
-              dica="Topo do perfil (opcional)"
-              aspecto="aspect-[4/3]"
+              rotulo="Foto principal do perfil"
+              dica={IMAGENS_PERFIL.perfil.dica}
+              aspecto={IMAGENS_PERFIL.perfil.aspecto}
               valor={destaque}
               onChange={setDestaque}
               onErro={setErro}

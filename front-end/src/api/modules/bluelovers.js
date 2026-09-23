@@ -19,28 +19,63 @@ export function urlFoto(fotoPath) {
   return `${API_BASE}${fotoPath}`
 }
 
+/** Campos de texto do perfil enviados como estão (o back valida e normaliza). */
+const CAMPOS_TEXTO = [
+  'nome', 'cargo', 'setor', 'frase',
+  'apelido', 'data_nascimento', 'bio', 'talento',
+  'gosto_comida', 'gosto_assiste', 'gosto_musica', 'gosto_cor', 'gosto_rede_social', 'gosto_emoji',
+  'hobby', 'presente_perfeito',
+  'viagem_favorita_texto', 'viagem_sonho',
+  'inspiracao_texto', 'bluepay_pessoa_texto',
+  'mais_sobre_mim',
+]
+
+/** Cada imagem: arquivo novo tem precedência; senão vale o path atual ('' remove). */
+const IMAGENS = [
+  ['foto_capa', 'foto_capa_url'],
+  ['foto_destaque', 'foto_destaque_url'],
+  ['foto_viagem', 'viagem_favorita_foto_url'],
+  ['foto_viagem_sonho', 'viagem_sonho_foto_url'],
+  ['foto_inspiracao', 'inspiracao_foto_url'],
+  ['foto_bluepay', 'bluepay_pessoa_foto_url'],
+]
+
+/**
+ * Payload completo a partir do perfil salvo. O PUT substitui todos os campos,
+ * então quem edita só uma seção precisa reenviar o resto sem alteração.
+ * @param {object} perfil
+ */
+export function payloadDoPerfil(perfil) {
+  const base = {
+    ordem: perfil.ordem ?? 0,
+    habilidades: perfil.habilidades ?? [],
+    rotulos_gostos: perfil.rotulos_gostos ?? {},
+    data_nascimento: (perfil.data_nascimento ?? '').slice(0, 10),
+  }
+  CAMPOS_TEXTO.forEach((campo) => {
+    if (base[campo] === undefined) base[campo] = perfil[campo] ?? ''
+  })
+  IMAGENS.forEach(([, campoUrl]) => {
+    base[campoUrl] = perfil[campoUrl] ?? ''
+  })
+  return base
+}
+
 /** Monta o FormData do perfil, aplicando a convenção de manter/trocar imagem. */
 function formPerfil(payload) {
   const form = new FormData()
-  form.append('nome', payload.nome)
-  form.append('cargo', payload.cargo ?? '')
-  form.append('setor', payload.setor ?? '')
-  form.append('frase', payload.frase ?? '')
+  CAMPOS_TEXTO.forEach((campo) => form.append(campo, payload[campo] ?? ''))
   form.append('ordem', String(payload.ordem ?? 0))
+  form.append('habilidades', JSON.stringify(payload.habilidades ?? []))
+  form.append('rotulos_gostos', JSON.stringify(payload.rotulos_gostos ?? {}))
 
-  // Arquivo novo tem precedência; senão reenvia o path que já está no banco
-  // (string vazia = remover a imagem).
-  if (payload.foto_capa) {
-    form.append('foto_capa', payload.foto_capa)
-  } else {
-    form.append('foto_capa_url', payload.foto_capa_url ?? '')
-  }
-
-  if (payload.foto_destaque) {
-    form.append('foto_destaque', payload.foto_destaque)
-  } else {
-    form.append('foto_destaque_url', payload.foto_destaque_url ?? '')
-  }
+  IMAGENS.forEach(([campoArquivo, campoUrl]) => {
+    if (payload[campoArquivo]) {
+      form.append(campoArquivo, payload[campoArquivo])
+    } else {
+      form.append(campoUrl, payload[campoUrl] ?? '')
+    }
+  })
 
   return form
 }
@@ -127,16 +162,26 @@ export async function alternarPublicacao(id) {
   return data
 }
 
-/**
- * Adiciona uma seção ao fim do perfil.
- * @param {number} blueloverId
- * @param {{ titulo: string, texto: string, foto?: File }} payload
- * @returns {Promise<object>} a seção criada
- */
-export async function criarBloco(blueloverId, payload) {
+/** Campos comuns de uma seção: card de conquista (seção 02) ou momento (seção 06). */
+function formBloco(payload) {
   const form = new FormData()
   form.append('titulo', payload.titulo)
   form.append('texto', payload.texto)
+  form.append('tipo', payload.tipo ?? 'livre')
+  if (payload.chave) form.append('chave', payload.chave)
+  if (payload.rotulo_data != null) form.append('rotulo_data', payload.rotulo_data)
+  return form
+}
+
+/**
+ * Adiciona uma seção ao fim do perfil.
+ * @param {number} blueloverId
+ * @param {{ titulo: string, texto: string, tipo?: string, chave?: string,
+ *           rotulo_data?: string|null, foto?: File }} payload
+ * @returns {Promise<object>} a seção criada
+ */
+export async function criarBloco(blueloverId, payload) {
+  const form = formBloco(payload)
   if (payload.foto) form.append('foto', payload.foto)
 
   const { data } = await api.post(
@@ -157,9 +202,7 @@ export async function criarBloco(blueloverId, payload) {
  * @returns {Promise<object>} a seção atualizada
  */
 export async function editarBloco(blocoId, payload) {
-  const form = new FormData()
-  form.append('titulo', payload.titulo)
-  form.append('texto', payload.texto)
+  const form = formBloco(payload)
   if (payload.foto) {
     form.append('foto', payload.foto)
   } else {
