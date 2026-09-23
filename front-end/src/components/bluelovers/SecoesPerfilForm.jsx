@@ -8,7 +8,7 @@ import { GOSTOS, LIMITES_GOSTO } from '@/components/bluelovers/gostos'
 import { editarPerfil, payloadDoPerfil, urlFoto } from '@/api/modules/bluelovers'
 
 const CLASSE_TEXTAREA =
-  'flex w-full resize-y rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+  'flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none'
 
 function Campo({ id, rotulo, contador, children }) {
   return (
@@ -125,16 +125,14 @@ export default function SecoesPerfilForm({ perfil, onSalvo }) {
             <Campo
               id="bl-viagem"
               rotulo="✈️ Minha viagem favorita"
-              contador={`${(campos.viagem_favorita_texto ?? '').length}/400`}
+              contador={`${(campos.viagem_favorita_texto ?? '').length}/120`}
             >
-              <textarea
+              <Input
                 id="bl-viagem"
-                placeholder="Uma descrição curta sobre a viagem…"
+                placeholder="Ex.: Japão"
                 value={campos.viagem_favorita_texto ?? ''}
+                maxLength={120}
                 onChange={editar('viagem_favorita_texto')}
-                rows={3}
-                maxLength={400}
-                className={CLASSE_TEXTAREA}
               />
             </Campo>
             <CampoImagem
@@ -249,7 +247,7 @@ export default function SecoesPerfilForm({ perfil, onSalvo }) {
           {erro && <p className="mr-auto text-sm text-destructive">{erro}</p>}
           {!erro && aviso && <p className="mr-auto text-sm text-muted-foreground">{aviso}</p>}
           <Button disabled={salvando} onClick={salvar}>
-            {salvando ? 'Salvando…' : 'Salvar seções'}
+            {salvando ? 'Salvando…' : 'Salvar'}
           </Button>
         </div>
       </CardContent>
