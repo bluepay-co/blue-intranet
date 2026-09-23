@@ -14,10 +14,29 @@ import {
   editarBloco,
   deletarBloco,
   reordenarBlocos,
+  atualizarFotosPerfil,
+  blueloverDoBloco,
   type PerfilEntrada,
+  type BlocoEntrada,
 } from '../services/bluelover.service';
 
 const UPLOAD_DIR = 'bluelovers';
+/** Destino provisório de quem sobe antes de existir um perfil dono do arquivo. */
+export const PASTA_TEMP = '_tmp';
+const BASE_UPLOAD = path.join(__dirname, '..', 'uploads', UPLOAD_DIR);
+
+const urlDaPasta = (pasta: string, nome: string) => `/uploads/${UPLOAD_DIR}/${pasta}/${nome}`;
+
+/** Move o arquivo de `_tmp` para a pasta do perfil e devolve o novo path. */
+function moverParaPerfil(relativo: string | null, blueloverId: number): string | null {
+  if (!relativo?.includes(`/${PASTA_TEMP}/`)) return relativo;
+
+  const nome = path.basename(relativo);
+  const destino = path.join(BASE_UPLOAD, String(blueloverId));
+  fs.mkdirSync(destino, { recursive: true });
+  fs.renameSync(path.join(BASE_UPLOAD, PASTA_TEMP, nome), path.join(destino, nome));
+  return urlDaPasta(String(blueloverId), nome);
+}
 
 type Arquivos = Record<string, Express.Multer.File[]> | undefined;
 
@@ -28,10 +47,15 @@ function lerId(req: Request, param = 'id'): number {
   return id;
 }
 
+/** Path relativo de um arquivo recém-enviado, respeitando a pasta de destino. */
+function pathDoUpload(arquivo: Express.Multer.File): string {
+  return urlDaPasta(path.basename(arquivo.destination), arquivo.filename);
+}
+
 /** Path relativo do arquivo enviado no campo informado, ou null. */
 function pathUpload(arquivos: Arquivos, campo: string): string | null {
   const arquivo = arquivos?.[campo]?.[0];
-  return arquivo ? `/uploads/${UPLOAD_DIR}/${arquivo.filename}` : null;
+  return arquivo ? pathDoUpload(arquivo) : null;
 }
 
 /**
@@ -40,7 +64,8 @@ function pathUpload(arquivos: Arquivos, campo: string): string | null {
  * controlada pelo cliente que acaba num `fs.unlink`. Sem esta checagem, um
  * `../../` no body viraria path traversal na exclusão.
  */
-const PATH_OK = new RegExp(`^/uploads/${UPLOAD_DIR}/[A-Za-z0-9._-]+$`);
+// Aceita a pasta do perfil, a temporária e os arquivos soltos de antes da separação.
+const PATH_OK = new RegExp(`^/uploads/${UPLOAD_DIR}/(?:\\d+/|${PASTA_TEMP}/)?[A-Za-z0-9._-]+$`);
 
 function sanitizarPath(valor?: string): string | null {
   const bruto = typeof valor === 'string' ? valor.trim() : '';
@@ -72,27 +97,72 @@ function limparUploads(req: Request) {
   });
 }
 
+/**
+ * O multipart entrega tudo como string: listas e mapas chegam em JSON.
+ * Entrada malformada vira erro de validação, não 500.
+ */
+function lerJson(valor: unknown, mensagem: string): unknown {
+  if (typeof valor !== 'string' || !valor.trim()) return undefined;
+  try {
+    return JSON.parse(valor);
+  } catch {
+    throw new AppError(mensagem, 400);
+  }
+}
+
 /** Lê os campos textuais do perfil, resolvendo arquivo novo × path reenviado. */
 function lerPerfil(req: Request): PerfilEntrada {
   const arquivos = req.files as Arquivos;
-  const { nome, cargo, setor, frase, ordem, foto_capa_url, foto_destaque_url } = req.body as {
-    nome?: string;
-    cargo?: string;
-    setor?: string;
-    frase?: string;
-    ordem?: string;
-    foto_capa_url?: string;
-    foto_destaque_url?: string;
-  };
+  const c = req.body as Record<string, string | undefined>;
 
   return {
-    nome: nome ?? '',
-    cargo: cargo ?? null,
-    setor: setor ?? null,
-    frase: frase ?? null,
-    fotoCapaUrl: pathUpload(arquivos, 'foto_capa') ?? sanitizarPath(foto_capa_url),
-    fotoDestaqueUrl: pathUpload(arquivos, 'foto_destaque') ?? sanitizarPath(foto_destaque_url),
-    ordem: Number(ordem ?? 0),
+    nome: c.nome ?? '',
+    cargo: c.cargo ?? null,
+    setor: c.setor ?? null,
+    frase: c.frase ?? null,
+    fotoCapaUrl: pathUpload(arquivos, 'foto_capa') ?? sanitizarPath(c.foto_capa_url),
+    fotoDestaqueUrl: pathUpload(arquivos, 'foto_destaque') ?? sanitizarPath(c.foto_destaque_url),
+    ordem: Number(c.ordem ?? 0),
+    apelido: c.apelido ?? null,
+    dataNascimento: c.data_nascimento ?? null,
+    bio: c.bio ?? null,
+    habilidades: lerJson(c.habilidades, 'Habilidades inválidas.') ?? [],
+    talento: c.talento ?? null,
+    gostoComida: c.gosto_comida ?? null,
+    gostoAssiste: c.gosto_assiste ?? null,
+    gostoMusica: c.gosto_musica ?? null,
+    gostoCor: c.gosto_cor ?? null,
+    gostoRedeSocial: c.gosto_rede_social ?? null,
+    gostoEmoji: c.gosto_emoji ?? null,
+    hobby: c.hobby ?? null,
+    presentePerfeito: c.presente_perfeito ?? null,
+    rotulosGostos: lerJson(c.rotulos_gostos, 'Títulos dos gostos inválidos.'),
+    viagemFavoritaTexto: c.viagem_favorita_texto ?? null,
+    viagemFavoritaFotoUrl:
+      pathUpload(arquivos, 'foto_viagem') ?? sanitizarPath(c.viagem_favorita_foto_url),
+    viagemSonho: c.viagem_sonho ?? null,
+    viagemSonhoFotoUrl:
+      pathUpload(arquivos, 'foto_viagem_sonho') ?? sanitizarPath(c.viagem_sonho_foto_url),
+    inspiracaoTexto: c.inspiracao_texto ?? null,
+    inspiracaoFotoUrl:
+      pathUpload(arquivos, 'foto_inspiracao') ?? sanitizarPath(c.inspiracao_foto_url),
+    bluepayPessoaTexto: c.bluepay_pessoa_texto ?? null,
+    bluepayPessoaFotoUrl:
+      pathUpload(arquivos, 'foto_bluepay') ?? sanitizarPath(c.bluepay_pessoa_foto_url),
+    maisSobreMim: c.mais_sobre_mim ?? null,
+  };
+}
+
+/** Campos de uma seção (card de conquista ou momento da timeline). */
+function lerBloco(req: Request, fotoUrl: string | null): BlocoEntrada {
+  const c = req.body as Record<string, string | undefined>;
+  return {
+    tipo: c.tipo ?? null,
+    chave: c.chave ?? null,
+    titulo: c.titulo ?? '',
+    texto: c.texto ?? '',
+    rotuloData: c.rotulo_data ?? null,
+    fotoUrl,
   };
 }
 
@@ -151,7 +221,19 @@ export async function getAdminPerfil(req: Request, res: Response) {
 /** POST /api/bluelovers/admin — Cria um perfil (multipart/form-data). */
 export async function postCriarPerfil(req: Request, res: Response) {
   try {
-    const bluelover = await criarPerfil(req.usuario!.id, lerPerfil(req));
+    const entrada = lerPerfil(req);
+    const bluelover = await criarPerfil(req.usuario!.id, entrada);
+
+    // Só agora existe o id que dá nome à pasta do perfil.
+    await atualizarFotosPerfil(bluelover.id, {
+      fotoCapaUrl: moverParaPerfil(entrada.fotoCapaUrl, bluelover.id),
+      fotoDestaqueUrl: moverParaPerfil(entrada.fotoDestaqueUrl, bluelover.id),
+      viagemFavoritaFotoUrl: moverParaPerfil(entrada.viagemFavoritaFotoUrl, bluelover.id),
+      viagemSonhoFotoUrl: moverParaPerfil(entrada.viagemSonhoFotoUrl, bluelover.id),
+      inspiracaoFotoUrl: moverParaPerfil(entrada.inspiracaoFotoUrl, bluelover.id),
+      bluepayPessoaFotoUrl: moverParaPerfil(entrada.bluepayPessoaFotoUrl, bluelover.id),
+    });
+
     return res.status(201).json({ bluelover });
   } catch (err) {
     limparUploads(req);
@@ -179,8 +261,12 @@ export async function putEditarPerfil(req: Request, res: Response) {
 /** DELETE /api/bluelovers/admin/:id — Remove o perfil, suas seções e as imagens. */
 export async function deletePerfil(req: Request, res: Response) {
   try {
-    const paths = await deletarPerfil(lerId(req));
+    const id = lerId(req);
+    const paths = await deletarPerfil(id);
     apagarArquivos(paths);
+    fs.rm(path.join(BASE_UPLOAD, String(id)), { recursive: true, force: true }, () => {
+      /* a pasta pode nem existir se o perfil não tinha imagens */
+    });
     return res.status(200).json({ message: 'Perfil removido.' });
   } catch (err) {
     if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
@@ -206,10 +292,8 @@ export async function patchPublicar(req: Request, res: Response) {
 /** POST /api/bluelovers/admin/:id/blocos — Adiciona uma seção ao perfil. */
 export async function postCriarBloco(req: Request, res: Response) {
   try {
-    const { titulo, texto } = req.body as { titulo?: string; texto?: string };
-    const fotoUrl = req.file ? `/uploads/${UPLOAD_DIR}/${req.file.filename}` : null;
-
-    const bloco = await criarBloco(lerId(req), titulo ?? '', texto ?? '', fotoUrl);
+    const fotoUrl = req.file ? pathDoUpload(req.file) : null;
+    const bloco = await criarBloco(lerId(req), lerBloco(req, fotoUrl));
     return res.status(201).json({ bloco });
   } catch (err) {
     limparUploads(req);
@@ -222,22 +306,15 @@ export async function postCriarBloco(req: Request, res: Response) {
 /** PUT /api/bluelovers/admin/blocos/:blocoId — Edita uma seção. */
 export async function putEditarBloco(req: Request, res: Response) {
   try {
-    const { titulo, texto, foto_url } = req.body as {
-      titulo?: string;
-      texto?: string;
-      foto_url?: string;
-    };
     // Arquivo novo tem precedência; senão vale o path reenviado pelo front.
     const fotoUrl = req.file
-      ? `/uploads/${UPLOAD_DIR}/${req.file.filename}`
-      : sanitizarPath(foto_url);
+      ? pathDoUpload(req.file)
+      : sanitizarPath((req.body as { foto_url?: string }).foto_url);
 
-    const { bloco, orfa } = await editarBloco(
-      lerId(req, 'blocoId'),
-      titulo ?? '',
-      texto ?? '',
-      fotoUrl,
-    );
+    const blocoId = lerId(req, 'blocoId');
+    const destino = moverParaPerfil(fotoUrl, await blueloverDoBloco(blocoId));
+
+    const { bloco, orfa } = await editarBloco(blocoId, lerBloco(req, destino));
     apagarArquivos([orfa]);
     return res.status(200).json({ bloco });
   } catch (err) {

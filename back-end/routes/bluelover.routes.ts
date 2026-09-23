@@ -19,13 +19,25 @@ import {
   putEditarBloco,
   deleteBloco,
   patchOrdemBlocos,
+  PASTA_TEMP,
 } from '../controllers/bluelover.controller';
 
 const uploadDir = path.join(__dirname, '..', 'uploads', 'bluelovers');
 fs.mkdirSync(uploadDir, { recursive: true });
 
+/**
+ * Cada perfil tem sua pasta (`uploads/bluelovers/<id>`). Nas rotas sem `:id`
+ * — criação do perfil e edição de seção — o arquivo nasce em `_tmp` e o
+ * controller o move assim que descobre a qual perfil pertence.
+ */
 const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadDir),
+  destination: (req, _file, cb) => {
+    const id = Number(req.params.id);
+    const pasta = Number.isInteger(id) && id > 0 ? String(id) : PASTA_TEMP;
+    const destino = path.join(uploadDir, pasta);
+    fs.mkdirSync(destino, { recursive: true });
+    cb(null, destino);
+  },
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
@@ -51,6 +63,10 @@ const upload = multer({
 const uploadPerfil = upload.fields([
   { name: 'foto_capa', maxCount: 1 },
   { name: 'foto_destaque', maxCount: 1 },
+  { name: 'foto_viagem', maxCount: 1 },
+  { name: 'foto_viagem_sonho', maxCount: 1 },
+  { name: 'foto_inspiracao', maxCount: 1 },
+  { name: 'foto_bluepay', maxCount: 1 },
 ]);
 
 const blueloverRouter = Router();
