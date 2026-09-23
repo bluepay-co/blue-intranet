@@ -23,6 +23,9 @@ export const IMAGENS_PERFIL = {
   momento:    { aspecto: 'aspect-square', dica: '1:1 — 800 × 800 px (exibida em círculo)' },
 }
 
+/** Mesma whitelist do backend (bluelover.routes.ts): SVG fica de fora. */
+export const TIPOS_IMAGEM_OK = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+
 /** Estado inicial de um campo de imagem vazio. */
 export const IMAGEM_VAZIA = { file: null, previewUrl: null, urlRaw: null }
 

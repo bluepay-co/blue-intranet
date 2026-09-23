@@ -1,10 +1,17 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { ImagePlus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { IMAGEM_VAZIA, MAX_IMAGEM_BYTES, MAX_IMAGEM_MB } from '@/components/bluelovers/imagem-utils'
+import {
+  IMAGEM_VAZIA,
+  MAX_IMAGEM_BYTES,
+  MAX_IMAGEM_MB,
+  TIPOS_IMAGEM_OK,
+} from '@/components/bluelovers/imagem-utils'
 
 /**
- * Campo de upload de imagem controlado pelo pai.
+ * Campo de imagem controlado pelo pai. Aceita três formas de envio: escolher o
+ * arquivo, arrastar e soltar, ou colar (Ctrl+V) uma imagem copiada de outro
+ * site — útil para o Marketing não precisar baixar antes.
  *
  * `valor` carrega os dois lados da convenção do projeto: `previewUrl` é o que
  * se exibe (blob local ou URL do servidor) e `urlRaw` é o path que volta pro
@@ -22,19 +29,41 @@ export default function CampoImagem({
   onErro,
 }) {
   const inputRef = useRef(null)
+  const [arrastando, setArrastando] = useState(false)
 
-  function selecionar(e) {
-    const file = e.target.files?.[0]
+  function aceitar(file) {
     if (!file) return
 
+    if (!TIPOS_IMAGEM_OK.includes(file.type)) {
+      onErro?.('Formato não aceito. Use JPEG, PNG, GIF ou WebP.')
+      return
+    }
     if (file.size > MAX_IMAGEM_BYTES) {
       onErro?.(`A imagem excede o limite de ${MAX_IMAGEM_MB} MB.`)
-      if (inputRef.current) inputRef.current.value = ''
       return
     }
 
     onErro?.('')
     onChange({ file, previewUrl: URL.createObjectURL(file), urlRaw: null })
+  }
+
+  function selecionar(e) {
+    aceitar(e.target.files?.[0])
+    if (inputRef.current) inputRef.current.value = ''
+  }
+
+  /** Ctrl+V: o navegador entrega a imagem copiada como arquivo no clipboard. */
+  function colar(e) {
+    const item = [...(e.clipboardData?.items ?? [])].find((i) => i.type.startsWith('image/'))
+    if (!item) return
+    e.preventDefault()
+    aceitar(item.getAsFile())
+  }
+
+  function soltar(e) {
+    e.preventDefault()
+    setArrastando(false)
+    aceitar(e.dataTransfer?.files?.[0])
   }
 
   function remover() {
@@ -51,11 +80,7 @@ export default function CampoImagem({
 
       {valor.previewUrl ? (
         <div className="relative w-full overflow-hidden rounded-lg">
-          <img
-            src={valor.previewUrl}
-            alt={rotulo}
-            className={cn('w-full object-cover', aspecto)}
-          />
+          <img src={valor.previewUrl} alt={rotulo} className={cn('w-full object-cover', aspecto)} />
           <button
             type="button"
             onClick={remover}
@@ -65,23 +90,38 @@ export default function CampoImagem({
           </button>
         </div>
       ) : (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-input py-8 text-sm text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+        <div
+          tabIndex={0}
+          aria-label={`${rotulo}: cole com Ctrl+V, arraste a imagem ou escolha um arquivo`}
+          onPaste={colar}
+          onDragOver={(e) => {
+            e.preventDefault()
+            setArrastando(true)
+          }}
+          onDragLeave={() => setArrastando(false)}
+          onDrop={soltar}
+          className={cn(
+            'flex w-full flex-col items-center justify-center gap-1 rounded-lg border border-dashed py-6 text-sm text-muted-foreground transition-colors',
+            'hover:border-foreground/40 hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
+            arrastando ? 'border-brand-accent bg-brand-accent/10 text-foreground' : 'border-input',
+          )}
         >
-          <ImagePlus className="size-5" />
-          Escolher imagem (máx. {MAX_IMAGEM_MB} MB)
-        </button>
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="flex items-center gap-2 rounded-md px-3 py-1.5 font-medium transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ImagePlus className="size-5" />
+            Escolher imagem
+          </button>
+          <span className="text-xs">
+            ou clique aqui e cole com Ctrl+V · arraste e solte também funciona
+          </span>
+          <span className="text-xs">máx. {MAX_IMAGEM_MB} MB</span>
+        </div>
       )}
 
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        onChange={selecionar}
-        className="hidden"
-      />
+      <input ref={inputRef} type="file" accept="image/*" onChange={selecionar} className="hidden" />
     </div>
   )
 }
