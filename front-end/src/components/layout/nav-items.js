@@ -40,9 +40,9 @@ export const NAV_SECTIONS = [
     label: 'Marketing',
     roles: ['MARKETING', 'DESENVOLVEDOR'],
     items: [
-      { to: '/marketing/admin', label: 'Painel Blog', icon: LayoutList },
+      { to: '/marketing/admin', label: 'Blog', icon: LayoutList },
       { to: '/marketing/formularios', label: 'Formulários', icon: ClipboardList },
-      { to: '/marketing/bluelovers', label: 'Painel Bluelovers', icon: Sparkles },
+      { to: '/marketing/bluelovers', label: 'Bluelovers', icon: Sparkles },
     ],
   },
   {
