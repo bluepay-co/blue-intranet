@@ -66,6 +66,7 @@ export default function CampoImagem({
     aceitar(e.dataTransfer?.files?.[0])
   }
 
+  // Altura fixa + proporção no preview: imagem grande não estica o formulário.
   function remover() {
     onChange(IMAGEM_VAZIA)
     if (inputRef.current) inputRef.current.value = ''
@@ -79,8 +80,8 @@ export default function CampoImagem({
       </div>
 
       {valor.previewUrl ? (
-        <div className="relative w-full overflow-hidden rounded-lg">
-          <img src={valor.previewUrl} alt={rotulo} className={cn('w-full object-cover', aspecto)} />
+        <div className={cn('relative h-44 w-fit max-w-full overflow-hidden rounded-lg', aspecto)}>
+          <img src={valor.previewUrl} alt={rotulo} className="h-full w-full object-cover" />
           <button
             type="button"
             onClick={remover}
