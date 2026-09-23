@@ -56,9 +56,24 @@ ALTER TABLE blue_intranet.bluelovers
   ADD COLUMN IF NOT EXISTS bluepay_pessoa_texto    VARCHAR(400),
   ADD COLUMN IF NOT EXISTS bluepay_pessoa_foto_url VARCHAR(500);
 
--- ── Seção 09 — Encerramento ─────────────────────────────────────────────────
+-- ── Seção 09 — Momento marcante na Bluepay ──────────────────────────────────
 ALTER TABLE blue_intranet.bluelovers
-  ADD COLUMN IF NOT EXISTS mais_sobre_mim VARCHAR(600);
+  ADD COLUMN IF NOT EXISTS momento_marcante          VARCHAR(600),
+  ADD COLUMN IF NOT EXISTS momento_marcante_foto_url VARCHAR(500);
+
+-- Bancos que já tinham a versão anterior do campo aproveitam o texto cadastrado.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'blue_intranet' AND table_name = 'bluelovers'
+       AND column_name = 'mais_sobre_mim'
+  ) THEN
+    UPDATE blue_intranet.bluelovers
+       SET momento_marcante = COALESCE(momento_marcante, mais_sobre_mim);
+    ALTER TABLE blue_intranet.bluelovers DROP COLUMN mais_sobre_mim;
+  END IF;
+END $$;
 
 -- ── Seções 02 (conquistas) e 06 (timeline) ──────────────────────────────────
 -- `livre` preserva os blocos criados no formato antigo do perfil.

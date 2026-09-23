@@ -1,8 +1,5 @@
-/**
- * Cards fixos da seção 03. O emoji é do produto; só o título é editável pelo
- * Marketing (guardado em `rotulos_gostos`, que cai para o padrão quando vazio).
- * Fica fora do .jsx para não quebrar o fast refresh do Vite.
- */
+// Gostos do Bluelover, pode definir os emojis e textos padrões na hora do cadastro.
+
 export const GOSTOS = [
   ['gosto_comida', '🍕', 'Comida favorita', 'Ex.: Pizza'],
   ['gosto_assiste', '🎬', 'O que assiste', 'Ex.: Breaking Bad'],

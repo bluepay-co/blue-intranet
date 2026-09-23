@@ -38,7 +38,9 @@ export default function SecoesPerfilForm({ perfil, onSalvo }) {
     imagemDoBanco(perfil.inspiracao_foto_url, urlFoto),
   )
   const [bluepay, setBluepay] = useState(imagemDoBanco(perfil.bluepay_pessoa_foto_url, urlFoto))
-
+  const [momentoMarcante, setMomentoMarcante] = useState(
+    imagemDoBanco(perfil.momento_marcante_foto_url, urlFoto),
+  )
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
   const [aviso, setAviso] = useState('')
@@ -72,6 +74,8 @@ export default function SecoesPerfilForm({ perfil, onSalvo }) {
         inspiracao_foto_url: inspiracao.file ? undefined : inspiracao.urlRaw,
         foto_bluepay: bluepay.file || undefined,
         bluepay_pessoa_foto_url: bluepay.file ? undefined : bluepay.urlRaw,
+        foto_momento_marcante: momentoMarcante.file || undefined,
+        momento_marcante_foto_url: momentoMarcante.file ? undefined : momentoMarcante.urlRaw,
       })
       setAviso('Seções salvas.')
       onSalvo?.()
@@ -218,20 +222,27 @@ export default function SecoesPerfilForm({ perfil, onSalvo }) {
 
         <div className="border-t pt-5">
           <Campo
-            id="bl-mais"
-            rotulo="✦ Mais sobre mim"
-            contador={`${(campos.mais_sobre_mim ?? '').length}/600`}
+            id="bl-momento-marcante"
+            rotulo="Qual sua história ou momento marcante na Bluepay?"
+            contador={`${(campos.momento_marcante ?? '').length}/600`}
           >
             <textarea
-              id="bl-mais"
-              placeholder="Alguma curiosidade que o time deveria saber…"
-              value={campos.mais_sobre_mim ?? ''}
-              onChange={editar('mais_sobre_mim')}
+              id="bl-momento-marcante"
+              placeholder="Momentos marcantes ou curiosidades que passou com a Bluepay"
+              value={campos.momento_marcante ?? ''}
+              onChange={editar('momento_marcante')}
               rows={3}
               maxLength={600}
               className={CLASSE_TEXTAREA}
             />
           </Campo>
+          <CampoImagem
+            rotulo="Foto do momento marcante"
+            dica={IMAGENS_PERFIL.momentoMarcante.dica}
+            aspecto={IMAGENS_PERFIL.momentoMarcante.aspecto}
+            valor={momentoMarcante}
+            onChange={setMomentoMarcante}
+            onErro={setErro} />
         </div>
 
         <div className="flex items-center justify-end gap-3 border-t pt-4">

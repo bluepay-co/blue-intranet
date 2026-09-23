@@ -149,7 +149,9 @@ function lerPerfil(req: Request): PerfilEntrada {
     bluepayPessoaTexto: c.bluepay_pessoa_texto ?? null,
     bluepayPessoaFotoUrl:
       pathUpload(arquivos, 'foto_bluepay') ?? sanitizarPath(c.bluepay_pessoa_foto_url),
-    maisSobreMim: c.mais_sobre_mim ?? null,
+    momentoMarcante: c.momento_marcante ?? null,
+    momentoMarcanteFotoUrl:
+      pathUpload(arquivos, 'foto_momento_marcante') ?? sanitizarPath(c.momento_marcante_foto_url),
   };
 }
 
@@ -232,6 +234,7 @@ export async function postCriarPerfil(req: Request, res: Response) {
       viagemSonhoFotoUrl: moverParaPerfil(entrada.viagemSonhoFotoUrl, bluelover.id),
       inspiracaoFotoUrl: moverParaPerfil(entrada.inspiracaoFotoUrl, bluelover.id),
       bluepayPessoaFotoUrl: moverParaPerfil(entrada.bluepayPessoaFotoUrl, bluelover.id),
+      momentoMarcanteFotoUrl: moverParaPerfil(entrada.momentoMarcanteFotoUrl, bluelover.id),
     });
 
     return res.status(201).json({ bluelover });

@@ -53,13 +53,13 @@ function Foto({ src, alt, className }) {
 }
 
 export default function BlueloverPerfil() {
-  const { id }     = useParams()
-  const navigate   = useNavigate()
+  const { id } = useParams()
+  const navigate = useNavigate()
   const { usuario } = useAuth()
 
   const [bluelover, setBluelover] = useState(null)
   const [carregando, setCarregando] = useState(true)
-  const [erro, setErro]           = useState('')
+  const [erro, setErro] = useState('')
 
   const podeGerenciar = CARGOS_ADMIN.includes(usuario?.role)
 
@@ -122,23 +122,28 @@ export default function BlueloverPerfil() {
   const cardsBluepay = [
     b.bluepay_pessoa_texto || b.bluepay_pessoa_foto_url
       ? {
-          id: 'pessoa',
-          rotulo: 'Se a Bluepay fosse uma pessoa',
-          titulo: b.bluepay_pessoa_texto,
-          foto: b.bluepay_pessoa_foto_url,
-        }
+        id: 'pessoa',
+        rotulo: 'Se a Bluepay fosse uma pessoa',
+        titulo: b.bluepay_pessoa_texto,
+        foto: b.bluepay_pessoa_foto_url,
+      }
       : null,
     aprender
       ? {
-          id: 'aprender',
-          rotulo: 'O que quero aprender na Bluepay',
-          titulo: aprender.titulo,
-          texto: aprender.texto,
-          foto: aprender.foto_url,
-        }
+        id: 'aprender',
+        rotulo: 'O que quero aprender na Bluepay',
+        titulo: aprender.titulo,
+        texto: aprender.texto,
+        foto: aprender.foto_url,
+      }
       : null,
-    b.mais_sobre_mim
-      ? { id: 'mais', rotulo: 'Mais sobre mim', titulo: b.mais_sobre_mim, foto: null }
+    b.momento_marcante || b.momento_marcante_foto_url
+      ? {
+          id: 'momento',
+          rotulo: 'Meu momento marcante na Bluepay',
+          titulo: b.momento_marcante,
+          foto: b.momento_marcante_foto_url,
+        }
       : null,
   ].filter(Boolean)
   const momentos = b.blocos.filter((x) => x.tipo === 'momento')

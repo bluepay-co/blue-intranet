@@ -27,7 +27,7 @@ const CAMPOS_TEXTO = [
   'hobby', 'presente_perfeito',
   'viagem_favorita_texto', 'viagem_sonho',
   'inspiracao_texto', 'bluepay_pessoa_texto',
-  'mais_sobre_mim',
+  'momento_marcante',
 ]
 
 /** Cada imagem: arquivo novo tem precedência; senão vale o path atual ('' remove). */
@@ -38,6 +38,7 @@ const IMAGENS = [
   ['foto_viagem_sonho', 'viagem_sonho_foto_url'],
   ['foto_inspiracao', 'inspiracao_foto_url'],
   ['foto_bluepay', 'bluepay_pessoa_foto_url'],
+  ['foto_momento_marcante', 'momento_marcante_foto_url'],
 ]
 
 /**

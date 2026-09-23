@@ -44,8 +44,9 @@ export interface Bluelover {
   /** Seção 07 — Bluepay como pessoa. */
   bluepay_pessoa_texto: string | null;
   bluepay_pessoa_foto_url: string | null;
-  /** Seção 09. */
-  mais_sobre_mim: string | null;
+  /** Seção 09 — história ou momento marcante na Bluepay. */
+  momento_marcante: string | null;
+  momento_marcante_foto_url: string | null;
   ordem: number;
   publicado: boolean;
   criado_por: number;
