@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import type { Request } from 'express';
 import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
@@ -6,6 +7,8 @@ import { authMiddleware } from '../middleware/auth.middleware';
 import { roleMiddleware } from '../middleware/role.middleware';
 import { Role } from '../models/usuario.model';
 import { AppError } from '../utils/app-error';
+import { pool } from '../database/pool';
+import { salaCargo, salaUsuario, sincronizarAposEscrita } from '../socket/sync';
 import {
   postCriar,
   getMeus,
@@ -46,6 +49,25 @@ const upload = multer({
 
 const chamadosRouter = Router();
 
+/**
+ * Quem enxerga um chamado no resumo (polling de notificações): o autor e a
+ * equipe de T.I. — espelha `resumoChamados`. Em rotas /:id busca o autor;
+ * na abertura (POST /) o autor é quem abriu.
+ */
+async function publicoDoChamado(req: Request): Promise<string[]> {
+  const salas = [salaCargo(Role.TI), salaCargo(Role.DESENVOLVEDOR)];
+  const id = Number(req.params.id);
+  if (Number.isInteger(id) && id > 0) {
+    const { rows } = await pool.query<{ usuario_id: number }>('SELECT usuario_id FROM chamados WHERE id = $1', [id]);
+    if (rows[0]) salas.push(salaUsuario(rows[0].usuario_id));
+  } else if (req.usuario) {
+    salas.push(salaUsuario(req.usuario.id));
+  }
+  return salas;
+}
+
+const avisarPublico = sincronizarAposEscrita('chamados', publicoDoChamado);
+
 // Todas as rotas exigem autenticação.
 chamadosRouter.use(authMiddleware);
 
@@ -57,12 +79,12 @@ chamadosRouter.get('/produtos/todos', roleMiddleware(Role.PRODUTOS, Role.DESENVO
 
 // ── Colaborador (dono) + acesso compartilhado com T.I. ────────────────────────
 chamadosRouter.get('/', getMeus);
-chamadosRouter.post('/', upload.single('anexo'), postCriar);
+chamadosRouter.post('/', avisarPublico, upload.single('anexo'), postCriar);
 chamadosRouter.get('/:id', getChamado);
-chamadosRouter.put('/:id', putEditar);
-chamadosRouter.post('/:id/comentarios', postComentario);
+chamadosRouter.put('/:id', avisarPublico, putEditar);
+chamadosRouter.post('/:id/comentarios', avisarPublico, postComentario);
 
 // ── Exclusivo T.I. ────────────────────────────────────────────────────────────
-chamadosRouter.patch('/:id/status', roleMiddleware(Role.TI, Role.DESENVOLVEDOR), patchStatus);
+chamadosRouter.patch('/:id/status', roleMiddleware(Role.TI, Role.DESENVOLVEDOR), avisarPublico, patchStatus);
 
 export { chamadosRouter };

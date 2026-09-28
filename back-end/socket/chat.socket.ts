@@ -2,12 +2,16 @@ import type { Server } from 'socket.io';
 import { pool } from '../database/pool';
 import { socketAuthMiddleware } from './socket-auth.middleware';
 import * as chatService from '../services/chat.service';
+import { salaCargo, salaUsuario } from './sync';
 
 export function registrarChatSocket(io: Server): void {
   io.use(socketAuthMiddleware);
 
   io.on('connection', (socket) => {
     const usuario = socket.data.usuario;
+
+    // Salas dos avisos de sincronização (socket/sync.ts).
+    socket.join([salaUsuario(usuario.id), salaCargo(usuario.role)]);
 
     /** Verifica se o usuário é membro de um canal (sem lançar exceção — retorna boolean). */
     async function isMembro(canalId: number): Promise<boolean> {
