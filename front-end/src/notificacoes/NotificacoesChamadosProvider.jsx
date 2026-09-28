@@ -75,7 +75,7 @@ export function NotificacoesChamadosProvider({ children }) {
     (c) => c.autor_id === userId && temNovidade(c, vistos[c.id], userId),
   ).length
 
-  // Polling econômico: pausa com a aba oculta e recua em 429 (ver usePolling).
+  // Busca quando o servidor avisa pelo socket; polling só como segurança (ver usePolling).
   const buscar = useCallback(async () => {
     const data = await resumo()
     setChamados(data)
@@ -103,7 +103,7 @@ export function NotificacoesChamadosProvider({ children }) {
       }
     }
   }, [userId])
-  usePolling(buscar, INTERVALO_MS, Boolean(userId))
+  usePolling(buscar, { intervaloMs: INTERVALO_MS, ativo: Boolean(userId), evento: 'chamados' })
 
   // Pede permissão de notificação do navegador uma única vez.
   useEffect(() => {

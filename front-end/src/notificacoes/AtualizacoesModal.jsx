@@ -70,12 +70,12 @@ export default function AtualizacoesModal() {
   // Recarrega os "vistos" ao trocar de usuário (login/logout).
   useEffect(() => { setVistos(carregarVistos(userId)) }, [userId])
 
-  // Polling econômico: pausa com a aba oculta e recua em 429 (ver usePolling).
+  // Busca quando o servidor avisa pelo socket; polling só como segurança (ver usePolling).
   const buscar = useCallback(async () => {
     const data = await listarRecentes()
     setRecentes(data)
   }, [])
-  usePolling(buscar, INTERVALO_MS, Boolean(userId))
+  usePolling(buscar, { intervaloMs: INTERVALO_MS, ativo: Boolean(userId), evento: 'atualizacoes' })
 
   // Primeiro aviso recente ainda não visto (fila: um por vez).
   const atual = recentes.find((a) => !vistos.includes(a.id)) ?? null

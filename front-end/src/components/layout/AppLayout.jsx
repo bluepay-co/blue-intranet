@@ -9,6 +9,7 @@ import { NotificacoesChamadosProvider } from '@/notificacoes/NotificacoesChamado
 import { NotificacoesKanbanProvider } from '@/notificacoes/NotificacoesKanbanProvider'
 import AtualizacoesModal from '@/notificacoes/AtualizacoesModal'
 import ChatProvider from '@/chat/ChatProvider'
+import SocketProvider from '@/realtime/SocketProvider'
 import Sidebar from './Sidebar'
 
 export default function AppLayout() {
@@ -16,6 +17,7 @@ export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false)
 
   return (
+    <SocketProvider>
     <NotificacoesBlogProvider>
     <NotificacoesChamadosProvider>
     <NotificacoesKanbanProvider>
@@ -78,5 +80,6 @@ export default function AppLayout() {
     </NotificacoesKanbanProvider>
     </NotificacoesChamadosProvider>
     </NotificacoesBlogProvider>
+    </SocketProvider>
   )
 }

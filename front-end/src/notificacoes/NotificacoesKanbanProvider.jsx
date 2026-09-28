@@ -117,8 +117,8 @@ export function NotificacoesKanbanProvider({ children }) {
     mostrarResumo()
   }, [temKanban, mostrarResumo])
 
-  // Polling econômico: pausa com a aba oculta e recua em 429 (ver usePolling).
-  usePolling(buscar, INTERVALO_MS, temKanban)
+  // Busca quando o servidor avisa pelo socket; polling só como segurança (ver usePolling).
+  usePolling(buscar, { intervaloMs: INTERVALO_MS, ativo: temKanban, evento: 'kanban' })
 
   const valor = useMemo(() => ({ versao }), [versao])
 

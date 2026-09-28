@@ -53,7 +53,7 @@ export function NotificacoesBlogProvider({ children }) {
 
   const naoVistos = posts.filter((p) => p.id > lastSeenId).length
 
-  // Polling econômico: pausa com a aba oculta e recua em 429 (ver usePolling).
+  // Busca quando o servidor avisa pelo socket; polling só como segurança (ver usePolling).
   const buscar = useCallback(async () => {
     const data = await listarFeed() // feed já vem ordenado por mais recente
     setPosts(data)
@@ -72,7 +72,7 @@ export function NotificacoesBlogProvider({ children }) {
     }
     ultimoIdConhecido.current = idMaisRecente
   }, [userId])
-  usePolling(buscar, INTERVALO_MS, Boolean(userId))
+  usePolling(buscar, { intervaloMs: INTERVALO_MS, ativo: Boolean(userId), evento: 'blog' })
 
   // Pede permissão de notificação do navegador uma única vez.
   useEffect(() => {
