@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import ThemeToggle from '@/components/ThemeToggle'
 import { NotificacoesBlogProvider } from '@/notificacoes/NotificacoesBlogProvider'
 import { NotificacoesChamadosProvider } from '@/notificacoes/NotificacoesChamadosProvider'
+import { NotificacoesKanbanProvider } from '@/notificacoes/NotificacoesKanbanProvider'
 import AtualizacoesModal from '@/notificacoes/AtualizacoesModal'
 import ChatProvider from '@/chat/ChatProvider'
 import Sidebar from './Sidebar'
@@ -17,6 +18,7 @@ export default function AppLayout() {
   return (
     <NotificacoesBlogProvider>
     <NotificacoesChamadosProvider>
+    <NotificacoesKanbanProvider>
     <ChatProvider>
     <div className="flex h-svh overflow-hidden bg-background text-foreground">
       {/* Sidebar fixa (desktop) */}
@@ -64,6 +66,7 @@ export default function AppLayout() {
       <AtualizacoesModal />
     </div>
     </ChatProvider>
+    </NotificacoesKanbanProvider>
     </NotificacoesChamadosProvider>
     </NotificacoesBlogProvider>
   )
