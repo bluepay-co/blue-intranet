@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '@/auth/auth-context'
+import { usePolling } from '@/lib/usePolling'
 import { listarFeed } from '@/api/modules/blog'
 import { NotificacoesBlogContext } from './notificacoes-blog'
 
@@ -12,7 +13,8 @@ import { NotificacoesBlogContext } from './notificacoes-blog'
  * uma notificação do navegador quando surge um post novo após a carga inicial.
  */
 
-const INTERVALO_MS = 60_000 // verifica a cada 1 min
+// Post novo não é urgente: 5 min basta (ao voltar para a aba, busca na hora).
+const INTERVALO_MS = 5 * 60_000
 
 const chaveLastSeen = (userId) => `blog_last_seen_${userId ?? 'anon'}`
 
@@ -51,40 +53,26 @@ export function NotificacoesBlogProvider({ children }) {
 
   const naoVistos = posts.filter((p) => p.id > lastSeenId).length
 
-  useEffect(() => {
-    let ativo = true
+  // Polling econômico: pausa com a aba oculta e recua em 429 (ver usePolling).
+  const buscar = useCallback(async () => {
+    const data = await listarFeed() // feed já vem ordenado por mais recente
+    setPosts(data)
 
-    async function buscar() {
-      try {
-        const data = await listarFeed() // feed já vem ordenado por mais recente
-        if (!ativo) return
-        setPosts(data)
+    const idMaisRecente = data[0]?.id ?? 0
+    const vistoSalvo = Number(localStorage.getItem(chaveLastSeen(userId)) ?? 0)
+    const semHistorico = localStorage.getItem(chaveLastSeen(userId)) === null
 
-        const idMaisRecente = data[0]?.id ?? 0
-        const vistoSalvo = Number(localStorage.getItem(chaveLastSeen(userId)) ?? 0)
-        const semHistorico = localStorage.getItem(chaveLastSeen(userId)) === null
-
-        if (ultimoIdConhecido.current === null && semHistorico) {
-          // Primeiro acesso absoluto: considera tudo que já existe como visto.
-          persistirVisto(setLastSeenId, userId, idMaisRecente)
-        } else if (idMaisRecente > vistoSalvo && idMaisRecente > (ultimoIdConhecido.current ?? 0)) {
-          // Post mais recente do que o último visto — seja na abertura do app
-          // (usuário recorrente) ou num ciclo de polling seguinte. Notifica uma vez.
-          notificarDesktop(data[0])
-        }
-        ultimoIdConhecido.current = idMaisRecente
-      } catch {
-        // silencioso — tenta de novo no próximo ciclo
-      }
+    if (ultimoIdConhecido.current === null && semHistorico) {
+      // Primeiro acesso absoluto: considera tudo que já existe como visto.
+      persistirVisto(setLastSeenId, userId, idMaisRecente)
+    } else if (idMaisRecente > vistoSalvo && idMaisRecente > (ultimoIdConhecido.current ?? 0)) {
+      // Post mais recente do que o último visto — seja na abertura do app
+      // (usuário recorrente) ou num ciclo de polling seguinte. Notifica uma vez.
+      notificarDesktop(data[0])
     }
-
-    buscar()
-    const intervalo = setInterval(buscar, INTERVALO_MS)
-    return () => {
-      ativo = false
-      clearInterval(intervalo)
-    }
+    ultimoIdConhecido.current = idMaisRecente
   }, [userId])
+  usePolling(buscar, INTERVALO_MS, Boolean(userId))
 
   // Pede permissão de notificação do navegador uma única vez.
   useEffect(() => {

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { categoriaInfo } from '@/lib/categoriasAtualizacao'
 import { useAuth } from '@/auth/auth-context'
+import { usePolling } from '@/lib/usePolling'
 import { listarRecentes } from '@/api/modules/atualizacoes'
 
 /**
@@ -21,7 +22,8 @@ import { listarRecentes } from '@/api/modules/atualizacoes'
  * também deve vê-lo (a janela de dias do backend limita o volume).
  */
 
-const INTERVALO_MS = 60_000
+// Avisos do T.I. não são urgentes: 5 min basta (ao voltar para a aba, busca na hora).
+const INTERVALO_MS = 5 * 60_000
 
 const chaveSeen = (userId) => `atualizacoes_seen_${userId ?? 'anon'}`
 
@@ -68,24 +70,12 @@ export default function AtualizacoesModal() {
   // Recarrega os "vistos" ao trocar de usuário (login/logout).
   useEffect(() => { setVistos(carregarVistos(userId)) }, [userId])
 
-  // Polling dos avisos recentes (imediato no mount + a cada minuto).
-  useEffect(() => {
-    if (!userId) return
-    let ativo = true
-
-    async function buscar() {
-      try {
-        const data = await listarRecentes()
-        if (ativo) setRecentes(data)
-      } catch {
-        // silencioso — tenta de novo no próximo ciclo
-      }
-    }
-
-    buscar()
-    const intervalo = setInterval(buscar, INTERVALO_MS)
-    return () => { ativo = false; clearInterval(intervalo) }
-  }, [userId])
+  // Polling econômico: pausa com a aba oculta e recua em 429 (ver usePolling).
+  const buscar = useCallback(async () => {
+    const data = await listarRecentes()
+    setRecentes(data)
+  }, [])
+  usePolling(buscar, INTERVALO_MS, Boolean(userId))
 
   // Primeiro aviso recente ainda não visto (fila: um por vez).
   const atual = recentes.find((a) => !vistos.includes(a.id)) ?? null

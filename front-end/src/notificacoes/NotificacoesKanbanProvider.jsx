@@ -5,6 +5,7 @@ import { useAuth } from '@/auth/auth-context'
 import { useTheme } from '@/theme/theme-context'
 import { KANBAN_ROLES, adiarLembrete, alterarStatus, buscarNotificacoes, listarTarefas } from '@/api/modules/kanban'
 import { FILTROS_RAPIDOS } from '@/components/kanban/regras'
+import { usePolling } from '@/lib/usePolling'
 import { NotificacoesKanbanContext } from './notificacoes-kanban'
 
 /**
@@ -79,13 +80,9 @@ export function NotificacoesKanbanProvider({ children }) {
   )
 
   const buscar = useCallback(async () => {
-    try {
-      const novas = await buscarNotificacoes()
-      novas.forEach(exibir)
-      if (novas.length) setVersao((v) => v + 1)
-    } catch {
-      // falha de rede no polling é silenciosa; tenta de novo no próximo ciclo
-    }
+    const novas = await buscarNotificacoes()
+    novas.forEach(exibir)
+    if (novas.length) setVersao((v) => v + 1)
   }, [exibir])
 
   const mostrarResumo = useCallback(async () => {
@@ -111,18 +108,17 @@ export function NotificacoesKanbanProvider({ children }) {
     }
   }, [usuario, navigate])
 
+  // Cargos sem Kanban não fazem polling (a API responderia 403).
+  const temKanban = Boolean(usuario && KANBAN_ROLES.includes(usuario.role))
+
   useEffect(() => {
-    // Cargos sem Kanban não fazem polling (a API responderia 403).
-    if (!usuario || !KANBAN_ROLES.includes(usuario.role)) return undefined
-    if (!resumoMostrado.current) {
-      resumoMostrado.current = true
-      mostrarResumo()
-    }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- primeira consulta do polling
-    buscar()
-    const id = setInterval(buscar, INTERVALO_MS)
-    return () => clearInterval(id)
-  }, [usuario, buscar, mostrarResumo])
+    if (!temKanban || resumoMostrado.current) return
+    resumoMostrado.current = true
+    mostrarResumo()
+  }, [temKanban, mostrarResumo])
+
+  // Polling econômico: pausa com a aba oculta e recua em 429 (ver usePolling).
+  usePolling(buscar, INTERVALO_MS, temKanban)
 
   const valor = useMemo(() => ({ versao }), [versao])
 

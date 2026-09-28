@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '@/auth/auth-context'
+import { usePolling } from '@/lib/usePolling'
 import { resumo } from '@/api/modules/chamados'
 import { NotificacoesChamadosContext } from './notificacoes-chamados'
 
@@ -74,49 +75,35 @@ export function NotificacoesChamadosProvider({ children }) {
     (c) => c.autor_id === userId && temNovidade(c, vistos[c.id], userId),
   ).length
 
-  useEffect(() => {
-    let ativo = true
+  // Polling econômico: pausa com a aba oculta e recua em 429 (ver usePolling).
+  const buscar = useCallback(async () => {
+    const data = await resumo()
+    setChamados(data)
 
-    async function buscar() {
-      try {
-        const data = await resumo()
-        if (!ativo) return
-        setChamados(data)
+    const chave = chaveSeen(userId)
+    const semHistorico = localStorage.getItem(chave) === null
 
-        const chave = chaveSeen(userId)
-        const semHistorico = localStorage.getItem(chave) === null
+    if (semHistorico) {
+      // Primeiro acesso: considera tudo o que já existe como visto.
+      const inicial = {}
+      for (const c of data) inicial[c.id] = assinatura(c)
+      localStorage.setItem(chave, JSON.stringify(inicial))
+      setVistos(inicial)
+      return
+    }
 
-        if (semHistorico) {
-          // Primeiro acesso: considera tudo o que já existe como visto.
-          const inicial = {}
-          for (const c of data) inicial[c.id] = assinatura(c)
-          localStorage.setItem(chave, JSON.stringify(inicial))
-          setVistos(inicial)
-          return
-        }
-
-        const jaVistos = carregarVistos(userId)
-        setVistos(jaVistos) // mantém o badge em sincronia com o que está salvo
-        for (const c of data) {
-          if (!temNovidade(c, jaVistos[c.id], userId)) continue
-          const ass = assinatura(c)
-          if (notificadosRef.current[c.id] !== ass) {
-            notificarDesktop(c)
-            notificadosRef.current[c.id] = ass
-          }
-        }
-      } catch {
-        // silencioso — tenta de novo no próximo ciclo
+    const jaVistos = carregarVistos(userId)
+    setVistos(jaVistos) // mantém o badge em sincronia com o que está salvo
+    for (const c of data) {
+      if (!temNovidade(c, jaVistos[c.id], userId)) continue
+      const ass = assinatura(c)
+      if (notificadosRef.current[c.id] !== ass) {
+        notificarDesktop(c)
+        notificadosRef.current[c.id] = ass
       }
     }
-
-    buscar()
-    const intervalo = setInterval(buscar, INTERVALO_MS)
-    return () => {
-      ativo = false
-      clearInterval(intervalo)
-    }
   }, [userId])
+  usePolling(buscar, INTERVALO_MS, Boolean(userId))
 
   // Pede permissão de notificação do navegador uma única vez.
   useEffect(() => {
