@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, AlertCircle, ChevronDown, SlidersHorizontal, Clock, User, Loader2, Paperclip, Link } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -19,6 +19,8 @@ import {
 } from '@/api/modules/chamados'
 import { CriticidadeBadge } from '@/components/chamados/badges'
 import { tempoDecorrido } from '@/components/chamados/tempo'
+
+const DEBOUNCE_BUSCA_MS = 400
 
 const PRIORIDADE = { CRITICO: 0, ALTO: 1, MEDIO: 2, BAIXO: 3 }
 
@@ -115,23 +117,23 @@ export default function ChamadosProdutos() {
   const [fCategoria, setFCategoria] = useState(null)
   const [fCriticidade, setFCriticidade] = useState(null)
 
-  const carregar = useCallback(async (filtroColaborador = colaborador) => {
-    setErro('')
-    try {
-      const params = filtroColaborador.trim() ? { busca: filtroColaborador.trim() } : {}
-      setChamados(await listarProdutos(params))
-    } catch (e) {
-      setErro(e?.response?.data?.message ?? 'Falha ao carregar os chamados.')
-    } finally {
-      setCarregando(false)
-    }
+  // O filtro de colaborador consulta o servidor: espera parar de digitar
+  // (antes era uma requisição por tecla).
+  const [colaboradorBusca, setColaboradorBusca] = useState('')
+  useEffect(() => {
+    const t = setTimeout(() => setColaboradorBusca(colaborador.trim()), DEBOUNCE_BUSCA_MS)
+    return () => clearTimeout(t)
   }, [colaborador])
 
+  // Uma busca por filtro efetivo, inclusive a inicial (antes a montagem
+  // disparava duas requisições iguais).
   useEffect(() => {
     let ativo = true
     ;(async () => {
+      setCarregando(true)
+      setErro('')
       try {
-        const data = await listarProdutos()
+        const data = await listarProdutos(colaboradorBusca ? { busca: colaboradorBusca } : {})
         if (ativo) setChamados(data)
       } catch (e) {
         if (ativo) setErro(e?.response?.data?.message ?? 'Falha ao carregar os chamados.')
@@ -140,13 +142,7 @@ export default function ChamadosProdutos() {
       }
     })()
     return () => { ativo = false }
-  }, [])
-
-  // Re-busca no servidor ao mudar o filtro de colaborador
-  useEffect(() => {
-    setCarregando(true)
-    carregar(colaborador)
-  }, [colaborador]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [colaboradorBusca])
 
   const termo = busca.trim().toLowerCase()
   const filtrados = chamados
