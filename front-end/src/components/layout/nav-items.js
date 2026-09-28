@@ -1,4 +1,4 @@
-import { Calendar, ListTodo, Users, Newspaper, LayoutList, LifeBuoy, Headset, BarChart3, PackageSearch, TrendingUp, Activity, PhoneCall, Building2, AlertTriangle, Sparkles, MessageSquare, CalendarDays, Target, UserRound, Megaphone, ClipboardList } from 'lucide-react'
+import { Calendar, ListTodo, Users, Newspaper, LayoutList, LifeBuoy, Headset, BarChart3, PackageSearch, TrendingUp, Activity, PhoneCall, Building2, AlertTriangle, Sparkles, MessageSquare, CalendarDays, Target, UserRound, Megaphone, ClipboardList, KanbanSquare } from 'lucide-react'
 
 /**
  * Navegação principal da sidebar, organizada em SEÇÕES por setor.
@@ -9,6 +9,9 @@ import { Calendar, ListTodo, Users, Newspaper, LayoutList, LifeBuoy, Headset, Ba
  *
  * - `roles` ausente na seção -> visível para qualquer usuário logado.
  * - `roles: [...]`           -> seção visível apenas para os cargos listados.
+ *
+ * `roles` também pode ir no item, para escondê-lo de parte dos cargos da seção
+ * (ex.: o Kanban da Equipe aparece só uma vez para quem vê várias seções).
  *
  * Dentro de um item, `children` cria um subgrupo expansível e `end: true`
  * casa a rota de forma exata (evita que "/" fique sempre ativo).
@@ -34,6 +37,7 @@ export const NAV_SECTIONS = [
       { to: '/usuarios', label: 'Usuários', icon: Users },
       { to: '/ti/chamados', label: 'Chamados', icon: Headset },
       { to: '/ti/atualizacoes', label: 'Atualizações', icon: Megaphone },
+      { to: '/kanban', label: 'Kanban da Equipe', icon: KanbanSquare, roles: ['TI', 'DESENVOLVEDOR'] },
     ],
   },
   {
@@ -43,6 +47,7 @@ export const NAV_SECTIONS = [
       { to: '/marketing/admin', label: 'Blog', icon: LayoutList },
       { to: '/marketing/formularios', label: 'Formulários', icon: ClipboardList },
       { to: '/marketing/bluelovers', label: 'Bluelovers', icon: Sparkles },
+      { to: '/kanban', label: 'Kanban da Equipe', icon: KanbanSquare, roles: ['MARKETING'] },
     ],
   },
   {
@@ -50,6 +55,7 @@ export const NAV_SECTIONS = [
     roles: ['PRODUTOS', 'DESENVOLVEDOR'],
     items: [
       { to: '/produtos/chamados', label: 'Chamados (Produtos)', icon: PackageSearch },
+      { to: '/kanban', label: 'Kanban da Equipe', icon: KanbanSquare, roles: ['PRODUTOS'] },
     ],
   },
   {
@@ -63,19 +69,22 @@ export const NAV_SECTIONS = [
       { to: '/clientes',             label: 'Meus Clientes',     icon: Building2 },
       { to: '/carteira/risco',      label: 'Radar de Risco',    icon: AlertTriangle },
       { to: '/carteira/cross-sell', label: 'Cross-sell',        icon: Sparkles },
+      { to: '/kanban', label: 'Kanban da Equipe', icon: KanbanSquare, roles: ['KAM'] },
     ],
   },
   {
     label: 'Inside Sales',
-    roles: ['INSIGHT_SALES', 'DESENVOLVEDOR'],
+    // CX faz parte da equipe Inside Sales & CX, mas só usa o Kanban por enquanto.
+    roles: ['INSIGHT_SALES', 'CX', 'DESENVOLVEDOR'],
     items: [
-      { to: '/metricas/visao-geral', label: 'Visão Geral',       icon: CalendarDays },
-      { to: '/metricas/pessoal',     label: 'Dashboard Pessoal', icon: TrendingUp },
-      { to: '/metricas/forecast',    label: 'Meu Forecast',      icon: Target },
-      { to: '/metricas/is/equipe',   label: 'Dashboard Equipe',  icon: Users },
-      { to: '/clientes',             label: 'Meus Clientes',     icon: Building2 },
-      { to: '/carteira/risco',      label: 'Radar de Risco',    icon: AlertTriangle },
-      { to: '/carteira/cross-sell', label: 'Cross-sell',        icon: Sparkles },
+      { to: '/metricas/visao-geral', label: 'Visão Geral',       icon: CalendarDays, roles: ['INSIGHT_SALES', 'DESENVOLVEDOR'] },
+      { to: '/metricas/pessoal',     label: 'Dashboard Pessoal', icon: TrendingUp, roles: ['INSIGHT_SALES', 'DESENVOLVEDOR'] },
+      { to: '/metricas/forecast',    label: 'Meu Forecast',      icon: Target, roles: ['INSIGHT_SALES', 'DESENVOLVEDOR'] },
+      { to: '/metricas/is/equipe',   label: 'Dashboard Equipe',  icon: Users, roles: ['INSIGHT_SALES', 'DESENVOLVEDOR'] },
+      { to: '/clientes',             label: 'Meus Clientes',     icon: Building2, roles: ['INSIGHT_SALES', 'DESENVOLVEDOR'] },
+      { to: '/carteira/risco',      label: 'Radar de Risco',    icon: AlertTriangle, roles: ['INSIGHT_SALES', 'DESENVOLVEDOR'] },
+      { to: '/carteira/cross-sell', label: 'Cross-sell',        icon: Sparkles, roles: ['INSIGHT_SALES', 'DESENVOLVEDOR'] },
+      { to: '/kanban', label: 'Kanban da Equipe', icon: KanbanSquare, roles: ['INSIGHT_SALES', 'CX'] },
     ],
   },
   {
@@ -90,6 +99,7 @@ export const NAV_SECTIONS = [
       { to: '/gerente/is/equipe-pessoal', label: 'Métricas IS',    icon: UserRound },
       { to: '/gerente/is/forecast',       label: 'Forecast IS',    icon: TrendingUp },
       { to: '/gerente/is/clientes',       label: 'Clientes do IS', icon: Building2 },
+      { to: '/kanban', label: 'Kanban da Equipe', icon: KanbanSquare, roles: ['GERENTE_INSIDE_CX'] },
     ],
   },
   {
@@ -102,6 +112,7 @@ export const NAV_SECTIONS = [
       { to: '/gerente/kam/equipe-pessoal', label: 'Métricas KAM',    icon: UserRound },
       { to: '/gerente/kam/forecast',       label: 'Forecast KAM',    icon: TrendingUp },
       { to: '/gerente/kam/clientes',       label: 'Clientes do KAM', icon: Building2 },
+      { to: '/kanban', label: 'Kanban da Equipe', icon: KanbanSquare, roles: ['GERENTE_COMERCIAL'] },
     ],
   },
   {
@@ -109,15 +120,18 @@ export const NAV_SECTIONS = [
     roles: ['VENDAS'],
     items: [
       { to: '/metricas/pessoal', label: 'Dashboard Pessoal', icon: TrendingUp },
+      { to: '/kanban', label: 'Kanban da Equipe', icon: KanbanSquare, roles: ['VENDAS'] },
     ],
   },
   {
     label: 'Pré-Vendas',
-    roles: ['PRE_VENDAS', 'DIRETORIA', 'DESENVOLVEDOR'],
+    labelPorRole: { GERENTE_PRE_VENDAS: 'Coord. Pré-Vendas' },
+    roles: ['PRE_VENDAS', 'GERENTE_PRE_VENDAS', 'DIRETORIA', 'DESENVOLVEDOR'],
     items: [
-      { to: '/metricas/prevendas',        label: 'Dashboard Pessoal', icon: TrendingUp },
-      { to: '/metricas/prevendas/equipe', label: 'Dashboard Equipe',  icon: Users },
-      { to: '/prevendas/lancamento',      label: 'Lançamento',        icon: PhoneCall },
+      { to: '/metricas/prevendas',        label: 'Dashboard Pessoal', icon: TrendingUp, roles: ['PRE_VENDAS', 'DIRETORIA', 'DESENVOLVEDOR'] },
+      { to: '/metricas/prevendas/equipe', label: 'Dashboard Equipe',  icon: Users,      roles: ['PRE_VENDAS', 'DIRETORIA', 'DESENVOLVEDOR'] },
+      { to: '/prevendas/lancamento',      label: 'Lançamento',        icon: PhoneCall,  roles: ['PRE_VENDAS', 'DIRETORIA', 'DESENVOLVEDOR'] },
+      { to: '/kanban', label: 'Kanban da Equipe', icon: KanbanSquare, roles: ['PRE_VENDAS', 'GERENTE_PRE_VENDAS'] },
     ],
   },
 ]
@@ -131,7 +145,10 @@ export const NAV_SECTIONS = [
 export function secoesVisiveis(role) {
   return NAV_SECTIONS
     .filter((secao) => !secao.roles || secao.roles.includes(role))
-    .map((secao) =>
-      secao.labelPorRole?.[role] ? { ...secao, label: secao.labelPorRole[role] } : secao,
-    )
+    .map((secao) => ({
+      ...secao,
+      label: secao.labelPorRole?.[role] ?? secao.label,
+      items: secao.items.filter((item) => !item.roles || item.roles.includes(role)),
+    }))
+    .filter((secao) => secao.items.length)
 }
