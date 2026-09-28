@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { Outlet } from 'react-router-dom'
-import { Menu } from 'lucide-react'
+import { Loader2, Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import ThemeToggle from '@/components/ThemeToggle'
@@ -58,7 +58,16 @@ export default function AppLayout() {
         </header>
 
         <main className="flex-1 overflow-auto p-6 lg:p-8">
-          <Outlet />
+          {/* Páginas são lazy (App.jsx): a sidebar fica enquanto o chunk carrega. */}
+          <Suspense
+            fallback={
+              <div className="grid h-full place-items-center">
+                <Loader2 className="size-6 animate-spin text-muted-foreground" />
+              </div>
+            }
+          >
+            <Outlet />
+          </Suspense>
         </main>
       </div>
 
