@@ -20,6 +20,13 @@ declare global {
 }
 
 /**
+ * Código dos 401 de sessão da intranet (JWT ausente/inválido/expirado). O
+ * front-end desloga só com este código — outros 401 (ex.: sessão do Google
+ * expirada na Agenda) não derrubam a sessão da intranet.
+ */
+export const CODIGO_SESSAO_INVALIDA = 'SESSAO_INVALIDA';
+
+/**
  * Valida o JWT do header Authorization (`Bearer <token>`) e injeta o usuário
  * autenticado em `req.usuario`. Responde 401 quando ausente/ inválido/ expirado.
  */
@@ -27,7 +34,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
   const header = req.headers.authorization;
 
   if (!header || !header.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'Token de autenticação não fornecido.' });
+    return res.status(401).json({ message: 'Token de autenticação não fornecido.', codigo: CODIGO_SESSAO_INVALIDA });
   }
 
   const token = header.slice(7).trim();
@@ -41,6 +48,6 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
     req.usuario = jwt.verify(token, secret) as AuthPayload;
     return next();
   } catch {
-    return res.status(401).json({ message: 'Token inválido ou expirado.' });
+    return res.status(401).json({ message: 'Token inválido ou expirado.', codigo: CODIGO_SESSAO_INVALIDA });
   }
 }
