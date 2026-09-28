@@ -14,6 +14,7 @@ import { chatRouter } from './chat.routes';
 import { gerenteRouter } from './gerente.routes';
 import { atualizacaoRouter } from './atualizacao.routes';
 import { formularioRouter } from './formulario.routes';
+import { kanbanRouter } from './kanban.routes';
 import { blueloverRouter } from './bluelover.routes';
 
 const router = Router();
@@ -66,5 +67,8 @@ router.use('/api/atualizacoes', atualizacaoRouter);
 
 // Domínio: Formulários do Marketing (Google Forms API — exclusivo MARKETING)
 router.use('/api/formularios', formularioRouter);
+
+// Domínio: Kanban de Tarefas (por equipe — visibilidade e coordenação aplicadas no service)
+router.use('/api/kanban', kanbanRouter);
 
 export { router };
