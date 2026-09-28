@@ -14,6 +14,10 @@ dotenv.config();
 
 const app = express();
 
+// O nginx fica na frente da API: sem isso o Express vê só o IP do proxy e
+// todos os usuários compartilham o mesmo balde dos rate limiters.
+app.set('trust proxy', 1);
+
 /**
  * CORS: por padrão reflete a origem da requisição (mesmo comportamento de
  * sempre), preservando o front-end atual e futuros domínios (ex.: Vercel).
