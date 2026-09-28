@@ -5,9 +5,9 @@ import type { ErrorRequestHandler } from 'express';
 import cors from 'cors';
 import type { CorsOptions } from 'cors';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
 import multer from 'multer';
 import { router } from './routes/index';
+import { apiRateLimit } from './middleware/api-rate-limit.middleware';
 import { AppError } from './utils/app-error';
 
 dotenv.config();
@@ -44,16 +44,8 @@ app.use(helmet({
 }));
 app.use(cors(corsOptions));
 
-// Rede de segurança contra flood/DoS — bem generoso porque a empresa acessa
-// via VPN (muitos usuários podem compartilhar o mesmo IP de saída).
-// Limites finos por endpoint (ex.: prospecção, login) continuam à parte.
-app.use('/api', rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 2000,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: 'Muitas requisições. Tente novamente em alguns minutos.' },
-}));
+// Rate limit global por usuário logado (ver middleware/api-rate-limit).
+app.use('/api', apiRateLimit);
 
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
