@@ -1,9 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
-import { io as socketIO } from 'socket.io-client'
 import { ChatContext } from './chat-context'
 import { useChatNotificacoes } from './useChatNotificacoes'
-import { useAuth } from '@/auth/auth-context'
-import { TOKEN_KEY } from '@/api/api'
+import { useSocket } from '@/realtime/socket-context'
 import {
   listarCanais,
   contarNaoLidos,
@@ -17,7 +15,7 @@ import {
 } from '@/api/modules/chat'
 
 export default function ChatProvider({ children }) {
-  const { logout } = useAuth()
+  const { socket } = useSocket()
   const { notificarDesktop } = useChatNotificacoes()
 
   const [canais, setCanais] = useState([])
@@ -35,25 +33,28 @@ export default function ChatProvider({ children }) {
   painelAbertoRef.current = painelAberto
 
   // ── Inicialização ──────────────────────────────────────────────────────────
+  // Carrega canais e unread uma vez (depois, o socket mantém atualizado).
   useEffect(() => {
-    const token = localStorage.getItem(TOKEN_KEY)
-    if (!token) return
-
-    const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
-    const socket = socketIO(baseURL, { auth: { token } })
-    socketRef.current = socket
-
-    // Carrega canais e unread ao conectar
     Promise.all([listarCanais(), contarNaoLidos()]).then(([cs, total]) => {
       setCanais(cs)
       setTotalNaoLidos(total)
     }).catch(console.error)
+  }, [])
 
-    socket.on('connect_error', (err) => {
-      if (err.message === 'Unauthorized') logout()
-    })
+  // A conexão é do SocketProvider (compartilhada com os avisos de sync).
+  useEffect(() => {
+    if (!socket) return undefined
+    socketRef.current = socket
 
-    socket.on('nova_mensagem', (msg) => {
+    // Reconexão (ex.: deploy reiniciou o back) abre uma sessão nova no
+    // servidor, sem as rooms: reentra nos canais já abertos, senão as
+    // mensagens deixam de chegar até recarregar a página.
+    const aoReconectar = () => {
+      for (const canalId of joinedRoomsRef.current) socket.emit('join_canal', { canal_id: canalId })
+    }
+    socket.io.on('reconnect', aoReconectar)
+
+    const aoReceber = (msg) => {
       setMensagens((prev) => ({
         ...prev,
         [msg.canal_id]: [...(prev[msg.canal_id] ?? []), msg],
@@ -71,27 +72,33 @@ export default function ChatProvider({ children }) {
         )
         notificarDesktop(msg)
       }
-    })
+    }
 
-    socket.on('mensagem_editada', (msg) => {
+    const aoEditar = (msg) => {
       setMensagens((prev) => ({
         ...prev,
         [msg.canal_id]: (prev[msg.canal_id] ?? []).map((m) => (m.id === msg.id ? msg : m)),
       }))
-    })
+    }
 
-    socket.on('mensagem_deletada', ({ mensagem_id, canal_id }) => {
+    const aoDeletar = ({ mensagem_id, canal_id }) => {
       setMensagens((prev) => ({
         ...prev,
         [canal_id]: (prev[canal_id] ?? []).filter((m) => m.id !== mensagem_id),
       }))
-    })
+    }
 
+    socket.on('nova_mensagem', aoReceber)
+    socket.on('mensagem_editada', aoEditar)
+    socket.on('mensagem_deletada', aoDeletar)
     return () => {
-      socket.disconnect()
+      socket.io.off('reconnect', aoReconectar)
+      socket.off('nova_mensagem', aoReceber)
+      socket.off('mensagem_editada', aoEditar)
+      socket.off('mensagem_deletada', aoDeletar)
       socketRef.current = null
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [socket]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Entrar numa room do canal ──────────────────────────────────────────────
   const joinCanal = useCallback((canalId) => {

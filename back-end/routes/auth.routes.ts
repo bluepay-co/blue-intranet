@@ -5,12 +5,14 @@ import { authMiddleware } from '../middleware/auth.middleware';
 
 const authRouter = Router();
 
-// Limite generoso (a VPN da empresa faz NAT — muitos usuários podem sair pelo
-// mesmo IP), mas suficiente para barrar tentativas automatizadas de troca de
-// `code` (que consomem cota da API do Google e podem ser usadas para abuso).
+// Conta só as tentativas que falham (skipSuccessfulRequests): a VPN da empresa
+// faz NAT e todo mundo loga pelo mesmo IP de manhã — logins válidos não podem
+// gastar o limite. Ainda barra tentativas automatizadas de troca de `code`
+// (que consomem cota da API do Google e podem ser usadas para abuso).
 const loginRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 50,
+  skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: 'Muitas tentativas de login. Aguarde alguns minutos.' },

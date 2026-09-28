@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { roleMiddleware } from '../middleware/role.middleware';
 import { Role } from '../models/usuario.model';
+import { sincronizarAposEscrita } from '../socket/sync';
 import {
   getRecentes,
   getTodas,
@@ -12,7 +13,7 @@ import {
 
 export const atualizacaoRouter = Router();
 
-atualizacaoRouter.use(authMiddleware);
+atualizacaoRouter.use(authMiddleware, sincronizarAposEscrita('atualizacoes'));
 
 // GET /api/atualizacoes/recentes — avisos recentes para o card modal (qualquer usuário logado)
 atualizacaoRouter.get('/recentes', getRecentes);

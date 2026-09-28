@@ -2,50 +2,53 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Login from '@/components/Login'
 import AppLayout from '@/components/layout/AppLayout'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import Agenda from '@/pages/Agenda'
-import Chat from '@/pages/Chat'
-import Tarefas from '@/pages/Tarefas'
-import KanbanEquipe from '@/pages/KanbanEquipe'
 import { KANBAN_ROLES } from '@/api/modules/kanban'
-import Usuarios from '@/pages/Usuarios'
-import Blog from '@/pages/Blog'
-import AdminBlog from '@/pages/marketing/AdminBlog'
-import Formularios from '@/pages/marketing/Formularios'
-import FormularioEditor from '@/pages/marketing/FormularioEditor'
-import FormularioRespostas from '@/pages/marketing/FormularioRespostas'
-import Bluelovers from '@/pages/Bluelovers'
-import BlueloverPerfil from '@/pages/BlueloverPerfil'
-import AdminBluelovers from '@/pages/marketing/AdminBluelovers'
-import BlueloverEditor from '@/pages/marketing/BlueloverEditor'
-import Chamados from '@/pages/Chamados'
-import ChamadoDetalhe from '@/pages/ChamadoDetalhe'
-import ChamadosTI from '@/pages/ti/ChamadosTI'
-import DashboardTI from '@/pages/ti/DashboardTI'
-import Atualizacoes from '@/pages/ti/Atualizacoes'
-import ChamadosProdutos from '@/pages/produtos/ChamadosProdutos'
-import DashboardPessoal from '@/pages/metricas/DashboardPessoal'
-import ForecastPessoal from '@/pages/metricas/ForecastPessoal'
-import DashboardEquipe from '@/pages/metricas/DashboardEquipe'
-import DashboardGeral from '@/pages/metricas/DashboardGeral'
-import DashboardComercialLayout from '@/pages/metricas/DashboardComercialLayout'
-import DashboardVisaoGeral from '@/pages/metricas/DashboardVisaoGeral'
-import DashboardPreVendas from '@/pages/metricas/DashboardPreVendas'
-import DashboardPreVendasEquipe from '@/pages/metricas/DashboardPreVendasEquipe'
-import LancamentoPreVendas from '@/pages/prevendas/LancamentoPreVendas'
-import ClientesLayout from '@/pages/clientes/ClientesLayout'
-import MeusClientes from '@/pages/clientes/MeusClientes'
-import Prospeccao from '@/pages/clientes/Prospeccao'
-import GrupoEconomico from '@/pages/clientes/GrupoEconomico'
-import ClienteDetalheLayout from '@/pages/clientes/ClienteDetalheLayout'
-import ClienteDetalhe from '@/pages/clientes/ClienteDetalhe'
-import ClienteDetalheMes from '@/pages/clientes/ClienteDetalheMes'
-import RadarRisco from '@/pages/carteira/RadarRisco'
-import CrossSell from '@/pages/carteira/CrossSell'
-import ClientesDaEquipe from '@/pages/gerente/ClientesDaEquipe'
-import ClienteEquipeDetalhe from '@/pages/gerente/ClienteEquipeDetalhe'
-import ReceitasEquipe from '@/pages/gerente/ReceitasEquipe'
-import VisaoEquipePessoal from '@/pages/gerente/VisaoEquipePessoal'
-import ForecastIS from '@/pages/gerente/ForecastIS'
+import { lazyComRecarga } from '@/lib/lazyComRecarga'
+
+// Páginas carregadas sob demanda (um chunk por rota) — o bundle inicial fica leve.
+const Agenda = lazyComRecarga(() => import('@/pages/Agenda'))
+const Chat = lazyComRecarga(() => import('@/pages/Chat'))
+const Tarefas = lazyComRecarga(() => import('@/pages/Tarefas'))
+const KanbanEquipe = lazyComRecarga(() => import('@/pages/KanbanEquipe'))
+const Usuarios = lazyComRecarga(() => import('@/pages/Usuarios'))
+const Blog = lazyComRecarga(() => import('@/pages/Blog'))
+const AdminBlog = lazyComRecarga(() => import('@/pages/marketing/AdminBlog'))
+const Formularios = lazyComRecarga(() => import('@/pages/marketing/Formularios'))
+const FormularioEditor = lazyComRecarga(() => import('@/pages/marketing/FormularioEditor'))
+const FormularioRespostas = lazyComRecarga(() => import('@/pages/marketing/FormularioRespostas'))
+const Bluelovers = lazyComRecarga(() => import('@/pages/Bluelovers'))
+const BlueloverPerfil = lazyComRecarga(() => import('@/pages/BlueloverPerfil'))
+const AdminBluelovers = lazyComRecarga(() => import('@/pages/marketing/AdminBluelovers'))
+const BlueloverEditor = lazyComRecarga(() => import('@/pages/marketing/BlueloverEditor'))
+const Chamados = lazyComRecarga(() => import('@/pages/Chamados'))
+const ChamadoDetalhe = lazyComRecarga(() => import('@/pages/ChamadoDetalhe'))
+const ChamadosTI = lazyComRecarga(() => import('@/pages/ti/ChamadosTI'))
+const DashboardTI = lazyComRecarga(() => import('@/pages/ti/DashboardTI'))
+const Atualizacoes = lazyComRecarga(() => import('@/pages/ti/Atualizacoes'))
+const ChamadosProdutos = lazyComRecarga(() => import('@/pages/produtos/ChamadosProdutos'))
+const DashboardPessoal = lazyComRecarga(() => import('@/pages/metricas/DashboardPessoal'))
+const ForecastPessoal = lazyComRecarga(() => import('@/pages/metricas/ForecastPessoal'))
+const DashboardEquipe = lazyComRecarga(() => import('@/pages/metricas/DashboardEquipe'))
+const DashboardGeral = lazyComRecarga(() => import('@/pages/metricas/DashboardGeral'))
+const DashboardComercialLayout = lazyComRecarga(() => import('@/pages/metricas/DashboardComercialLayout'))
+const DashboardVisaoGeral = lazyComRecarga(() => import('@/pages/metricas/DashboardVisaoGeral'))
+const DashboardPreVendas = lazyComRecarga(() => import('@/pages/metricas/DashboardPreVendas'))
+const DashboardPreVendasEquipe = lazyComRecarga(() => import('@/pages/metricas/DashboardPreVendasEquipe'))
+const LancamentoPreVendas = lazyComRecarga(() => import('@/pages/prevendas/LancamentoPreVendas'))
+const ClientesLayout = lazyComRecarga(() => import('@/pages/clientes/ClientesLayout'))
+const MeusClientes = lazyComRecarga(() => import('@/pages/clientes/MeusClientes'))
+const Prospeccao = lazyComRecarga(() => import('@/pages/clientes/Prospeccao'))
+const GrupoEconomico = lazyComRecarga(() => import('@/pages/clientes/GrupoEconomico'))
+const ClienteDetalheLayout = lazyComRecarga(() => import('@/pages/clientes/ClienteDetalheLayout'))
+const ClienteDetalhe = lazyComRecarga(() => import('@/pages/clientes/ClienteDetalhe'))
+const ClienteDetalheMes = lazyComRecarga(() => import('@/pages/clientes/ClienteDetalheMes'))
+const RadarRisco = lazyComRecarga(() => import('@/pages/carteira/RadarRisco'))
+const CrossSell = lazyComRecarga(() => import('@/pages/carteira/CrossSell'))
+const ClientesDaEquipe = lazyComRecarga(() => import('@/pages/gerente/ClientesDaEquipe'))
+const ClienteEquipeDetalhe = lazyComRecarga(() => import('@/pages/gerente/ClienteEquipeDetalhe'))
+const ReceitasEquipe = lazyComRecarga(() => import('@/pages/gerente/ReceitasEquipe'))
+const VisaoEquipePessoal = lazyComRecarga(() => import('@/pages/gerente/VisaoEquipePessoal'))
+const ForecastIS = lazyComRecarga(() => import('@/pages/gerente/ForecastIS'))
 
 function App() {
   return (

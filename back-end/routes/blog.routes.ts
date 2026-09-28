@@ -5,6 +5,7 @@ import multer from 'multer';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { roleMiddleware } from '../middleware/role.middleware';
 import { Role } from '../models/usuario.model';
+import { sincronizarAposEscrita } from '../socket/sync';
 import { AppError } from '../utils/app-error';
 import {
   getFeed,
@@ -48,7 +49,7 @@ blogRouter.post('/:postId/reagir', authMiddleware, postReagir);
 
 // ── Painel admin (exclusivo MARKETING) ────────────────────────────────────────
 const adminRouter = Router();
-adminRouter.use(authMiddleware, roleMiddleware(Role.MARKETING, Role.DESENVOLVEDOR));
+adminRouter.use(authMiddleware, roleMiddleware(Role.MARKETING, Role.DESENVOLVEDOR), sincronizarAposEscrita('blog'));
 
 adminRouter.get('/posts', getAdminPosts);
 adminRouter.post('/posts', upload.single('imagem'), postCriarPost);

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AuthContext } from './auth-context'
-import { TOKEN_KEY } from '@/api/api'
+import { TOKEN_KEY, SESSAO_EXPIRADA_EVENT } from '@/api/api'
 import {
   loginComGoogle,
   buscarUsuarioLogado,
@@ -80,6 +80,18 @@ export default function AuthProvider({ children }) {
     setUsuario(null)
     navigate('/login', { replace: true })
   }, [navigate])
+
+  // JWT expirado no meio do uso (interceptor do Axios): encerra a sessão, o
+  // que desmonta o layout e para todo o polling.
+  useEffect(() => {
+    function aoExpirar() {
+      if (!localStorage.getItem(TOKEN_KEY)) return
+      setErro('Sua sessão expirou. Entre novamente.')
+      logout()
+    }
+    window.addEventListener(SESSAO_EXPIRADA_EVENT, aoExpirar)
+    return () => window.removeEventListener(SESSAO_EXPIRADA_EVENT, aoExpirar)
+  }, [logout])
 
   const valor = {
     usuario,

@@ -5,6 +5,7 @@ import type { AuthPayload } from '../middleware/auth.middleware';
 import { KANBAN_ROLES, equipeDaRole } from '../utils/equipes';
 import { criptografar, descriptografar } from '../utils/crypto-kanban';
 import { permissoes, podeVer, rolesVisiveis } from './kanban-permissoes';
+import { salaUsuario, sincronizarSalas } from '../socket/sync';
 import type {
   KanbanHistorico,
   KanbanNotificacao,
@@ -208,6 +209,13 @@ type LinhaHistorico = Omit<KanbanHistorico, 'texto'> & {
   auth_tag: string | null;
 };
 
+/**
+ * Destinatários notificados em cada transação aberta. O aviso em tempo real
+ * (socket) só sai depois do COMMIT — antes disso o cliente buscaria e ainda
+ * não enxergaria a notificação.
+ */
+const avisosPendentes = new WeakMap<Executor, Set<number>>();
+
 /** Notifica cada destinatário uma vez, nunca o próprio autor da ação. */
 async function notificar(db: Executor, tarefaId: number, autorId: number, destinatarios: number[], tipo: TipoNotificacao, texto: string) {
   const alvos = [...new Set(destinatarios)].filter((id) => id !== autorId);
@@ -218,20 +226,25 @@ async function notificar(db: Executor, tarefaId: number, autorId: number, destin
       tipo,
       texto,
     ]);
+    avisosPendentes.get(db)?.add(id);
   }
 }
 
 async function transacao<T>(fn: (db: PoolClient) => Promise<T>): Promise<T> {
   const client = await pool.connect();
+  const avisar = new Set<number>();
+  avisosPendentes.set(client, avisar);
   try {
     await client.query('BEGIN');
     const resultado = await fn(client);
     await client.query('COMMIT');
+    sincronizarSalas([...avisar].map(salaUsuario), 'kanban');
     return resultado;
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
   } finally {
+    avisosPendentes.delete(client);
     client.release();
   }
 }
@@ -428,9 +441,25 @@ export async function adiarLembrete(usuario: AuthPayload, id: number) {
 }
 
 /**
- * Consulta de polling: gera sob demanda os lembretes e avisos de vencimento do
- * usuário (não há scheduler no back) e devolve as notificações não lidas,
- * marcando-as como entregues na mesma operação.
+ * Responsáveis com lembrete ou prazo vencendo ainda não notificado. Usado pelo
+ * job de lembretes (socket/lembretes-kanban.ts): uma consulta por minuto no
+ * servidor avisa só quem tem algo vencendo, em vez de cada aba perguntar.
+ */
+export async function responsaveisComAvisoVencido(): Promise<number[]> {
+  const { rows } = await pool.query<{ responsavel_id: number }>(
+    `SELECT DISTINCT responsavel_id FROM blue_intranet.kanban_tarefas
+      WHERE status <> 'done'
+        AND ((NOT lembrete_enviado AND lembrete_em <= NOW())
+          OR (NOT vencimento_notificado AND prazo < NOW()))`,
+  );
+  return rows.map((r) => r.responsavel_id);
+}
+
+/**
+ * Consulta das notificações: gera sob demanda os lembretes e avisos de
+ * vencimento do usuário e devolve as notificações não lidas, marcando-as como
+ * entregues na mesma operação. O job de lembretes só avisa o cliente para
+ * chamar esta rota — a geração continua aqui.
  */
 export async function notificacoesPendentes(usuario: AuthPayload): Promise<KanbanNotificacao[]> {
   return transacao(async (db) => {
