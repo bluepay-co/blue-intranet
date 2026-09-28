@@ -5,6 +5,8 @@ import ProtectedRoute from '@/components/ProtectedRoute'
 import Agenda from '@/pages/Agenda'
 import Chat from '@/pages/Chat'
 import Tarefas from '@/pages/Tarefas'
+import KanbanEquipe from '@/pages/KanbanEquipe'
+import { KANBAN_ROLES } from '@/api/modules/kanban'
 import Usuarios from '@/pages/Usuarios'
 import Blog from '@/pages/Blog'
 import AdminBlog from '@/pages/marketing/AdminBlog'
@@ -63,6 +65,14 @@ function App() {
         <Route path="agenda" element={<Agenda />} />
         <Route path="chat" element={<Chat />} />
         <Route path="tarefas" element={<Tarefas />} />
+        <Route
+          path="kanban"
+          element={
+            <ProtectedRoute roles={KANBAN_ROLES}>
+              <KanbanEquipe />
+            </ProtectedRoute>
+          }
+        />
         <Route path="blog" element={<Blog />} />
         <Route path="bluelovers" element={<Bluelovers />} />
         <Route path="bluelovers/:id" element={<BlueloverPerfil />} />
