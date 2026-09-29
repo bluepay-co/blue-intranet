@@ -42,6 +42,8 @@ const LEMBRETES = [0, 15, 30, 60, 180, 1440];
 const ADIAR_MIN = 10;
 const MAX_PARTICIPANTES = 20;
 const MAX_ITENS_CHECKLIST = 50;
+/** Dias sem atualização para a tarefa virar "Esquecida" (espelho de ESQUECIDA_DIAS no front). */
+const ESQUECIDA_DIAS = 3;
 
 const ROTULO_PRIORIDADE: Record<PrioridadeTarefa, string> = { urgent: 'Urgente', high: 'Importante', normal: 'Normal', low: 'Baixa' };
 
@@ -477,6 +479,41 @@ export async function responsaveisComAvisoVencido(): Promise<number[]> {
           OR (NOT vencimento_notificado AND prazo < NOW()))`,
   );
   return rows.map((r) => r.responsavel_id);
+}
+
+/**
+ * Gera os avisos de tarefa esquecida: aberta, dentro do prazo (atraso tem aviso
+ * próprio) e sem atualização há ESQUECIDA_DIAS. Avisa o responsável e, se for
+ * outra pessoa e a tarefa não for privada, o solicitante. Cada período parado
+ * avisa uma vez só: `esquecida_avisada_em` só é superado quando alguém atualiza
+ * a tarefa. Roda no job do servidor e devolve quem deve receber o `sync`.
+ */
+export async function gerarAvisosEsquecidas(): Promise<number[]> {
+  return transacao(async (db) => {
+    const { rows } = await db.query<{ destinatario_id: number }>(
+      `WITH paradas AS (
+         UPDATE blue_intranet.kanban_tarefas SET esquecida_avisada_em = NOW()
+          WHERE status <> 'done'
+            AND prazo >= NOW()
+            AND atualizado_em < NOW() - make_interval(days => $1)
+            AND (esquecida_avisada_em IS NULL OR esquecida_avisada_em < atualizado_em)
+          RETURNING id, titulo, responsavel_id, solicitante_id, visibilidade),
+       avisos AS (
+         SELECT id, responsavel_id AS destinatario_id,
+                'Tarefa parada há ' || $2 || ' dias: "' || titulo || '". Atualize ou comente o andamento.' AS texto
+           FROM paradas
+         UNION ALL
+         SELECT id, solicitante_id,
+                '"' || titulo || '", que você pediu, está parada há ' || $2 || ' dias.'
+           FROM paradas
+          WHERE solicitante_id <> responsavel_id AND visibilidade <> 'private')
+       INSERT INTO blue_intranet.kanban_notificacoes (destinatario_id, tarefa_id, tipo, texto)
+       SELECT destinatario_id, id, 'esquecida', texto FROM avisos
+       RETURNING destinatario_id`,
+      [ESQUECIDA_DIAS, String(ESQUECIDA_DIAS)],
+    );
+    return [...new Set(rows.map((r) => r.destinatario_id))];
+  });
 }
 
 /**

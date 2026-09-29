@@ -47,6 +47,7 @@ const TITULOS = {
   status: 'Atualização de tarefa',
   lembrete: 'Lembrete de tarefa',
   vencido: 'Prazo vencido',
+  esquecida: 'Tarefa parada',
 }
 
 export function NotificacoesKanbanProvider({ children }) {
@@ -73,7 +74,7 @@ export function NotificacoesKanbanProvider({ children }) {
           onClick: () => alterarStatus(n.tarefa_id, 'done').then(() => setVersao((v) => v + 1)),
         }
       }
-      const tipoToast = n.tipo === 'vencido' ? toast.error : n.tipo === 'cobranca' ? toast.warning : toast.info
+      const tipoToast = n.tipo === 'vencido' ? toast.error : n.tipo === 'cobranca' || n.tipo === 'esquecida' ? toast.warning : toast.info
       tipoToast(TITULOS[n.tipo], { description: n.texto, duration: Infinity, closeButton: true, ...acoes })
     },
     [abrir],

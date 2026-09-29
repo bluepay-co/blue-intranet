@@ -9,7 +9,7 @@ export type StatusTarefa = 'todo' | 'doing' | 'done';
 /** private = só o responsável; requester = responsável + solicitante; team = + equipe e coordenação. */
 export type VisibilidadeTarefa = 'private' | 'requester' | 'team';
 export type TipoHistorico = 'evento' | 'comentario';
-export type TipoNotificacao = 'solicitacao' | 'comentario' | 'cobranca' | 'status' | 'lembrete' | 'vencido';
+export type TipoNotificacao = 'solicitacao' | 'comentario' | 'cobranca' | 'status' | 'lembrete' | 'vencido' | 'esquecida';
 
 export interface KanbanTarefa {
   id: number;
