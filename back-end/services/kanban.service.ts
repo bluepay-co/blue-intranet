@@ -224,15 +224,6 @@ type LinhaHistorico = Omit<KanbanHistorico, 'texto'> & {
  */
 const avisosPendentes = new WeakMap<Executor, Set<number>>();
 
-/**
- * Agenda o aviso em tempo real para quem acompanha a tarefa, sem gerar
- * notificação (mudança pequena, como marcar item do checklist).
- */
-function avisarSemNotificar(db: Executor, autorId: number, destinatarios: number[]) {
-  const pendentes = avisosPendentes.get(db);
-  destinatarios.filter((id) => id !== autorId).forEach((id) => pendentes?.add(id));
-}
-
 /** Notifica cada destinatário uma vez, nunca o próprio autor da ação. */
 async function notificar(db: Executor, tarefaId: number, autorId: number, destinatarios: number[], tipo: TipoNotificacao, texto: string) {
   const alvos = [...new Set(destinatarios)].filter((id) => id !== autorId);
@@ -612,7 +603,6 @@ export async function adicionarItemChecklist(usuario: AuthPayload, tarefaId: num
   await transacao(async (db) => {
     await inserirItens(db, tarefaId, usuario.id, [item]);
     await db.query('UPDATE blue_intranet.kanban_tarefas SET atualizado_em = NOW() WHERE id = $1', [tarefaId]);
-    avisarSemNotificar(db, usuario.id, interessadosDe(tarefa));
   });
 }
 
@@ -628,7 +618,7 @@ export async function atualizarItemChecklist(
     throw new AppError('Valor de "concluído" inválido.', 400);
   }
   const novoTexto = entrada.texto === undefined ? null : textoItem(entrada.texto);
-  const tarefa = await tarefaDoChecklist(usuario, tarefaId);
+  await tarefaDoChecklist(usuario, tarefaId); // valida visibilidade + permissão
 
   await transacao(async (db) => {
     await garantirItemDaTarefa(db, tarefaId, itemId);
@@ -646,16 +636,14 @@ export async function atualizarItemChecklist(
       );
     }
     await db.query('UPDATE blue_intranet.kanban_tarefas SET atualizado_em = NOW() WHERE id = $1', [tarefaId]);
-    avisarSemNotificar(db, usuario.id, interessadosDe(tarefa));
   });
 }
 
 export async function removerItemChecklist(usuario: AuthPayload, tarefaId: number, itemId: number) {
-  const tarefa = await tarefaDoChecklist(usuario, tarefaId);
+  await tarefaDoChecklist(usuario, tarefaId); // valida visibilidade + permissão
   await transacao(async (db) => {
     await garantirItemDaTarefa(db, tarefaId, itemId);
     await db.query('DELETE FROM blue_intranet.kanban_checklist WHERE id = $1', [itemId]);
     await db.query('UPDATE blue_intranet.kanban_tarefas SET atualizado_em = NOW() WHERE id = $1', [tarefaId]);
-    avisarSemNotificar(db, usuario.id, interessadosDe(tarefa));
   });
 }
