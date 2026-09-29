@@ -35,7 +35,10 @@ export default function AdminBlog() {
     }
   }, [])
 
-  useEffect(() => { buscar() }, [buscar])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial do servidor
+    buscar()
+  }, [buscar])
 
   function abrirCriar() {
     setPostEditando(null)

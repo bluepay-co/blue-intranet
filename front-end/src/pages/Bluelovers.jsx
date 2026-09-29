@@ -30,7 +30,10 @@ export default function Bluelovers() {
     }
   }, [])
 
-  useEffect(() => { buscar() }, [buscar])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial do servidor
+    buscar()
+  }, [buscar])
 
   return (
     <div className="flex flex-col gap-6">
