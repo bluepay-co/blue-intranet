@@ -307,6 +307,34 @@ export default function BlueloverPerfil() {
         </Secao>
       )}
 
+      {/* Seção 05 — Inspirações */}
+      {(b.inspiracao_texto || b.inspiracao_foto_url) && (
+        <Secao>
+          <Card className="overflow-hidden border-none bg-gradient-to-r from-brand-accent/15 via-brand-accent/5 to-transparent py-0">
+            <div className="grid items-center gap-6 p-6 sm:grid-cols-[minmax(0,240px)_1fr] sm:p-8">
+              {b.inspiracao_foto_url && (
+                <Foto
+                  src={urlFoto(b.inspiracao_foto_url)}
+                  alt="Inspiração"
+                  className="aspect-square w-full rounded-3xl"
+                />
+              )}
+              <div>
+                <p className="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase">
+                  O que me inspira
+                </p>
+                {b.inspiracao_texto && (
+                  <p className="mt-3 text-2xl leading-snug font-light text-balance sm:text-3xl">
+                    “{b.inspiracao_texto}”
+                  </p>
+                )}
+                <p className="mt-4 text-sm text-muted-foreground">— {b.apelido || b.nome}</p>
+              </div>
+            </div>
+          </Card>
+        </Secao>
+      )}
+
       {/* Seção 04 — Viagens */}
       {temViagem && (
         <Secao titulo="Viagens">
@@ -351,34 +379,6 @@ export default function BlueloverPerfil() {
               </Card>
             )}
           </div>
-        </Secao>
-      )}
-
-      {/* Seção 05 — Inspirações */}
-      {(b.inspiracao_texto || b.inspiracao_foto_url) && (
-        <Secao>
-          <Card className="overflow-hidden border-none bg-gradient-to-r from-brand-accent/15 via-brand-accent/5 to-transparent py-0">
-            <div className="grid items-center gap-6 p-6 sm:grid-cols-[minmax(0,240px)_1fr] sm:p-8">
-              {b.inspiracao_foto_url && (
-                <Foto
-                  src={urlFoto(b.inspiracao_foto_url)}
-                  alt="Inspiração"
-                  className="aspect-square w-full rounded-3xl"
-                />
-              )}
-              <div>
-                <p className="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase">
-                  O que me inspira
-                </p>
-                {b.inspiracao_texto && (
-                  <p className="mt-3 text-2xl leading-snug font-light text-balance sm:text-3xl">
-                    “{b.inspiracao_texto}”
-                  </p>
-                )}
-                <p className="mt-4 text-sm text-muted-foreground">— {b.apelido || b.nome}</p>
-              </div>
-            </div>
-          </Card>
         </Secao>
       )}
 
