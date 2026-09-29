@@ -13,11 +13,15 @@ const INTERVALO_MS = 60_000;
  */
 export function iniciarLembretesKanban(): void {
   setInterval(() => {
-    Promise.all([responsaveisComAvisoVencido(), gerarAvisosEsquecidas()])
-      .then(([vencendo, esquecidas]) => {
-        const ids = [...new Set([...vencendo, ...esquecidas])];
-        if (ids.length) sincronizarSalas(ids.map(salaUsuario), 'kanban');
-      })
-      .catch((err) => console.error('[lembretes-kanban] falha na verificação:', err));
+    // allSettled: uma verificação falhando (ex.: migration ainda não aplicada)
+    // não pode derrubar a outra — lembretes e prazos seguem funcionando.
+    Promise.allSettled([responsaveisComAvisoVencido(), gerarAvisosEsquecidas()]).then((resultados) => {
+      const ids = new Set<number>();
+      resultados.forEach((r, i) => {
+        if (r.status === 'fulfilled') r.value.forEach((id) => ids.add(id));
+        else console.error(`[lembretes-kanban] falha em ${i === 0 ? 'lembretes/prazos' : 'tarefas esquecidas'}:`, r.reason);
+      });
+      if (ids.size) sincronizarSalas([...ids].map(salaUsuario), 'kanban');
+    });
   }, INTERVALO_MS).unref();
 }
