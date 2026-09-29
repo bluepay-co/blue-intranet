@@ -29,7 +29,7 @@ const ESTILO_TOAST = {
   classNames: {
     toast: '!bg-card !text-card-foreground !border-border !rounded-xl !shadow-lg !font-sans border-l-4!',
     title: '!text-sm !font-semibold',
-    description: '!text-xs !text-muted-foreground',
+    description: '!text-xs !text-muted-foreground [overflow-wrap:anywhere]',
     actionButton: '!bg-primary !text-primary-foreground !rounded-md !text-xs !font-medium',
     cancelButton: '!bg-muted !text-foreground !rounded-md !text-xs !font-medium',
     closeButton: '!bg-card !text-muted-foreground !border-border hover:!text-foreground',

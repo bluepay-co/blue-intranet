@@ -117,7 +117,7 @@ export default function TarefaDrawer({ tarefaId, versao, usuario, onFechar, onSt
               </div>
 
               <div>
-                <DialogTitle className="text-xl leading-snug font-semibold">{t.titulo}</DialogTitle>
+                <DialogTitle className="text-xl leading-snug font-semibold [overflow-wrap:anywhere]">{t.titulo}</DialogTitle>
                 <p className="mt-1 whitespace-pre-wrap text-muted-foreground [overflow-wrap:anywhere]">{t.descricao ? <TextoComLinks texto={t.descricao} classeLink="text-primary" /> : 'Sem descrição.'}</p>
               </div>
 

@@ -22,7 +22,7 @@ function Coluna({ def, tarefas, ...props }) {
     <div
       ref={setNodeRef}
       className={cn(
-        'min-h-32 rounded-2xl border bg-muted/30 p-2.5 transition-colors',
+        'min-h-32 min-w-0 rounded-2xl border bg-muted/30 p-2.5 transition-colors',
         isOver && 'border-primary bg-primary/5',
       )}
     >

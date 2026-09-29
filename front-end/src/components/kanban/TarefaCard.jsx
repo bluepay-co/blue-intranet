@@ -47,7 +47,13 @@ export default function TarefaCard({ tarefa: t, onAbrir, onStatus, arrastando })
         <IconeVis className="size-3.5 text-muted-foreground" aria-label={VISIBILIDADES[t.visibilidade].label} />
       </div>
 
-      <p className={cn('my-2 font-semibold leading-snug', feita && 'text-muted-foreground line-through')}>{t.titulo}</p>
+      {/* Título longo (ou sem espaços) quebra em qualquer ponto e para em 3 linhas; o completo fica no title. */}
+      <p
+        title={t.titulo}
+        className={cn('my-2 line-clamp-3 font-semibold leading-snug [overflow-wrap:anywhere]', feita && 'text-muted-foreground line-through')}
+      >
+        {t.titulo}
+      </p>
 
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <Avatar nome={t.solicitante_nome} />
