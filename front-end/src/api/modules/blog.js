@@ -110,3 +110,27 @@ export async function reagir(postId, tipo) {
   const { data } = await api.post(`/api/blog/${postId}/reagir`, { tipo })
   return data
 }
+
+/**
+ * Comentários de um post publicado, do mais antigo ao mais novo.
+ * @param {number} postId
+ * @returns {Promise<Array<{ id: number, usuario_id: number, usuario_nome: string, texto: string,
+ *                           criado_em: string, pode_apagar: boolean }>>}
+ */
+export async function listarComentarios(postId) {
+  const { data } = await api.get(`/api/blog/${postId}/comentarios`)
+  return data.comentarios
+}
+
+/**
+ * Publica um comentário (texto puro, até 1000 caracteres).
+ * @param {number} postId @param {string} texto
+ */
+export async function comentar(postId, texto) {
+  await api.post(`/api/blog/${postId}/comentarios`, { texto })
+}
+
+/** Apaga um comentário (o próprio, ou qualquer um se for Marketing). */
+export async function apagarComentario(comentarioId) {
+  await api.delete(`/api/blog/comentarios/${comentarioId}`)
+}

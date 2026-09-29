@@ -35,7 +35,7 @@ function esperaAposErro(erro, intervaloMs, esperaAtual) {
  * novo). Trocar a identidade de `buscar` não reinicia o ciclo.
  *
  * @param {() => Promise<unknown>} buscar
- * @param {{ intervaloMs: number, ativo?: boolean, evento?: 'blog' | 'atualizacoes' | 'chamados' | 'kanban' }} opcoes
+ * @param {{ intervaloMs: number, ativo?: boolean, evento?: 'blog' | 'blog_comentarios' | 'atualizacoes' | 'chamados' | 'kanban' }} opcoes
  */
 export function usePolling(buscar, { intervaloMs, ativo = true, evento }) {
   const { socket, conectado } = useSocket()

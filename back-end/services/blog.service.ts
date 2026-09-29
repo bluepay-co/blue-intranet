@@ -1,8 +1,20 @@
 import { pool } from '../database/pool';
 import { AppError } from '../utils/app-error';
-import type { BlogPostFeed, BlogPostAdmin, ReacaoResult, TipoReacao } from '../models/blog.model';
+import type { AuthPayload } from '../middleware/auth.middleware';
+import { Role } from '../models/usuario.model';
+import { salaPostBlog, sincronizarSalas } from '../socket/sync';
+import type {
+  BlogComentario,
+  BlogPostFeed,
+  BlogPostAdmin,
+  ReacaoResult,
+  TipoReacao,
+} from '../models/blog.model';
 
 const TIPOS_VALIDOS: TipoReacao[] = ['like', 'heart', 'aplauso', 'foguete'];
+const MAX_COMENTARIO = 1000;
+/** Moderam os comentários (apagam qualquer um). */
+const MODERADORES: Role[] = [Role.MARKETING, Role.DESENVOLVEDOR];
 
 /** SQL base reutilizado por listarFeed e listarAdmin. */
 const SELECT_POSTS_SQL = `
@@ -15,7 +27,8 @@ const SELECT_POSTS_SQL = `
     COUNT(br.id) FILTER (WHERE br.tipo = 'heart')::int   AS heart_count,
     COUNT(br.id) FILTER (WHERE br.tipo = 'aplauso')::int AS aplauso_count,
     COUNT(br.id) FILTER (WHERE br.tipo = 'foguete')::int AS foguete_count,
-    MAX(CASE WHEN br.usuario_id = $1 THEN br.tipo END)   AS minha_reacao
+    MAX(CASE WHEN br.usuario_id = $1 THEN br.tipo END)   AS minha_reacao,
+    (SELECT COUNT(*)::int FROM blog_comentarios bc WHERE bc.post_id = bp.id) AS comentarios_count
   FROM blog_posts bp
   JOIN  usuarios     u  ON u.id  = bp.autor_id
   LEFT JOIN blog_reacoes br ON br.post_id = bp.id
@@ -188,4 +201,65 @@ export async function reagirPost(
 
   await pool.query(`UPDATE blog_reacoes SET tipo = $1 WHERE id = $2`, [tipoValidado, reacaoExistente.id]);
   return { acao: 'atualizada', tipo: tipoValidado };
+}
+
+/* ---------- comentários ---------- */
+
+function idValido(valor: unknown, campo: string): number {
+  const id = Number(valor);
+  if (!Number.isInteger(id) || id <= 0) throw new AppError(`${campo} inválido.`, 400);
+  return id;
+}
+
+/** Comentários só existem em posts publicados (rascunho não aparece no feed). */
+async function garantirPostPublicado(postId: number) {
+  const { rowCount } = await pool.query('SELECT 1 FROM blog_posts WHERE id = $1 AND publicado = true', [postId]);
+  if (!rowCount) throw new AppError('Post não encontrado.', 404);
+}
+
+/** Comentários de um post, do mais antigo ao mais novo (leitura como conversa). */
+export async function listarComentarios(usuario: AuthPayload, postIdBruto: unknown): Promise<BlogComentario[]> {
+  const postId = idValido(postIdBruto, 'Post');
+  await garantirPostPublicado(postId);
+  const { rows } = await pool.query<BlogComentario>(
+    `SELECT c.id, c.post_id, c.usuario_id, u.nome AS usuario_nome, c.texto, c.criado_em,
+            (c.usuario_id = $2 OR $3) AS pode_apagar
+       FROM blog_comentarios c
+       JOIN usuarios u ON u.id = c.usuario_id
+      WHERE c.post_id = $1
+      ORDER BY c.criado_em`,
+    [postId, usuario.id, MODERADORES.includes(usuario.role)],
+  );
+  return rows;
+}
+
+export async function comentarPost(usuario: AuthPayload, postIdBruto: unknown, textoBruto: unknown): Promise<void> {
+  const postId = idValido(postIdBruto, 'Post');
+  const texto = typeof textoBruto === 'string' ? textoBruto.trim() : '';
+  if (!texto) throw new AppError('Escreva o comentário.', 400);
+  if (texto.length > MAX_COMENTARIO) throw new AppError(`Comentário excede ${MAX_COMENTARIO} caracteres.`, 400);
+  await garantirPostPublicado(postId);
+  await pool.query('INSERT INTO blog_comentarios (post_id, usuario_id, texto) VALUES ($1, $2, $3)', [
+    postId,
+    usuario.id,
+    texto,
+  ]);
+  // Depois de gravado: quem está com a conversa aberta busca de novo.
+  sincronizarSalas([salaPostBlog(postId)], 'blog_comentarios');
+}
+
+/** O autor apaga o próprio comentário; Marketing/Desenvolvedor apagam qualquer um. */
+export async function apagarComentario(usuario: AuthPayload, idBruto: unknown): Promise<void> {
+  const id = idValido(idBruto, 'Comentário');
+  const { rows } = await pool.query<{ usuario_id: number; post_id: number }>(
+    'SELECT usuario_id, post_id FROM blog_comentarios WHERE id = $1',
+    [id],
+  );
+  const comentario = rows[0];
+  if (!comentario) throw new AppError('Comentário não encontrado.', 404);
+  if (comentario.usuario_id !== usuario.id && !MODERADORES.includes(usuario.role)) {
+    throw new AppError('Você só pode apagar os seus comentários.', 403);
+  }
+  await pool.query('DELETE FROM blog_comentarios WHERE id = $1', [id]);
+  sincronizarSalas([salaPostBlog(comentario.post_id)], 'blog_comentarios');
 }

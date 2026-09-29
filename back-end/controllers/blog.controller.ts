@@ -10,6 +10,9 @@ import {
   deletarPost,
   togglePublicar,
   reagirPost,
+  listarComentarios,
+  comentarPost,
+  apagarComentario,
 } from '../services/blog.service';
 
 /** GET /api/blog — Feed público de posts publicados. */
@@ -131,5 +134,42 @@ export async function postReagir(req: Request, res: Response) {
     if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
     console.error('[blog.controller] postReagir:', err);
     return res.status(500).json({ message: 'Erro interno ao registrar reação.' });
+  }
+}
+
+/** Tratamento de erro padrão dos handlers de comentários/métricas. */
+function responderErro(res: Response, err: unknown, origem: string, mensagem500: string) {
+  if (err instanceof AppError) return res.status(err.statusCode).json({ message: err.message });
+  console.error(`[blog.controller] ${origem}:`, err);
+  return res.status(500).json({ message: mensagem500 });
+}
+
+/** GET /api/blog/:postId/comentarios — Comentários do post (qualquer usuário autenticado). */
+export async function getComentarios(req: Request, res: Response) {
+  try {
+    const comentarios = await listarComentarios(req.usuario!, req.params.postId);
+    return res.status(200).json({ comentarios });
+  } catch (err) {
+    return responderErro(res, err, 'getComentarios', 'Erro interno ao carregar os comentários.');
+  }
+}
+
+/** POST /api/blog/:postId/comentarios — Novo comentário. */
+export async function postComentario(req: Request, res: Response) {
+  try {
+    await comentarPost(req.usuario!, req.params.postId, req.body?.texto);
+    return res.status(201).json({ message: 'Comentário publicado.' });
+  } catch (err) {
+    return responderErro(res, err, 'postComentario', 'Erro interno ao comentar.');
+  }
+}
+
+/** DELETE /api/blog/comentarios/:id — Autor ou Marketing apaga o comentário. */
+export async function deleteComentario(req: Request, res: Response) {
+  try {
+    await apagarComentario(req.usuario!, req.params.id);
+    return res.status(200).json({ message: 'Comentário removido.' });
+  } catch (err) {
+    return responderErro(res, err, 'deleteComentario', 'Erro interno ao remover o comentário.');
   }
 }
