@@ -81,6 +81,7 @@ export async function criarPost(
   if (!titulo.trim()) throw new AppError('Título é obrigatório.', 400);
   if (!conteudo.trim()) throw new AppError('Conteúdo é obrigatório.', 400);
   if (titulo.trim().length > 200) throw new AppError('Título excede 200 caracteres.', 400);
+  if (conteudo.trim().length > 3000) throw new AppError('Conteúdo excede 3000 caracteres.', 400);
 
   const { rows } = await pool.query<{ id: number }>(
     `INSERT INTO blog_posts (titulo, conteudo, imagem_url, autor_id, publicado)
@@ -105,6 +106,7 @@ export async function editarPost(
   if (!titulo.trim()) throw new AppError('Título é obrigatório.', 400);
   if (!conteudo.trim()) throw new AppError('Conteúdo é obrigatório.', 400);
   if (titulo.trim().length > 200) throw new AppError('Título excede 200 caracteres.', 400);
+  if (conteudo.trim().length > 3000) throw new AppError('Conteúdo excede 3000 caracteres.', 400);
 
   // `publicado = (publicado OR $4)`: garante o fluxo unidirecional — um post já
   // publicado permanece publicado (edição básica não o devolve a rascunho); um

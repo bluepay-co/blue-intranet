@@ -1,191 +1,269 @@
-import { useState, useRef } from 'react'
-import { ImagePlus, X } from 'lucide-react'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { useRef, useState } from 'react'
+import { Bold, Eye, Info, Italic, Link2, Loader2, Send } from 'lucide-react'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useAuth } from '@/auth/auth-context'
 import { urlImagem, criarPost, editarPost } from '@/api/modules/blog'
+import CampoImagem from '@/components/bluelovers/CampoImagem'
+import { imagemDoBanco } from '@/components/bluelovers/imagem-utils'
+import { AvatarPessoa } from './ComentariosPost'
+import TextoFormatado from './TextoFormatado'
+
+const MAX_TITULO = 200
+
+const CLASSE_TEXTAREA =
+  'min-h-56 w-full flex-1 resize-y rounded-lg border border-input bg-transparent px-3 py-2 text-sm leading-relaxed outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30'
+
+/** Botões da barra de formatação (marcações entendidas pelo TextoFormatado). */
+const FORMATOS = [
+  { chave: 'negrito', Icone: Bold, titulo: 'Negrito (Ctrl+B)', antes: '**', depois: '**', exemplo: 'texto em negrito' },
+  { chave: 'italico', Icone: Italic, titulo: 'Itálico (Ctrl+I)', antes: '*', depois: '*', exemplo: 'texto em itálico' },
+  { chave: 'link', Icone: Link2, titulo: 'Inserir link', antes: '[', depois: '](https://)', exemplo: 'texto do link' },
+]
+
+/** Pré-visualização fiel ao card do feed (PostCard), atualizada enquanto se digita. */
+function Previa({ titulo, conteudo, imagem, autor }) {
+  return (
+    <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+      {imagem && <img src={imagem} alt="" className="aspect-[16/9] w-full object-cover" />}
+      <div className="flex flex-col gap-3 p-4">
+        <div className="flex items-center gap-2">
+          <AvatarPessoa nome={autor} className="size-7" />
+          <div className="min-w-0 text-xs">
+            <p className="truncate font-semibold">{autor}</p>
+            <p className="text-muted-foreground">agora</p>
+          </div>
+        </div>
+        <p className={titulo ? 'leading-snug font-semibold [overflow-wrap:anywhere]' : 'font-semibold text-muted-foreground/60'}>
+          {titulo || 'Título do post'}
+        </p>
+        <p
+          className={
+            conteudo
+              ? 'text-sm whitespace-pre-wrap text-muted-foreground [overflow-wrap:anywhere]'
+              : 'text-sm text-muted-foreground/60'
+          }
+        >
+          {conteudo ? <TextoFormatado texto={conteudo} /> : 'O conteúdo aparece aqui enquanto você escreve…'}
+        </p>
+        <div className="flex gap-3 border-t pt-2 text-base opacity-50" aria-hidden="true">
+          👍 ❤️ 👏 🚀
+        </div>
+      </div>
+    </div>
+  )
+}
 
 /**
- * Dialog de criação e edição de post do blog de Marketing.
+ * Editor de post do blog de Marketing com pré-visualização ao vivo.
  * Somente renderizado no painel admin (role MARKETING).
  *
- * @param {{
- *   aberto: boolean,
- *   onFechar: () => void,
- *   postEditando: object|null,
- *   onSalvo: () => void
- * }} props
- *   `postEditando` null → modo criação; objeto → modo edição.
+ * @param {{ aberto: boolean, onFechar: () => void, postEditando: object|null, onSalvo: () => void }} props
+ *   `postEditando` null → criação; objeto → edição.
  */
-/** Limite de imagem alinhado ao backend (blog.routes.ts). */
-const MAX_IMAGEM_MB = 10
-const MAX_IMAGEM_BYTES = MAX_IMAGEM_MB * 1024 * 1024
-
 export default function PostFormDialog({ aberto, onFechar, postEditando, onSalvo }) {
-  const [titulo, setTitulo]       = useState(postEditando?.titulo ?? '')
-  const [conteudo, setConteudo]   = useState(postEditando?.conteudo ?? '')
-  const [publicado, setPublicado] = useState(postEditando?.publicado ?? false)
-  const [imagemFile, setImagemFile] = useState(null)
-  // previewUrl é sempre a URL de exibição; imagemUrlRaw é o path do banco (edição sem troca)
-  const [previewUrl, setPreviewUrl]   = useState(urlImagem(postEditando?.imagem_url) ?? null)
-  const [imagemUrlRaw, setImagemUrlRaw] = useState(postEditando?.imagem_url ?? null)
-  const [salvando, setSalvando] = useState(false)
-  const [erro, setErro]         = useState('')
-  const inputRef = useRef(null)
-  // Post já publicado não pode voltar a rascunho — a opção fica travada.
+  const { usuario } = useAuth()
+  const [titulo, setTitulo] = useState(postEditando?.titulo ?? '')
+  const [conteudo, setConteudo] = useState(postEditando?.conteudo ?? '')
+  const [imagem, setImagem] = useState(() => imagemDoBanco(postEditando?.imagem_url ?? null, urlImagem))
+  const [salvando, setSalvando] = useState(null) // 'rascunho' | 'publicar' | null
+  const [erro, setErro] = useState('')
+  // Post já publicado não pode voltar a rascunho: só "Salvar alterações".
   const jaPublicado = Boolean(postEditando?.publicado)
+  const campoConteudo = useRef(null)
+  const autor = postEditando?.autor_nome ?? usuario?.nome ?? usuario?.email ?? 'Você'
 
-  function selecionarImagem(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (file.size > MAX_IMAGEM_BYTES) {
-      setErro(`A imagem excede o limite de ${MAX_IMAGEM_MB} MB.`)
-      if (inputRef.current) inputRef.current.value = ''
+  /**
+   * Envolve a seleção com a marcação do formato (sem seleção, insere um texto de
+   * exemplo já selecionado). No link, deixa selecionado o "https://" para colar a URL.
+   */
+  function aplicarFormato({ antes, depois, exemplo, chave }) {
+    const el = campoConteudo.current
+    if (!el) return
+    const { selectionStart: ini, selectionEnd: fim } = el
+    const selecionado = conteudo.slice(ini, fim) || exemplo
+    const novo = conteudo.slice(0, ini) + antes + selecionado + depois + conteudo.slice(fim)
+    if (novo.length > 3000) {
+      setErro('A formatação passaria do limite de 3000 caracteres.')
       return
     }
-    setErro('')
-    setImagemFile(file)
-    setPreviewUrl(URL.createObjectURL(file))
-    setImagemUrlRaw(null)
+    setConteudo(novo)
+    // Reposiciona a seleção depois que o React aplicar o novo valor.
+    requestAnimationFrame(() => {
+      el.focus()
+      if (chave === 'link') {
+        const url = ini + antes.length + selecionado.length + 2
+        el.setSelectionRange(url, url + 'https://'.length)
+      } else {
+        el.setSelectionRange(ini + antes.length, ini + antes.length + selecionado.length)
+      }
+    })
   }
 
-  function removerImagem() {
-    setImagemFile(null)
-    setPreviewUrl(null)
-    setImagemUrlRaw(null)
-    if (inputRef.current) inputRef.current.value = ''
-  }
-
-  async function handleSubmit(e) {
+  function atalhos(e) {
+    if (!(e.ctrlKey || e.metaKey)) return
+    const formato = { b: FORMATOS[0], i: FORMATOS[1] }[e.key.toLowerCase()]
+    if (!formato) return
     e.preventDefault()
+    aplicarFormato(formato)
+  }
+
+  async function salvar(publicar) {
     if (!titulo.trim() || !conteudo.trim()) {
       setErro('Título e conteúdo são obrigatórios.')
       return
     }
-    setSalvando(true)
+    setSalvando(publicar ? 'publicar' : 'rascunho')
     setErro('')
     try {
+      const payload = { titulo, conteudo, publicado: publicar, imagem: imagem.file || undefined }
       if (postEditando) {
-        await editarPost(postEditando.id, {
-          titulo,
-          conteudo,
-          publicado,
-          imagem: imagemFile || undefined,
-          // Se não há novo arquivo, repassa o path bruto original (ou null se foi removido)
-          imagem_url: imagemFile ? undefined : imagemUrlRaw,
-        })
+        // Sem arquivo novo, repassa o path original (ou null se a imagem foi removida).
+        await editarPost(postEditando.id, { ...payload, imagem_url: imagem.file ? undefined : imagem.urlRaw })
       } else {
-        await criarPost({ titulo, conteudo, publicado, imagem: imagemFile || undefined })
+        await criarPost(payload)
       }
       onSalvo?.()
       onFechar()
     } catch (err) {
       setErro(err?.response?.data?.message ?? 'Erro ao salvar o post.')
     } finally {
-      setSalvando(false)
+      setSalvando(null)
     }
   }
 
   return (
     <Dialog open={aberto} onOpenChange={onFechar}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-h-[92vh] max-w-5xl">
         <DialogHeader>
           <DialogTitle>{postEditando ? 'Editar post' : 'Novo post'}</DialogTitle>
+          <DialogDescription>
+            {jaPublicado
+              ? 'Este post já está no feed. As alterações aparecem para todos ao salvar.'
+              : 'Escreva, confira a prévia ao lado e publique quando estiver pronto.'}
+          </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-baseline justify-between">
-              <label htmlFor="post-titulo" className="text-sm font-medium">Título</label>
-              <span className="text-xs text-muted-foreground">{titulo.length}/200</span>
-            </div>
-            <Input
-              id="post-titulo"
-              placeholder="Título do post"
-              value={titulo}
-              onChange={(e) => setTitulo(e.target.value)}
-              maxLength={200}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="post-conteudo" className="text-sm font-medium">Conteúdo</label>
-            <textarea
-              id="post-conteudo"
-              placeholder="Escreva o conteúdo do post…"
-              value={conteudo}
-              onChange={(e) => setConteudo(e.target.value)}
-              rows={9}
-              className="flex w-full resize-y rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            />
-          </div>
-
-          {/* Upload de imagem */}
-          {previewUrl ? (
-            <div className="relative w-full overflow-hidden rounded-lg">
-              <img src={previewUrl} alt="preview" className="h-44 w-full object-cover" />
-              <button
-                type="button"
-                onClick={removerImagem}
-                className="absolute top-2 right-2 rounded-full bg-black/60 p-1 text-white transition-colors hover:bg-black"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-input py-8 text-sm text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
-            >
-              <ImagePlus className="size-5" />
-              Adicionar imagem (opcional, máx. {MAX_IMAGEM_MB} MB)
-            </button>
-          )}
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/*"
-            onChange={selecionarImagem}
-            className="hidden"
-          />
-
-          <div className="flex flex-col gap-1">
-            <label
-              className={`flex select-none items-center gap-2 text-sm ${
-                jaPublicado ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={publicado}
-                disabled={jaPublicado}
-                onChange={(e) => setPublicado(e.target.checked)}
-                className="rounded"
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            salvar(jaPublicado)
+          }}
+          className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]"
+        >
+          {/* Editor */}
+          <div className="flex min-w-0 flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-baseline justify-between">
+                <label htmlFor="post-titulo" className="text-sm font-medium">Título</label>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {titulo.length}/{MAX_TITULO}
+                </span>
+              </div>
+              <Input
+                id="post-titulo"
+                placeholder="Um título curto e chamativo"
+                value={titulo}
+                onChange={(e) => setTitulo(e.target.value)}
+                maxLength={MAX_TITULO}
+                className="h-10 text-base font-medium"
+                autoFocus
               />
-              Publicar imediatamente
-            </label>
-            <p className="text-xs text-muted-foreground">
-              {jaPublicado
-                ? 'Este post já está publicado e não pode voltar para rascunho.'
-                : 'Atenção: após publicar, o post não volta para rascunho.'}
-            </p>
+            </div>
+
+            <div className="flex flex-1 flex-col gap-1.5">
+              <div className="flex items-end justify-between gap-2">
+                <label htmlFor="post-conteudo" className="text-sm font-medium">Conteúdo</label>
+                <span
+                  className={`text-xs tabular-nums ${conteudo.length >= 2850 ? 'font-medium text-destructive' : 'text-muted-foreground'}`}
+                >
+                  {conteudo.length}/3000
+                </span>
+              </div>
+              <div className="flex items-center gap-0.5 rounded-t-lg border border-b-0 bg-muted/40 px-1 py-1">
+                {FORMATOS.map((f) => (
+                  <Button
+                    key={f.chave}
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    title={f.titulo}
+                    aria-label={f.titulo}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => aplicarFormato(f)}
+                  >
+                    <f.Icone />
+                  </Button>
+                ))}
+                <span className="ml-auto pr-1 text-[11px] text-muted-foreground max-sm:hidden">
+                  Selecione o texto e escolha o formato
+                </span>
+              </div>
+              <textarea
+                id="post-conteudo"
+                ref={campoConteudo}
+                placeholder={'Escreva o conteúdo do post…\n\nDica: parágrafos curtos e links diretos facilitam a leitura.'}
+                value={conteudo}
+                onChange={(e) => setConteudo(e.target.value)}
+                onKeyDown={atalhos}
+                maxLength={3000}
+                className={`${CLASSE_TEXTAREA} rounded-t-none`}
+              />
+            </div>
+
+            <CampoImagem
+              rotulo="Imagem de capa (opcional)"
+              dica="16:9 — 1600 × 900 px"
+              aspecto="aspect-[16/9]"
+              valor={imagem}
+              onChange={setImagem}
+              onErro={setErro}
+            />
           </div>
 
-          {erro && <p className="text-sm text-destructive">{erro}</p>}
+          {/* Pré-visualização */}
+          <aside className="flex min-w-0 flex-col gap-2 lg:sticky lg:top-0 lg:self-start">
+            <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              <Eye className="size-3.5" /> Como vai aparecer no feed
+            </p>
+            <Previa titulo={titulo.trim()} conteudo={conteudo.trim()} imagem={imagem.previewUrl} autor={autor} />
+          </aside>
 
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onFechar} disabled={salvando}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={salvando}>
-              {salvando ? 'Salvando…' : 'Salvar'}
-            </Button>
+          {/* Ações */}
+          <div className="flex flex-col-reverse gap-3 border-t pt-4 sm:flex-row sm:items-center lg:col-span-2">
+            {erro ? (
+              <p className="text-sm text-destructive sm:mr-auto">{erro}</p>
+            ) : (
+              !jaPublicado && (
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground sm:mr-auto">
+                  <Info className="size-3.5 shrink-0" />
+                  Publicar é definitivo: o post vai para o feed e não volta a ser rascunho.
+                </p>
+              )
+            )}
+            <div className="flex flex-wrap justify-end gap-2 max-sm:mt-2">
+              <Button type="button" variant="ghost" onClick={onFechar} disabled={salvando !== null}>
+                Cancelar
+              </Button>
+              {jaPublicado ? (
+                <Button type="submit" disabled={salvando !== null}>
+                  {salvando && <Loader2 className="animate-spin" />}
+                  Salvar alterações
+                </Button>
+              ) : (
+                <>
+                  <Button type="button" variant="outline" onClick={() => salvar(false)} disabled={salvando !== null}>
+                    {salvando === 'rascunho' && <Loader2 className="animate-spin" />}
+                    Salvar rascunho
+                  </Button>
+                  <Button type="button" onClick={() => salvar(true)} disabled={salvando !== null}>
+                    {salvando === 'publicar' ? <Loader2 className="animate-spin" /> : <Send />}
+                    Publicar
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         </form>
       </DialogContent>

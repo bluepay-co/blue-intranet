@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { urlImagem, reagir } from '@/api/modules/blog'
 import ComentariosPost from './ComentariosPost'
+import TextoFormatado from './TextoFormatado'
 import { REACOES, totalReacoes } from './reacoes'
 
 /**
@@ -59,7 +60,7 @@ export default function PostCard({ post, onReagir }) {
 
       <CardContent>
         <p className="whitespace-pre-wrap text-sm text-muted-foreground [overflow-wrap:anywhere]">
-          {post.conteudo}
+          <TextoFormatado texto={post.conteudo} />
         </p>
       </CardContent>
 
