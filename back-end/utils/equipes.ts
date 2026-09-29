@@ -50,7 +50,7 @@ export function rolesDaEquipe(chave: string): Role[] {
   return EQUIPES[chave]?.membros ?? [chave as Role];
 }
 
-/** Cargos com acesso ao Kanban da Equipe (RH, Financeiro, Diretoria e Colaborador ficam de fora por enquanto). */
+/** Cargos com acesso ao Kanban da Equipe (Colaborador fica de fora por enquanto). */
 export const KANBAN_ROLES: Role[] = [
   Role.TI,
   Role.DESENVOLVEDOR,
@@ -64,4 +64,7 @@ export const KANBAN_ROLES: Role[] = [
   Role.VENDAS,
   Role.PRE_VENDAS,
   Role.GERENTE_PRE_VENDAS,
+  Role.RH,
+  Role.FINANCEIRO,
+  Role.DIRETORIA,
 ];

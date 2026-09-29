@@ -8,11 +8,12 @@ import api from '@/api/api'
 
 /**
  * Cargos com Kanban da Equipe — espelho de `KANBAN_ROLES` em back-end/utils/equipes.ts
- * (RH, Financeiro, Diretoria e Colaborador ficam de fora por enquanto).
+ * (Colaborador fica de fora por enquanto).
  */
 export const KANBAN_ROLES = [
   'TI', 'DESENVOLVEDOR', 'MARKETING', 'PRODUTOS', 'KAM', 'INSIGHT_SALES', 'CX',
   'GERENTE_INSIDE_CX', 'GERENTE_COMERCIAL', 'VENDAS', 'PRE_VENDAS', 'GERENTE_PRE_VENDAS',
+  'RH', 'FINANCEIRO', 'DIRETORIA',
 ]
 
 /**
