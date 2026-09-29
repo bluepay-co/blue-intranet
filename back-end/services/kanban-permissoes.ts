@@ -38,9 +38,12 @@ export function podeVer(usuario: AuthPayload, tarefa: KanbanTarefaDetalhada): bo
 export function permissoes(usuario: AuthPayload, tarefa: KanbanTarefaDetalhada): PermissoesTarefa {
   const ehCoordenador = coordena(usuario, tarefa);
   const ehCriador = tarefa.criador_id === usuario.id;
+  const podeMover = tarefa.responsavel_id === usuario.id || ehCoordenador;
   return {
-    pode_mover: tarefa.responsavel_id === usuario.id || ehCoordenador,
+    pode_mover: podeMover,
     pode_editar: ehCoordenador || ehCriador,
     pode_excluir: ehCoordenador || ehCriador,
+    // Quem executa (responsável/coordenação) ou planejou (criador) quebra a tarefa em itens.
+    pode_checklist: podeMover || ehCriador,
   };
 }

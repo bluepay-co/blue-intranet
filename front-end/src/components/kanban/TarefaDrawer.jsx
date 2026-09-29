@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { cobrarAtualizacao, comentar, detalharTarefa } from '@/api/modules/kanban'
 import { Avatar } from './TarefaCard'
 import TextoComLinks from './TextoComLinks'
+import ChecklistTarefa from './ChecklistTarefa'
 import { ALERTAS, COLUNAS, LEMBRETES, PRIORIDADES, VISIBILIDADES, alerta, formatarData, relativo } from './regras'
 
 const STATUS = [
@@ -159,6 +160,8 @@ export default function TarefaDrawer({ tarefaId, versao, usuario, onFechar, onSt
                   {VISIBILIDADES[t.visibilidade].label}
                 </dd>
               </dl>
+
+              <ChecklistTarefa tarefaId={t.id} itens={detalhe.checklist} podeEditar={t.pode_checklist} onMudou={carregar} />
 
               {t.pode_mover ? (
                 <div>

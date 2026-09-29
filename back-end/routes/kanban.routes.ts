@@ -15,6 +15,9 @@ import {
   postComentario,
   postCobranca,
   postAdiarLembrete,
+  postItemChecklist,
+  patchItemChecklist,
+  deleteItemChecklist,
   getNotificacoes,
 } from '../controllers/kanban.controller';
 
@@ -36,5 +39,8 @@ kanbanRouter.patch('/tarefas/:id/prioridade', patchPrioridade);
 kanbanRouter.post('/tarefas/:id/comentarios', postComentario);
 kanbanRouter.post('/tarefas/:id/cobrar', postCobranca);
 kanbanRouter.post('/tarefas/:id/adiar-lembrete', postAdiarLembrete);
+kanbanRouter.post('/tarefas/:id/checklist', postItemChecklist);
+kanbanRouter.patch('/tarefas/:id/checklist/:itemId', patchItemChecklist);
+kanbanRouter.delete('/tarefas/:id/checklist/:itemId', deleteItemChecklist);
 
 export { kanbanRouter };

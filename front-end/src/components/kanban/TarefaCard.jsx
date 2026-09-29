@@ -1,6 +1,7 @@
-import { ArrowRight, Clock, Lock, Repeat, Users } from 'lucide-react'
+import { ArrowRight, Clock, ListChecks, Lock, Repeat, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { ProgressoChecklist } from './ChecklistTarefa'
 import { ALERTAS, PRIORIDADES, VISIBILIDADES, alerta, formatarData, iniciais, relativo, slaApertado } from './regras'
 
 const ICONE_VIS = { private: Lock, requester: Repeat, team: Users }
@@ -63,6 +64,16 @@ export default function TarefaCard({ tarefa: t, onAbrir, onStatus, arrastando })
           </span>
         )}
       </div>
+
+      {t.checklist_total > 0 && (
+        <div className="mt-2.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+          <ListChecks className="size-3.5 shrink-0" />
+          <ProgressoChecklist feitos={t.checklist_feitos} total={t.checklist_total} className="flex-1" />
+          <span className="tabular-nums">
+            {t.checklist_feitos}/{t.checklist_total}
+          </span>
+        </div>
+      )}
 
       <div className="mt-2.5 flex items-center justify-between gap-2">
         <span

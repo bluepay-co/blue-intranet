@@ -120,3 +120,20 @@ export async function buscarNotificacoes() {
   const { data } = await api.get('/api/kanban/notificacoes')
   return data.notificacoes
 }
+
+/**
+ * Checklist da tarefa. Só responsável, criador e coordenação (`pode_checklist`).
+ * @param {number} tarefaId @param {string} texto
+ */
+export async function adicionarItemChecklist(tarefaId, texto) {
+  await api.post(`/api/kanban/tarefas/${tarefaId}/checklist`, { texto })
+}
+
+/** @param {number} tarefaId @param {number} itemId @param {{ concluido?: boolean, texto?: string }} alteracao */
+export async function atualizarItemChecklist(tarefaId, itemId, alteracao) {
+  await api.patch(`/api/kanban/tarefas/${tarefaId}/checklist/${itemId}`, alteracao)
+}
+
+export async function removerItemChecklist(tarefaId, itemId) {
+  await api.delete(`/api/kanban/tarefas/${tarefaId}/checklist/${itemId}`)
+}

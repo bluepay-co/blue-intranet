@@ -7,6 +7,7 @@ import { criptografar, descriptografar } from '../utils/crypto-kanban';
 import { permissoes, podeVer, rolesVisiveis } from './kanban-permissoes';
 import { salaUsuario, sincronizarSalas } from '../socket/sync';
 import type {
+  KanbanChecklistItem,
   KanbanHistorico,
   KanbanNotificacao,
   KanbanTarefaDetalhada,
@@ -30,6 +31,8 @@ export interface TarefaEntrada {
   lembreteMin?: unknown;
   visibilidade?: unknown;
   participantesIds?: unknown;
+  /** Só na criação: itens iniciais do checklist. */
+  checklist?: unknown;
 }
 
 const PRIORIDADES: PrioridadeTarefa[] = ['urgent', 'high', 'normal', 'low'];
@@ -38,6 +41,7 @@ const VISIBILIDADES: VisibilidadeTarefa[] = ['private', 'requester', 'team'];
 const LEMBRETES = [0, 15, 30, 60, 180, 1440];
 const ADIAR_MIN = 10;
 const MAX_PARTICIPANTES = 20;
+const MAX_ITENS_CHECKLIST = 50;
 
 const ROTULO_PRIORIDADE: Record<PrioridadeTarefa, string> = { urgent: 'Urgente', high: 'Importante', normal: 'Normal', low: 'Baixa' };
 
@@ -57,7 +61,9 @@ const SELECT_TAREFA = `
              FROM blue_intranet.kanban_participantes p
              JOIN blue_intranet.usuarios pu ON pu.id = p.usuario_id
             WHERE p.tarefa_id = t.id
-         ), '[]') AS participantes
+         ), '[]') AS participantes,
+         (SELECT COUNT(*)::int FROM blue_intranet.kanban_checklist c WHERE c.tarefa_id = t.id) AS checklist_total,
+         (SELECT COUNT(*)::int FROM blue_intranet.kanban_checklist c WHERE c.tarefa_id = t.id AND c.concluido) AS checklist_feitos
     FROM blue_intranet.kanban_tarefas t
     JOIN blue_intranet.usuarios r ON r.id = t.responsavel_id
     JOIN blue_intranet.usuarios s ON s.id = t.solicitante_id`;
@@ -216,6 +222,15 @@ type LinhaHistorico = Omit<KanbanHistorico, 'texto'> & {
  */
 const avisosPendentes = new WeakMap<Executor, Set<number>>();
 
+/**
+ * Agenda o aviso em tempo real para quem acompanha a tarefa, sem gerar
+ * notificação (mudança pequena, como marcar item do checklist).
+ */
+function avisarSemNotificar(db: Executor, autorId: number, destinatarios: number[]) {
+  const pendentes = avisosPendentes.get(db);
+  destinatarios.filter((id) => id !== autorId).forEach((id) => pendentes?.add(id));
+}
+
 /** Notifica cada destinatário uma vez, nunca o próprio autor da ação. */
 async function notificar(db: Executor, tarefaId: number, autorId: number, destinatarios: number[], tipo: TipoNotificacao, texto: string) {
   const alvos = [...new Set(destinatarios)].filter((id) => id !== autorId);
@@ -311,7 +326,14 @@ export async function detalharTarefa(usuario: AuthPayload, id: number) {
     ...h,
     texto: conteudo_cifrado && iv && auth_tag ? lerComentario(h.id, conteudo_cifrado, iv, auth_tag) : (texto ?? ''),
   }));
-  return { tarefa: comPermissoes(usuario, tarefa), historico };
+  const { rows: checklist } = await pool.query<KanbanChecklistItem>(
+    `SELECT c.*, u.nome AS concluido_por_nome
+       FROM blue_intranet.kanban_checklist c
+       LEFT JOIN blue_intranet.usuarios u ON u.id = c.concluido_por
+      WHERE c.tarefa_id = $1 ORDER BY c.ordem, c.id`,
+    [id],
+  );
+  return { tarefa: comPermissoes(usuario, tarefa), historico, checklist };
 }
 
 export async function listarUsuarios(): Promise<KanbanUsuario[]> {
@@ -326,6 +348,7 @@ export async function listarUsuarios(): Promise<KanbanUsuario[]> {
 
 export async function criarTarefa(usuario: AuthPayload, entrada: TarefaEntrada): Promise<number> {
   const d = await validarTarefa(entrada, usuario.id);
+  const itensChecklist = validarItensIniciais(entrada.checklist);
   return transacao(async (db) => {
     const { rows } = await db.query<{ id: number }>(
       `INSERT INTO blue_intranet.kanban_tarefas
@@ -343,6 +366,7 @@ export async function criarTarefa(usuario: AuthPayload, entrada: TarefaEntrada):
     await notificar(db, id, usuario.id, [d.responsavelId], 'solicitacao', `Nova solicitação: "${d.titulo}"`);
     const novos = await salvarParticipantes(db, id, d.participantesIds, usuario.id);
     await notificar(db, id, usuario.id, novos, 'solicitacao', `Você foi adicionado a "${d.titulo}"`);
+    await inserirItens(db, id, usuario.id, itensChecklist);
     return id;
   });
 }
@@ -492,5 +516,109 @@ export async function notificacoesPendentes(usuario: AuthPayload): Promise<Kanba
       [usuario.id],
     );
     return rows;
+  });
+}
+
+/* ---------- checklist ---------- */
+
+function textoItem(valor: unknown): string {
+  return texto(valor, 'o item do checklist', 300);
+}
+
+/** Lista de itens enviada na criação da tarefa (vazios são ignorados). */
+function validarItensIniciais(valor: unknown): string[] {
+  if (valor === undefined || valor === null) return [];
+  if (!Array.isArray(valor)) throw new AppError('Checklist inválido.', 400);
+  const itens = valor.filter((v) => typeof v === 'string' && v.trim()).map(textoItem);
+  if (itens.length > MAX_ITENS_CHECKLIST) throw new AppError(`Máximo de ${MAX_ITENS_CHECKLIST} itens no checklist.`, 400);
+  return itens;
+}
+
+async function inserirItens(db: Executor, tarefaId: number, autorId: number, itens: string[]) {
+  const { rows } = await db.query<{ proxima: number }>(
+    'SELECT COALESCE(MAX(ordem), -1) + 1 AS proxima FROM blue_intranet.kanban_checklist WHERE tarefa_id = $1',
+    [tarefaId],
+  );
+  let ordem = rows[0]!.proxima;
+  for (const item of itens) {
+    await db.query(
+      'INSERT INTO blue_intranet.kanban_checklist (tarefa_id, texto, ordem, criado_por) VALUES ($1, $2, $3, $4)',
+      [tarefaId, item, ordem++, autorId],
+    );
+  }
+}
+
+/** Tarefa visível + permissão de mexer no checklist. */
+async function tarefaDoChecklist(usuario: AuthPayload, tarefaId: number): Promise<KanbanTarefaDetalhada> {
+  const tarefa = await tarefaVisivel(usuario, tarefaId);
+  if (!permissoes(usuario, tarefa).pode_checklist) {
+    throw new AppError('Só o responsável, quem criou ou a coordenação alteram o checklist.', 403);
+  }
+  return tarefa;
+}
+
+/** Item precisa pertencer à tarefa da rota (evita mexer em item de outra tarefa pelo id). */
+async function garantirItemDaTarefa(db: Executor, tarefaId: number, itemId: number) {
+  const { rowCount } = await db.query('SELECT 1 FROM blue_intranet.kanban_checklist WHERE id = $1 AND tarefa_id = $2', [
+    itemId,
+    tarefaId,
+  ]);
+  if (!rowCount) throw new AppError('Item do checklist não encontrado.', 404);
+}
+
+export async function adicionarItemChecklist(usuario: AuthPayload, tarefaId: number, textoBruto: unknown) {
+  const item = textoItem(textoBruto);
+  const tarefa = await tarefaDoChecklist(usuario, tarefaId);
+  if (tarefa.checklist_total >= MAX_ITENS_CHECKLIST) {
+    throw new AppError(`Máximo de ${MAX_ITENS_CHECKLIST} itens no checklist.`, 400);
+  }
+  await transacao(async (db) => {
+    await inserirItens(db, tarefaId, usuario.id, [item]);
+    await db.query('UPDATE blue_intranet.kanban_tarefas SET atualizado_em = NOW() WHERE id = $1', [tarefaId]);
+    avisarSemNotificar(db, usuario.id, interessadosDe(tarefa));
+  });
+}
+
+/** Marca/desmarca e/ou renomeia um item. */
+export async function atualizarItemChecklist(
+  usuario: AuthPayload,
+  tarefaId: number,
+  itemId: number,
+  entrada: { concluido?: unknown; texto?: unknown },
+) {
+  if (entrada.concluido === undefined && entrada.texto === undefined) throw new AppError('Nada para atualizar.', 400);
+  if (entrada.concluido !== undefined && typeof entrada.concluido !== 'boolean') {
+    throw new AppError('Valor de "concluído" inválido.', 400);
+  }
+  const novoTexto = entrada.texto === undefined ? null : textoItem(entrada.texto);
+  const tarefa = await tarefaDoChecklist(usuario, tarefaId);
+
+  await transacao(async (db) => {
+    await garantirItemDaTarefa(db, tarefaId, itemId);
+    if (novoTexto !== null) {
+      await db.query('UPDATE blue_intranet.kanban_checklist SET texto = $2 WHERE id = $1', [itemId, novoTexto]);
+    }
+    if (typeof entrada.concluido === 'boolean') {
+      await db.query(
+        `UPDATE blue_intranet.kanban_checklist
+            SET concluido = $2,
+                concluido_por = CASE WHEN $2 THEN $3::int ELSE NULL END,
+                concluido_em  = CASE WHEN $2 THEN NOW() ELSE NULL END
+          WHERE id = $1`,
+        [itemId, entrada.concluido, usuario.id],
+      );
+    }
+    await db.query('UPDATE blue_intranet.kanban_tarefas SET atualizado_em = NOW() WHERE id = $1', [tarefaId]);
+    avisarSemNotificar(db, usuario.id, interessadosDe(tarefa));
+  });
+}
+
+export async function removerItemChecklist(usuario: AuthPayload, tarefaId: number, itemId: number) {
+  const tarefa = await tarefaDoChecklist(usuario, tarefaId);
+  await transacao(async (db) => {
+    await garantirItemDaTarefa(db, tarefaId, itemId);
+    await db.query('DELETE FROM blue_intranet.kanban_checklist WHERE id = $1', [itemId]);
+    await db.query('UPDATE blue_intranet.kanban_tarefas SET atualizado_em = NOW() WHERE id = $1', [tarefaId]);
+    avisarSemNotificar(db, usuario.id, interessadosDe(tarefa));
   });
 }
