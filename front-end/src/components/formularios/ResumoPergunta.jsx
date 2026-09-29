@@ -65,7 +65,8 @@ function Textos({ pergunta, respostas }) {
       <ul className="divide-y rounded-lg border">
         {visiveis.map((i) => (
           <li key={i.id} className="flex flex-col gap-0.5 px-3 py-2 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-            <span className="text-sm break-words whitespace-pre-line">{i.texto}</span>
+            {/* min-w-0 + anywhere: link/palavra sem espaço quebra em vez de alargar o card (flex ignora break-words). */}
+            <span className="min-w-0 text-sm whitespace-pre-line [overflow-wrap:anywhere]">{i.texto}</span>
             <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
               {i.email && `${i.email} · `}{dataHora(i.enviadaEm)}
             </span>
