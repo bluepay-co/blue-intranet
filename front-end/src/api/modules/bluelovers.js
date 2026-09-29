@@ -48,7 +48,6 @@ const IMAGENS = [
  */
 export function payloadDoPerfil(perfil) {
   const base = {
-    ordem: perfil.ordem ?? 0,
     habilidades: perfil.habilidades ?? [],
     rotulos_gostos: perfil.rotulos_gostos ?? {},
     data_nascimento: (perfil.data_nascimento ?? '').slice(0, 10),
@@ -66,7 +65,6 @@ export function payloadDoPerfil(perfil) {
 function formPerfil(payload) {
   const form = new FormData()
   CAMPOS_TEXTO.forEach((campo) => form.append(campo, payload[campo] ?? ''))
-  form.append('ordem', String(payload.ordem ?? 0))
   form.append('habilidades', JSON.stringify(payload.habilidades ?? []))
   form.append('rotulos_gostos', JSON.stringify(payload.rotulos_gostos ?? {}))
 
@@ -86,7 +84,7 @@ const MULTIPART = { headers: { 'Content-Type': 'multipart/form-data' } }
 /**
  * Vitrine pública — apenas perfis publicados, já ordenados.
  * @returns {Promise<Array<{ id: number, nome: string, cargo: string|null, setor: string|null,
- *                           frase: string|null, foto_capa_url: string, ordem: number }>>}
+ *                           frase: string|null, foto_capa_url: string }>>}
  */
 export async function listarVitrine() {
   const { data } = await api.get('/api/bluelovers')
@@ -124,7 +122,7 @@ export async function buscarAdmin(id) {
 
 /**
  * Cria um perfil. A capa é obrigatória; as seções são adicionadas depois.
- * @param {{ nome: string, cargo?: string, setor?: string, frase?: string, ordem?: number,
+ * @param {{ nome: string, cargo?: string, setor?: string, frase?: string,
  *           foto_capa?: File, foto_destaque?: File }} payload
  * @returns {Promise<{ id: number }>}
  */
@@ -136,7 +134,7 @@ export async function criarPerfil(payload) {
 /**
  * Edita os dados do perfil.
  * @param {number} id
- * @param {{ nome: string, cargo?: string, setor?: string, frase?: string, ordem?: number,
+ * @param {{ nome: string, cargo?: string, setor?: string, frase?: string,
  *           foto_capa?: File, foto_capa_url?: string|null,
  *           foto_destaque?: File, foto_destaque_url?: string|null }} payload
  */

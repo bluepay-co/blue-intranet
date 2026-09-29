@@ -17,7 +17,6 @@ export interface PerfilEntrada {
   frase: string | null;
   fotoCapaUrl: string | null;
   fotoDestaqueUrl: string | null;
-  ordem: number;
   apelido: string | null;
   dataNascimento: string | null;
   bio: string | null;
@@ -101,7 +100,7 @@ const MAX = {
 
 /** SQL base da vitrine e do painel — só o que o card precisa. */
 const SELECT_CARD_SQL = `
-  SELECT b.id, b.nome, b.cargo, b.setor, b.frase, b.foto_capa_url, b.ordem, b.apelido
+  SELECT b.id, b.nome, b.cargo, b.setor, b.frase, b.foto_capa_url, b.apelido
   FROM blue_intranet.bluelovers b
 `;
 
@@ -129,9 +128,6 @@ function validarPerfil(entrada: PerfilEntrada) {
   if (!entrada.fotoCapaUrl) {
     throw new AppError('A foto de capa (1080x1350) é obrigatória.', 400);
   }
-  if (!Number.isInteger(entrada.ordem) || entrada.ordem < 0) {
-    throw new AppError('Ordem inválida.', 400);
-  }
   return {
     nome: obrigatorio(entrada.nome, MAX.nome, 'Nome'),
     cargo: opcional(entrada.cargo, MAX.cargo, 'Cargo'),
@@ -139,7 +135,6 @@ function validarPerfil(entrada: PerfilEntrada) {
     frase: opcional(entrada.frase, MAX.frase, 'Frase'),
     fotoCapaUrl: entrada.fotoCapaUrl,
     fotoDestaqueUrl: entrada.fotoDestaqueUrl,
-    ordem: entrada.ordem,
     apelido: opcional(entrada.apelido, MAX.apelido, 'Apelido'),
     dataNascimento: validarData(entrada.dataNascimento),
     bio: opcional(entrada.bio, MAX.bio, 'Descrição'),
@@ -209,28 +204,34 @@ function validarHabilidades(valor: unknown): string[] {
   return limpas;
 }
 
+/**
+ * Vitrine e painel em ordem alfabética. Ordena no Node (e não no ORDER BY) para
+ * seguir as regras do português — acento e maiúscula não mudam a posição
+ * ("Álvaro" antes de "Bruno") — independente da collation do banco em cada ambiente.
+ */
+const COLLATOR_NOME = new Intl.Collator('pt-BR', { sensitivity: 'base' });
+const porNome = <T extends { nome: string }>(lista: T[]): T[] => [...lista].sort((a, b) => COLLATOR_NOME.compare(a.nome, b.nome));
+
 /** Vitrine pública — apenas perfis publicados. */
 export async function listarVitrine(): Promise<BlueloverCard[]> {
   const { rows } = await pool.query<BlueloverCard>(
     `${SELECT_CARD_SQL}
-     WHERE b.publicado = true
-     ORDER BY b.ordem ASC, b.nome ASC`,
+     WHERE b.publicado = true`,
   );
-  return rows;
+  return porNome(rows);
 }
 
 /** Painel do Marketing — publicados e rascunhos, com a contagem de seções montadas. */
 export async function listarAdmin(): Promise<BlueloverAdmin[]> {
   const { rows } = await pool.query<BlueloverAdmin>(
-    `SELECT b.id, b.nome, b.cargo, b.setor, b.frase, b.foto_capa_url, b.ordem, b.apelido,
+    `SELECT b.id, b.nome, b.cargo, b.setor, b.frase, b.foto_capa_url, b.apelido,
             b.foto_destaque_url, b.publicado, b.criado_em, b.atualizado_em,
             COUNT(bl.id)::int AS total_blocos
      FROM blue_intranet.bluelovers b
      LEFT JOIN blue_intranet.bluelover_blocos bl ON bl.bluelover_id = b.id
-     GROUP BY b.id
-     ORDER BY b.ordem ASC, b.nome ASC`,
+     GROUP BY b.id`,
   );
-  return rows;
+  return porNome(rows);
 }
 
 /**
@@ -268,7 +269,7 @@ export async function criarPerfil(
 
   const { rows } = await pool.query<{ id: number }>(
     `INSERT INTO blue_intranet.bluelovers
-       (nome, cargo, setor, frase, foto_capa_url, foto_destaque_url, ordem, criado_por,
+       (nome, cargo, setor, frase, foto_capa_url, foto_destaque_url, criado_por,
         apelido, data_nascimento, bio, habilidades, talento,
         gosto_comida, gosto_assiste, gosto_musica, gosto_cor, gosto_rede_social, gosto_emoji,
         hobby, presente_perfeito, rotulos_gostos,
@@ -276,14 +277,14 @@ export async function criarPerfil(
         inspiracao_texto, inspiracao_foto_url,
         bluepay_pessoa_texto, bluepay_pessoa_foto_url,
         momento_marcante, momento_marcante_foto_url)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
-             $9, $10, $11, $12, $13,
-             $14, $15, $16, $17, $18, $19,
-             $20, $21, $22,
-             $23, $24, $25, $26,
-             $27, $28,
-             $29, $30,
-             $31, $32)
+     VALUES ($1, $2, $3, $4, $5, $6, $7,
+             $8, $9, $10, $11, $12,
+             $13, $14, $15, $16, $17, $18,
+             $19, $20, $21,
+             $22, $23, $24, $25,
+             $26, $27,
+             $28, $29,
+             $30, $31)
      RETURNING id`,
     [
       dados.nome,
@@ -292,7 +293,6 @@ export async function criarPerfil(
       dados.frase,
       dados.fotoCapaUrl,
       dados.fotoDestaqueUrl,
-      dados.ordem,
       criadoPor,
       dados.apelido,
       dados.dataNascimento,
@@ -390,19 +390,19 @@ export async function editarPerfil(
   await pool.query(
     `UPDATE blue_intranet.bluelovers
      SET nome = $1, cargo = $2, setor = $3, frase = $4,
-         foto_capa_url = $5, foto_destaque_url = $6, ordem = $7,
-         apelido = $8, data_nascimento = $9, bio = $10, habilidades = $11,
-         talento = $12,
-         gosto_comida = $13, gosto_assiste = $14, gosto_musica = $15,
-         gosto_cor = $16, gosto_rede_social = $17, gosto_emoji = $18,
-         hobby = $19, presente_perfeito = $20, rotulos_gostos = $21,
-         viagem_favorita_texto = $22, viagem_favorita_foto_url = $23, viagem_sonho = $24,
-         viagem_sonho_foto_url = $25,
-         inspiracao_texto = $26, inspiracao_foto_url = $27,
-         bluepay_pessoa_texto = $28, bluepay_pessoa_foto_url = $29,
-         momento_marcante = $30, momento_marcante_foto_url = $31,
+         foto_capa_url = $5, foto_destaque_url = $6,
+         apelido = $7, data_nascimento = $8, bio = $9, habilidades = $10,
+         talento = $11,
+         gosto_comida = $12, gosto_assiste = $13, gosto_musica = $14,
+         gosto_cor = $15, gosto_rede_social = $16, gosto_emoji = $17,
+         hobby = $18, presente_perfeito = $19, rotulos_gostos = $20,
+         viagem_favorita_texto = $21, viagem_favorita_foto_url = $22, viagem_sonho = $23,
+         viagem_sonho_foto_url = $24,
+         inspiracao_texto = $25, inspiracao_foto_url = $26,
+         bluepay_pessoa_texto = $27, bluepay_pessoa_foto_url = $28,
+         momento_marcante = $29, momento_marcante_foto_url = $30,
          atualizado_em = now()
-     WHERE id = $32`,
+     WHERE id = $31`,
     [
       dados.nome,
       dados.cargo,
@@ -410,7 +410,6 @@ export async function editarPerfil(
       dados.frase,
       dados.fotoCapaUrl,
       dados.fotoDestaqueUrl,
-      dados.ordem,
       dados.apelido,
       dados.dataNascimento,
       dados.bio,

@@ -24,7 +24,6 @@ export default function BlueloverFormDialog({ aberto, onFechar, perfilEditando, 
   const [cargo, setCargo] = useState(perfilEditando?.cargo ?? '')
   const [setor, setSetor] = useState(perfilEditando?.setor ?? '')
   const [frase, setFrase] = useState(perfilEditando?.frase ?? '')
-  const [ordem, setOrdem] = useState(String(perfilEditando?.ordem ?? 0))
   const [apelido, setApelido] = useState(perfilEditando?.apelido ?? '')
   const [talento, setTalento] = useState(perfilEditando?.talento ?? '')
   const [nascimento, setNascimento] = useState(
@@ -72,7 +71,6 @@ export default function BlueloverFormDialog({ aberto, onFechar, perfilEditando, 
       bio,
       talento,
       habilidades: habilidades.map((h) => h.trim()).filter(Boolean),
-      ordem: Number(ordem) || 0,
       foto_capa: capa.file || undefined,
       foto_capa_url: capa.file ? undefined : capa.urlRaw,
       foto_destaque: destaque.file || undefined,
@@ -155,17 +153,6 @@ export default function BlueloverFormDialog({ aberto, onFechar, perfilEditando, 
                 type="date"
                 value={nascimento}
                 onChange={(e) => setNascimento(e.target.value)}
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="bl-ordem" className="text-sm font-medium">Ordem na vitrine</label>
-              <Input
-                id="bl-ordem"
-                type="number"
-                min={0}
-                value={ordem}
-                onChange={(e) => setOrdem(e.target.value)}
               />
             </div>
           </div>

@@ -83,7 +83,7 @@ export interface BlueloverBloco {
 /** Shape enxuto da listagem pública — só o que o card precisa. */
 export type BlueloverCard = Pick<
   Bluelover,
-  'id' | 'nome' | 'cargo' | 'setor' | 'frase' | 'foto_capa_url' | 'ordem' | 'apelido'
+  'id' | 'nome' | 'cargo' | 'setor' | 'frase' | 'foto_capa_url' | 'apelido'
 >;
 
 /** Shape do painel admin: inclui rascunhos e a contagem de blocos já montados. */

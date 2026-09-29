@@ -195,8 +195,6 @@ export default function BlueloverEditor() {
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Ordem na vitrine: {bluelover.ordem}
-              {' · '}
               Capa do card: {bluelover.foto_capa_url ? 'definida' : 'não definida'}
             </p>
           </div>

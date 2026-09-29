@@ -167,8 +167,6 @@ export default function AdminBluelovers() {
                       {bluelover.cargo || 'Sem cargo'}
                       {' · '}
                       {blocos} {blocos === 1 ? 'seção' : 'seções'}
-                      {' · '}
-                      ordem {bluelover.ordem}
                     </p>
                   </div>
 

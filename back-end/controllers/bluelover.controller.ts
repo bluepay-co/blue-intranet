@@ -122,7 +122,6 @@ function lerPerfil(req: Request): PerfilEntrada {
     frase: c.frase ?? null,
     fotoCapaUrl: pathUpload(arquivos, 'foto_capa') ?? sanitizarPath(c.foto_capa_url),
     fotoDestaqueUrl: pathUpload(arquivos, 'foto_destaque') ?? sanitizarPath(c.foto_destaque_url),
-    ordem: Number(c.ordem ?? 0),
     apelido: c.apelido ?? null,
     dataNascimento: c.data_nascimento ?? null,
     bio: c.bio ?? null,
