@@ -7,6 +7,7 @@ import { roleMiddleware } from '../middleware/role.middleware';
 import { Role } from '../models/usuario.model';
 import { sincronizarAposEscrita } from '../socket/sync';
 import { AppError } from '../utils/app-error';
+import { blogComentarioRateLimit } from '../middleware/blog-comentario-rate-limit.middleware';
 import {
   getFeed,
   getAdminPosts,
@@ -15,6 +16,10 @@ import {
   deletePost,
   patchTogglePublicar,
   postReagir,
+  getComentarios,
+  postComentario,
+  deleteComentario,
+  getReacoesDoPost,
 } from '../controllers/blog.controller';
 
 const uploadDir = path.join(__dirname, '..', 'uploads', 'blog');
@@ -46,12 +51,17 @@ const blogRouter = Router();
 // ── Feed público (todos os usuários autenticados) ─────────────────────────────
 blogRouter.get('/', authMiddleware, getFeed);
 blogRouter.post('/:postId/reagir', authMiddleware, postReagir);
+// Comentários: qualquer usuário comenta; o autor ou o Marketing apaga (checado no service).
+blogRouter.get('/:postId/comentarios', authMiddleware, getComentarios);
+blogRouter.post('/:postId/comentarios', authMiddleware, blogComentarioRateLimit, postComentario);
+blogRouter.delete('/comentarios/:id', authMiddleware, blogComentarioRateLimit, deleteComentario);
 
 // ── Painel admin (exclusivo MARKETING) ────────────────────────────────────────
 const adminRouter = Router();
 adminRouter.use(authMiddleware, roleMiddleware(Role.MARKETING, Role.DESENVOLVEDOR), sincronizarAposEscrita('blog'));
 
 adminRouter.get('/posts', getAdminPosts);
+adminRouter.get('/posts/:id/reacoes', getReacoesDoPost);
 adminRouter.post('/posts', upload.single('imagem'), postCriarPost);
 adminRouter.put('/posts/:id', upload.single('imagem'), putEditarPost);
 adminRouter.delete('/posts/:id', deletePost);

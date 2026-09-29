@@ -29,7 +29,7 @@ const ESTILO_TOAST = {
   classNames: {
     toast: '!bg-card !text-card-foreground !border-border !rounded-xl !shadow-lg !font-sans border-l-4!',
     title: '!text-sm !font-semibold',
-    description: '!text-xs !text-muted-foreground',
+    description: '!text-xs !text-muted-foreground [overflow-wrap:anywhere]',
     actionButton: '!bg-primary !text-primary-foreground !rounded-md !text-xs !font-medium',
     cancelButton: '!bg-muted !text-foreground !rounded-md !text-xs !font-medium',
     closeButton: '!bg-card !text-muted-foreground !border-border hover:!text-foreground',
@@ -47,6 +47,7 @@ const TITULOS = {
   status: 'Atualização de tarefa',
   lembrete: 'Lembrete de tarefa',
   vencido: 'Prazo vencido',
+  esquecida: 'Tarefa parada',
 }
 
 export function NotificacoesKanbanProvider({ children }) {
@@ -73,7 +74,7 @@ export function NotificacoesKanbanProvider({ children }) {
           onClick: () => alterarStatus(n.tarefa_id, 'done').then(() => setVersao((v) => v + 1)),
         }
       }
-      const tipoToast = n.tipo === 'vencido' ? toast.error : n.tipo === 'cobranca' ? toast.warning : toast.info
+      const tipoToast = n.tipo === 'vencido' ? toast.error : n.tipo === 'cobranca' || n.tipo === 'esquecida' ? toast.warning : toast.info
       tipoToast(TITULOS[n.tipo], { description: n.texto, duration: Infinity, closeButton: true, ...acoes })
     },
     [abrir],

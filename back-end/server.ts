@@ -2,6 +2,7 @@ import http from 'http';
 import { Server } from 'socket.io';
 import { app } from './app';
 import { registrarChatSocket } from './socket/chat.socket';
+import { registrarBlogSocket } from './socket/blog.socket';
 import { setIo } from './socket/io-instance';
 import { iniciarLembretesKanban } from './socket/lembretes-kanban';
 
@@ -17,6 +18,7 @@ const io = new Server(httpServer, {
 
 setIo(io);
 registrarChatSocket(io);
+registrarBlogSocket(io);
 iniciarLembretesKanban();
 
 httpServer.listen(Number(PORT), '0.0.0.0', () => {

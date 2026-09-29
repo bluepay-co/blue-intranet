@@ -1,4 +1,4 @@
-import { responsaveisComAvisoVencido } from '../services/kanban.service';
+import { gerarAvisosEsquecidas, responsaveisComAvisoVencido } from '../services/kanban.service';
 import { salaUsuario, sincronizarSalas } from './sync';
 
 const INTERVALO_MS = 60_000;
@@ -8,11 +8,20 @@ const INTERVALO_MS = 60_000;
  * ação de alguém), então sem este job cada aba precisaria perguntar a cada
  * minuto. Aqui é uma consulta por minuto no servidor, e só quem tem algo
  * vencendo recebe o aviso para buscar /api/kanban/notificacoes.
+ * Tarefas esquecidas (paradas há dias) têm o aviso gerado aqui mesmo, porque
+ * também avisam o solicitante — não só o responsável.
  */
 export function iniciarLembretesKanban(): void {
   setInterval(() => {
-    responsaveisComAvisoVencido()
-      .then((ids) => sincronizarSalas(ids.map(salaUsuario), 'kanban'))
-      .catch((err) => console.error('[lembretes-kanban] falha na verificação:', err));
+    // allSettled: uma verificação falhando (ex.: migration ainda não aplicada)
+    // não pode derrubar a outra — lembretes e prazos seguem funcionando.
+    Promise.allSettled([responsaveisComAvisoVencido(), gerarAvisosEsquecidas()]).then((resultados) => {
+      const ids = new Set<number>();
+      resultados.forEach((r, i) => {
+        if (r.status === 'fulfilled') r.value.forEach((id) => ids.add(id));
+        else console.error(`[lembretes-kanban] falha em ${i === 0 ? 'lembretes/prazos' : 'tarefas esquecidas'}:`, r.reason);
+      });
+      if (ids.size) sincronizarSalas([...ids].map(salaUsuario), 'kanban');
+    });
   }, INTERVALO_MS).unref();
 }

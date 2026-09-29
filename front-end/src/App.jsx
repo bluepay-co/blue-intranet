@@ -13,6 +13,8 @@ const KanbanEquipe = lazyComRecarga(() => import('@/pages/KanbanEquipe'))
 const Usuarios = lazyComRecarga(() => import('@/pages/Usuarios'))
 const Blog = lazyComRecarga(() => import('@/pages/Blog'))
 const AdminBlog = lazyComRecarga(() => import('@/pages/marketing/AdminBlog'))
+const BlogPublicados = lazyComRecarga(() => import('@/pages/marketing/blog/BlogPublicados'))
+const BlogRascunhos = lazyComRecarga(() => import('@/pages/marketing/blog/BlogRascunhos'))
 const Formularios = lazyComRecarga(() => import('@/pages/marketing/Formularios'))
 const FormularioEditor = lazyComRecarga(() => import('@/pages/marketing/FormularioEditor'))
 const FormularioRespostas = lazyComRecarga(() => import('@/pages/marketing/FormularioRespostas'))
@@ -113,7 +115,10 @@ function App() {
               <AdminBlog />
             </ProtectedRoute>
           }
-        />
+        >
+          <Route index element={<BlogPublicados />} />
+          <Route path="rascunhos" element={<BlogRascunhos />} />
+        </Route>
         <Route
           path="marketing/formularios"
           element={

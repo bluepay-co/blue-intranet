@@ -1,6 +1,7 @@
-import { ArrowRight, Clock, Lock, Repeat, Users } from 'lucide-react'
+import { ArrowRight, Clock, ListChecks, Lock, Repeat, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { ProgressoChecklist } from './ChecklistTarefa'
 import { ALERTAS, PRIORIDADES, VISIBILIDADES, alerta, formatarData, iniciais, relativo, slaApertado } from './regras'
 
 const ICONE_VIS = { private: Lock, requester: Repeat, team: Users }
@@ -46,7 +47,13 @@ export default function TarefaCard({ tarefa: t, onAbrir, onStatus, arrastando })
         <IconeVis className="size-3.5 text-muted-foreground" aria-label={VISIBILIDADES[t.visibilidade].label} />
       </div>
 
-      <p className={cn('my-2 font-semibold leading-snug', feita && 'text-muted-foreground line-through')}>{t.titulo}</p>
+      {/* Título longo (ou sem espaços) quebra em qualquer ponto e para em 3 linhas; o completo fica no title. */}
+      <p
+        title={t.titulo}
+        className={cn('my-2 line-clamp-3 font-semibold leading-snug [overflow-wrap:anywhere]', feita && 'text-muted-foreground line-through')}
+      >
+        {t.titulo}
+      </p>
 
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <Avatar nome={t.solicitante_nome} />
@@ -63,6 +70,16 @@ export default function TarefaCard({ tarefa: t, onAbrir, onStatus, arrastando })
           </span>
         )}
       </div>
+
+      {t.checklist_total > 0 && (
+        <div className="mt-2.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+          <ListChecks className="size-3.5 shrink-0" />
+          <ProgressoChecklist feitos={t.checklist_feitos} total={t.checklist_total} className="flex-1" />
+          <span className="tabular-nums">
+            {t.checklist_feitos}/{t.checklist_total}
+          </span>
+        </div>
+      )}
 
       <div className="mt-2.5 flex items-center justify-between gap-2">
         <span

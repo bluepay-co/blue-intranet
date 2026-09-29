@@ -11,10 +11,12 @@ import type { Role } from '../models/usuario.model';
  * algo muda. O evento não carrega dados — o cliente busca pela API REST de
  * sempre, que continua sendo a fonte da verdade e aplica as permissões.
  */
-export type TipoSync = 'blog' | 'atualizacoes' | 'chamados' | 'kanban';
+export type TipoSync = 'blog' | 'blog_comentarios' | 'atualizacoes' | 'chamados' | 'kanban';
 
 export const salaUsuario = (id: number) => `usuario_${id}`;
 export const salaCargo = (role: Role) => `cargo_${role}`;
+/** Quem está com a conversa do post aberta (socket/blog.socket.ts). */
+export const salaPostBlog = (postId: number) => `blog_post_${postId}`;
 
 /** Socket.IO se já inicializado — o aviso é melhor-esforço, nunca quebra a requisição. */
 function io(): Server | null {

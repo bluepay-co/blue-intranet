@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { cobrarAtualizacao, comentar, detalharTarefa } from '@/api/modules/kanban'
 import { Avatar } from './TarefaCard'
 import TextoComLinks from './TextoComLinks'
+import ChecklistTarefa from './ChecklistTarefa'
 import { ALERTAS, COLUNAS, LEMBRETES, PRIORIDADES, VISIBILIDADES, alerta, formatarData, relativo } from './regras'
 
 const STATUS = [
@@ -116,7 +117,7 @@ export default function TarefaDrawer({ tarefaId, versao, usuario, onFechar, onSt
               </div>
 
               <div>
-                <DialogTitle className="text-xl leading-snug font-semibold">{t.titulo}</DialogTitle>
+                <DialogTitle className="text-xl leading-snug font-semibold [overflow-wrap:anywhere]">{t.titulo}</DialogTitle>
                 <p className="mt-1 whitespace-pre-wrap text-muted-foreground [overflow-wrap:anywhere]">{t.descricao ? <TextoComLinks texto={t.descricao} classeLink="text-primary" /> : 'Sem descrição.'}</p>
               </div>
 
@@ -159,6 +160,8 @@ export default function TarefaDrawer({ tarefaId, versao, usuario, onFechar, onSt
                   {VISIBILIDADES[t.visibilidade].label}
                 </dd>
               </dl>
+
+              <ChecklistTarefa tarefaId={t.id} itens={detalhe.checklist} podeEditar={t.pode_checklist} onMudou={carregar} />
 
               {t.pode_mover ? (
                 <div>

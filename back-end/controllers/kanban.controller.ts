@@ -9,6 +9,9 @@ import {
   excluirTarefa,
   alterarStatus,
   alterarPrioridade,
+  adicionarItemChecklist,
+  atualizarItemChecklist,
+  removerItemChecklist,
   comentar,
   cobrarAtualizacao,
   adiarLembrete,
@@ -16,8 +19,8 @@ import {
 } from '../services/kanban.service';
 
 /** Valida o parâmetro de rota antes de qualquer acesso ao banco. */
-function lerId(req: Request): number {
-  const id = Number(req.params.id);
+function lerId(req: Request, param = 'id'): number {
+  const id = Number(req.params[param]);
   if (!Number.isInteger(id) || id <= 0) throw new AppError('Identificador inválido.', 400);
   return id;
 }
@@ -105,4 +108,25 @@ export const postAdiarLembrete = handler('postAdiarLembrete', 'Erro interno ao a
 export const getNotificacoes = handler('getNotificacoes', 'Erro interno ao carregar as notificações.', async (req, res) => {
   const notificacoes = await notificacoesPendentes(req.usuario!);
   return res.status(200).json({ notificacoes });
+});
+
+/** POST /api/kanban/tarefas/:id/checklist — Adiciona um item. */
+export const postItemChecklist = handler('postItemChecklist', 'Erro interno ao adicionar o item.', async (req, res) => {
+  await adicionarItemChecklist(req.usuario!, lerId(req), req.body?.texto);
+  return res.status(201).json({ message: 'Item adicionado.' });
+});
+
+/** PATCH /api/kanban/tarefas/:id/checklist/:itemId — Marca/desmarca ou renomeia. */
+export const patchItemChecklist = handler('patchItemChecklist', 'Erro interno ao atualizar o item.', async (req, res) => {
+  await atualizarItemChecklist(req.usuario!, lerId(req), lerId(req, 'itemId'), {
+    concluido: req.body?.concluido,
+    texto: req.body?.texto,
+  });
+  return res.status(200).json({ message: 'Item atualizado.' });
+});
+
+/** DELETE /api/kanban/tarefas/:id/checklist/:itemId */
+export const deleteItemChecklist = handler('deleteItemChecklist', 'Erro interno ao remover o item.', async (req, res) => {
+  await removerItemChecklist(req.usuario!, lerId(req), lerId(req, 'itemId'));
+  return res.status(200).json({ message: 'Item removido.' });
 });

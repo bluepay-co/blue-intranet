@@ -1,5 +1,5 @@
 /**
- * Espelhos TypeScript das tabelas `blog_posts` e `blog_reacoes`.
+ * Espelhos TypeScript das tabelas `blog_posts`, `blog_reacoes` e `blog_comentarios`.
  * Única fonte de verdade para a tipagem do módulo de marketing.
  */
 
@@ -38,6 +38,7 @@ export interface BlogPostFeed {
   heart_count: number;
   aplauso_count: number;
   foguete_count: number;
+  comentarios_count: number;
   minha_reacao: TipoReacao | null;
 }
 
@@ -50,4 +51,23 @@ export interface BlogPostAdmin extends BlogPostFeed {
 export interface ReacaoResult {
   acao: 'inserida' | 'atualizada' | 'removida';
   tipo: TipoReacao | null;
+}
+
+/** Comentário de um post, com o nome de quem comentou e se o usuário logado pode apagá-lo. */
+export interface BlogComentario {
+  id: number;
+  post_id: number;
+  usuario_id: number;
+  usuario_nome: string;
+  texto: string;
+  criado_em: Date;
+  pode_apagar: boolean;
+}
+
+/** Reação individual para o painel de métricas do Marketing (quem reagiu e de qual setor). */
+export interface BlogReacaoDetalhe {
+  tipo: TipoReacao;
+  criado_em: Date;
+  usuario_nome: string;
+  usuario_role: string;
 }

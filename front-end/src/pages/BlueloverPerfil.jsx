@@ -147,7 +147,7 @@ export default function BlueloverPerfil() {
       : null,
   ].filter(Boolean)
   const momentos = b.blocos.filter((x) => x.tipo === 'momento')
-  const gostos = GOSTOS.filter(([campo]) => b[campo])
+  const gostos = GOSTOS.filter(([campo, , , , campoImagem]) => b[campo] || (campoImagem && b[campoImagem]))
   const temViagem =
     b.viagem_favorita_texto || b.viagem_favorita_foto_url || b.viagem_sonho || b.viagem_sonho_foto_url
 
@@ -273,7 +273,7 @@ export default function BlueloverPerfil() {
       {gostos.length > 0 && (
         <Secao titulo="Gostos & personalidade">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {gostos.map(([campo, emoji, padrao]) => (
+            {gostos.map(([campo, emoji, padrao, , campoImagem]) => (
               <Card
                 key={campo}
                 className={cn(
@@ -282,9 +282,18 @@ export default function BlueloverPerfil() {
                 )}
               >
                 <CardContent className="flex items-center gap-4 py-5">
-                  <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-brand-accent/20 to-brand-accent/5 text-3xl">
-                    {emoji}
-                  </span>
+                  {campoImagem && b[campoImagem] ? (
+                    // Mesmo tamanho do emoji: a imagem só troca o ícone, o card segue igual.
+                    <img
+                      src={urlFoto(b[campoImagem])}
+                      alt={b[campo] || padrao}
+                      className="size-14 shrink-0 rounded-2xl object-cover"
+                    />
+                  ) : (
+                    <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-brand-accent/20 to-brand-accent/5 text-3xl">
+                      {emoji}
+                    </span>
+                  )}
                   <div className="min-w-0">
                     <p className="text-xs tracking-wider text-muted-foreground uppercase">
                       {b.rotulos_gostos?.[campo] || padrao}
@@ -295,6 +304,34 @@ export default function BlueloverPerfil() {
               </Card>
             ))}
           </div>
+        </Secao>
+      )}
+
+      {/* Seção 05 — Inspirações */}
+      {(b.inspiracao_texto || b.inspiracao_foto_url) && (
+        <Secao>
+          <Card className="overflow-hidden border-none bg-gradient-to-r from-brand-accent/15 via-brand-accent/5 to-transparent py-0">
+            <div className="grid items-center gap-6 p-6 sm:grid-cols-[minmax(0,240px)_1fr] sm:p-8">
+              {b.inspiracao_foto_url && (
+                <Foto
+                  src={urlFoto(b.inspiracao_foto_url)}
+                  alt="Inspiração"
+                  className="aspect-square w-full rounded-3xl"
+                />
+              )}
+              <div>
+                <p className="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase">
+                  O que me inspira
+                </p>
+                {b.inspiracao_texto && (
+                  <p className="mt-3 text-2xl leading-snug font-light text-balance sm:text-3xl">
+                    “{b.inspiracao_texto}”
+                  </p>
+                )}
+                <p className="mt-4 text-sm text-muted-foreground">— {b.apelido || b.nome}</p>
+              </div>
+            </div>
+          </Card>
         </Secao>
       )}
 
@@ -342,34 +379,6 @@ export default function BlueloverPerfil() {
               </Card>
             )}
           </div>
-        </Secao>
-      )}
-
-      {/* Seção 05 — Inspirações */}
-      {(b.inspiracao_texto || b.inspiracao_foto_url) && (
-        <Secao>
-          <Card className="overflow-hidden border-none bg-gradient-to-r from-brand-accent/15 via-brand-accent/5 to-transparent py-0">
-            <div className="grid items-center gap-6 p-6 sm:grid-cols-[minmax(0,240px)_1fr] sm:p-8">
-              {b.inspiracao_foto_url && (
-                <Foto
-                  src={urlFoto(b.inspiracao_foto_url)}
-                  alt="Inspiração"
-                  className="aspect-square w-full rounded-3xl"
-                />
-              )}
-              <div>
-                <p className="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase">
-                  O que me inspira
-                </p>
-                {b.inspiracao_texto && (
-                  <p className="mt-3 text-2xl leading-snug font-light text-balance sm:text-3xl">
-                    “{b.inspiracao_texto}”
-                  </p>
-                )}
-                <p className="mt-4 text-sm text-muted-foreground">— {b.apelido || b.nome}</p>
-              </div>
-            </div>
-          </Card>
         </Secao>
       )}
 

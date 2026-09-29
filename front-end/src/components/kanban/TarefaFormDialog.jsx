@@ -56,6 +56,7 @@ function estadoInicial(tarefa, usuarioId) {
     lembreteMin: 30,
     compartilharEquipe: false,
     participantesIds: [],
+    checklist: '',
   }
 }
 
@@ -129,6 +130,8 @@ export default function TarefaFormDialog({ aberto, onFechar, tarefa, usuario, us
         lembreteMin: Number(form.lembreteMin),
         visibilidade,
         participantesIds: form.tipo === 'pessoal' ? [] : form.participantesIds,
+        // Checklist inicial só na criação; na edição os itens são geridos no modal da tarefa.
+        ...(!tarefa && { checklist: form.checklist.split('\n').map((l) => l.trim()).filter(Boolean) }),
       })
       onFechar()
     } catch (err) {
@@ -181,6 +184,10 @@ export default function TarefaFormDialog({ aberto, onFechar, tarefa, usuario, us
             <li>
               <b className="text-foreground">Participantes</b>: pessoas extras, de qualquer equipe, que veem, comentam e recebem avisos.
               Ex.: você + Rafael + alguém de CX → “Solicitar a alguém” com Rafael responsável e a pessoa de CX como participante.
+            </li>
+            <li>
+              <b className="text-foreground">Checklist</b>: quebre a tarefa em itens (um por linha). Depois, marque e adicione
+              itens dentro da própria tarefa.
             </li>
             <li>Só o responsável e a coordenação mudam o status. Editar e excluir: quem criou e a coordenação.</li>
           </ul>
@@ -267,6 +274,17 @@ export default function TarefaFormDialog({ aberto, onFechar, tarefa, usuario, us
                   excluir={[usuario.id, Number(form.responsavelId), tarefa?.solicitante_id].filter(Boolean)}
                 />
               </div>
+            )}
+
+            {!tarefa && (
+              <Campo rotulo="Checklist (opcional) — um item por linha" className="sm:col-span-2">
+                <textarea
+                  value={form.checklist}
+                  onChange={set('checklist')}
+                  placeholder={'Levantar dados\nMontar proposta\nEnviar ao cliente'}
+                  className={cn(selectCls, 'h-20 resize-none py-2')}
+                />
+              </Campo>
             )}
 
             <Campo rotulo="Prazo">

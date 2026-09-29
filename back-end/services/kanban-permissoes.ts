@@ -1,13 +1,16 @@
 import type { AuthPayload } from '../middleware/auth.middleware';
 import type { KanbanTarefaDetalhada, PermissoesTarefa } from '../models/kanban.model';
 import { equipeDaRole, equipesCoordenadas, rolesDaEquipe } from '../utils/equipes';
-import type { Role } from '../models/usuario.model';
+import { Role } from '../models/usuario.model';
 
 /**
  * Roles cujas tarefas "Minha equipe" o usuário enxerga: a própria equipe e as
  * que ele coordena. Diretoria não tem visão global — privacidade por equipe.
+ * Exceção: o Desenvolvedor acompanha o quadro de todas as equipes (só leitura;
+ * tarefas privadas e solicitações diretas continuam fora).
  */
 export function rolesVisiveis(usuario: AuthPayload): Role[] {
+  if (usuario.role === Role.DESENVOLVEDOR) return Object.values(Role);
   const equipes = new Set([equipeDaRole(usuario.role), ...equipesCoordenadas(usuario.role)]);
   return [...equipes].flatMap(rolesDaEquipe);
 }
@@ -35,9 +38,12 @@ export function podeVer(usuario: AuthPayload, tarefa: KanbanTarefaDetalhada): bo
 export function permissoes(usuario: AuthPayload, tarefa: KanbanTarefaDetalhada): PermissoesTarefa {
   const ehCoordenador = coordena(usuario, tarefa);
   const ehCriador = tarefa.criador_id === usuario.id;
+  const podeMover = tarefa.responsavel_id === usuario.id || ehCoordenador;
   return {
-    pode_mover: tarefa.responsavel_id === usuario.id || ehCoordenador,
+    pode_mover: podeMover,
     pode_editar: ehCoordenador || ehCriador,
     pode_excluir: ehCoordenador || ehCriador,
+    // Quem executa (responsável/coordenação) ou planejou (criador) quebra a tarefa em itens.
+    pode_checklist: podeMover || ehCriador,
   };
 }

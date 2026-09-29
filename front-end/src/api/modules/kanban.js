@@ -8,11 +8,12 @@ import api from '@/api/api'
 
 /**
  * Cargos com Kanban da Equipe — espelho de `KANBAN_ROLES` em back-end/utils/equipes.ts
- * (RH, Financeiro, Diretoria e Colaborador ficam de fora por enquanto).
+ * (Colaborador fica de fora por enquanto).
  */
 export const KANBAN_ROLES = [
   'TI', 'DESENVOLVEDOR', 'MARKETING', 'PRODUTOS', 'KAM', 'INSIGHT_SALES', 'CX',
   'GERENTE_INSIDE_CX', 'GERENTE_COMERCIAL', 'VENDAS', 'PRE_VENDAS', 'GERENTE_PRE_VENDAS',
+  'RH', 'FINANCEIRO', 'DIRETORIA',
 ]
 
 /**
@@ -118,4 +119,21 @@ export async function adiarLembrete(id) {
 export async function buscarNotificacoes() {
   const { data } = await api.get('/api/kanban/notificacoes')
   return data.notificacoes
+}
+
+/**
+ * Checklist da tarefa. Só responsável, criador e coordenação (`pode_checklist`).
+ * @param {number} tarefaId @param {string} texto
+ */
+export async function adicionarItemChecklist(tarefaId, texto) {
+  await api.post(`/api/kanban/tarefas/${tarefaId}/checklist`, { texto })
+}
+
+/** @param {number} tarefaId @param {number} itemId @param {{ concluido?: boolean, texto?: string }} alteracao */
+export async function atualizarItemChecklist(tarefaId, itemId, alteracao) {
+  await api.patch(`/api/kanban/tarefas/${tarefaId}/checklist/${itemId}`, alteracao)
+}
+
+export async function removerItemChecklist(tarefaId, itemId) {
+  await api.delete(`/api/kanban/tarefas/${tarefaId}/checklist/${itemId}`)
 }

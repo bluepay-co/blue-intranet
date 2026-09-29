@@ -134,6 +134,27 @@ export const NAV_SECTIONS = [
       { to: '/kanban', label: 'Kanban da Equipe', icon: KanbanSquare, roles: ['PRE_VENDAS', 'GERENTE_PRE_VENDAS'] },
     ],
   },
+  {
+    label: 'RH',
+    roles: ['RH'],
+    items: [
+      { to: '/kanban', label: 'Kanban da Equipe', icon: KanbanSquare },
+    ],
+  },
+  {
+    label: 'Financeiro',
+    roles: ['FINANCEIRO'],
+    items: [
+      { to: '/kanban', label: 'Kanban da Equipe', icon: KanbanSquare },
+    ],
+  },
+  {
+    label: 'Diretoria',
+    roles: ['DIRETORIA'],
+    items: [
+      { to: '/kanban', label: 'Kanban da Equipe', icon: KanbanSquare },
+    ],
+  },
 ]
 
 /**

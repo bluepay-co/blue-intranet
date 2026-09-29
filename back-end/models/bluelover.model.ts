@@ -47,6 +47,9 @@ export interface Bluelover {
   /** Seção 09 — história ou momento marcante na Bluepay. */
   momento_marcante: string | null;
   momento_marcante_foto_url: string | null;
+  /** Card de gosto com imagem: personagem com quem a pessoa se identifica. */
+  personagem: string | null;
+  personagem_foto_url: string | null;
   ordem: number;
   publicado: boolean;
   criado_por: number;
@@ -83,7 +86,7 @@ export interface BlueloverBloco {
 /** Shape enxuto da listagem pública — só o que o card precisa. */
 export type BlueloverCard = Pick<
   Bluelover,
-  'id' | 'nome' | 'cargo' | 'setor' | 'frase' | 'foto_capa_url' | 'ordem' | 'apelido'
+  'id' | 'nome' | 'cargo' | 'setor' | 'frase' | 'foto_capa_url' | 'apelido'
 >;
 
 /** Shape do painel admin: inclui rascunhos e a contagem de blocos já montados. */

@@ -25,7 +25,10 @@ export default function Blog() {
     }
   }, [])
 
-  useEffect(() => { buscar() }, [buscar])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial do servidor
+    buscar()
+  }, [buscar])
 
   // Ao visualizar o feed, marca os posts como vistos (zera o badge da sidebar).
   useEffect(() => {
@@ -40,7 +43,7 @@ export default function Blog() {
       />
 
       {carregando && (
-        <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
+        <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
           {Array.from({ length: 3 }).map((_, i) => (
             <Card key={i} className="animate-pulse">
               <div className="h-52 rounded-t-xl bg-muted" />
@@ -79,7 +82,7 @@ export default function Blog() {
       )}
 
       {!carregando && !erro && posts.length > 0 && (
-        <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
+        <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
           {posts.map((post) => (
             <PostCard key={post.id} post={post} onReagir={buscar} />
           ))}

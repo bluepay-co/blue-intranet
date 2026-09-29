@@ -35,7 +35,10 @@ export default function AdminBluelovers() {
     }
   }, [])
 
-  useEffect(() => { buscar() }, [buscar])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial do servidor
+    buscar()
+  }, [buscar])
 
   async function handleDeletar(bluelover) {
     if (!confirm(
@@ -167,8 +170,6 @@ export default function AdminBluelovers() {
                       {bluelover.cargo || 'Sem cargo'}
                       {' · '}
                       {blocos} {blocos === 1 ? 'seção' : 'seções'}
-                      {' · '}
-                      ordem {bluelover.ordem}
                     </p>
                   </div>
 

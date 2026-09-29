@@ -9,7 +9,7 @@ export type StatusTarefa = 'todo' | 'doing' | 'done';
 /** private = só o responsável; requester = responsável + solicitante; team = + equipe e coordenação. */
 export type VisibilidadeTarefa = 'private' | 'requester' | 'team';
 export type TipoHistorico = 'evento' | 'comentario';
-export type TipoNotificacao = 'solicitacao' | 'comentario' | 'cobranca' | 'status' | 'lembrete' | 'vencido';
+export type TipoNotificacao = 'solicitacao' | 'comentario' | 'cobranca' | 'status' | 'lembrete' | 'vencido' | 'esquecida';
 
 export interface KanbanTarefa {
   id: number;
@@ -39,9 +39,26 @@ export interface KanbanParticipante {
   nome: string;
 }
 
+/** Subitem marcável da tarefa (tabela `kanban_checklist`). */
+export interface KanbanChecklistItem {
+  id: number;
+  tarefa_id: number;
+  texto: string;
+  concluido: boolean;
+  ordem: number;
+  criado_por: number;
+  concluido_por: number | null;
+  concluido_por_nome: string | null;
+  criado_em: Date;
+  concluido_em: Date | null;
+}
+
 /** Tarefa com nomes/roles das pessoas envolvidas, pronta para o quadro. */
 export interface KanbanTarefaDetalhada extends KanbanTarefa {
   participantes: KanbanParticipante[];
+  /** Progresso do checklist, exibido no card (ex.: 3/5). */
+  checklist_total: number;
+  checklist_feitos: number;
   responsavel_nome: string;
   responsavel_role: Role;
   solicitante_nome: string;
@@ -53,6 +70,8 @@ export interface PermissoesTarefa {
   pode_mover: boolean;
   pode_editar: boolean;
   pode_excluir: boolean;
+  /** Adicionar, marcar e remover itens do checklist. */
+  pode_checklist: boolean;
 }
 
 export type KanbanTarefaVisao = KanbanTarefaDetalhada & PermissoesTarefa;
