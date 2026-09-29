@@ -1,13 +1,16 @@
 import type { AuthPayload } from '../middleware/auth.middleware';
 import type { KanbanTarefaDetalhada, PermissoesTarefa } from '../models/kanban.model';
 import { equipeDaRole, equipesCoordenadas, rolesDaEquipe } from '../utils/equipes';
-import type { Role } from '../models/usuario.model';
+import { Role } from '../models/usuario.model';
 
 /**
  * Roles cujas tarefas "Minha equipe" o usuário enxerga: a própria equipe e as
  * que ele coordena. Diretoria não tem visão global — privacidade por equipe.
+ * Exceção: o Desenvolvedor acompanha o quadro de todas as equipes (só leitura;
+ * tarefas privadas e solicitações diretas continuam fora).
  */
 export function rolesVisiveis(usuario: AuthPayload): Role[] {
+  if (usuario.role === Role.DESENVOLVEDOR) return Object.values(Role);
   const equipes = new Set([equipeDaRole(usuario.role), ...equipesCoordenadas(usuario.role)]);
   return [...equipes].flatMap(rolesDaEquipe);
 }
