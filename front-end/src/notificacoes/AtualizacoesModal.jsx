@@ -51,14 +51,18 @@ function Descricao({ texto }) {
         {linhas.map((l, i) => (
           <li key={i} className="flex gap-2 text-sm leading-relaxed text-muted-foreground">
             <span className="mt-[7px] size-1.5 shrink-0 rounded-full bg-current opacity-50" />
-            <span>{l.replace(/^[*-]\s+/, '')}</span>
+            <span className="min-w-0 [overflow-wrap:anywhere]">{l.replace(/^[*-]\s+/, '')}</span>
           </li>
         ))}
       </ul>
     )
   }
 
-  return <p className="whitespace-pre-line text-center text-sm leading-relaxed text-muted-foreground">{texto}</p>
+  return (
+    <p className="whitespace-pre-line text-left text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
+      {texto}
+    </p>
+  )
 }
 
 export default function AtualizacoesModal() {
@@ -68,7 +72,10 @@ export default function AtualizacoesModal() {
   const [vistos, setVistos] = useState(() => carregarVistos(userId))
 
   // Recarrega os "vistos" ao trocar de usuário (login/logout).
-  useEffect(() => { setVistos(carregarVistos(userId)) }, [userId])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza com o localStorage do usuário
+    setVistos(carregarVistos(userId))
+  }, [userId])
 
   // Busca quando o servidor avisa pelo socket; polling só como segurança (ver usePolling).
   const buscar = useCallback(async () => {
@@ -96,9 +103,10 @@ export default function AtualizacoesModal() {
 
   return (
     <Dialog open onOpenChange={(aberto) => { if (!aberto) fechar() }}>
-      <DialogContent className="max-w-sm gap-0 overflow-hidden p-0">
+      {/* Coluna com altura máxima: topo e botão sempre visíveis, só a descrição rola. */}
+      <DialogContent className="flex max-h-[85vh] max-w-md flex-col gap-0 overflow-hidden p-0">
         {/* Cabeçalho com ícone + selo da categoria */}
-        <div className="flex flex-col items-center gap-3 px-6 pb-6 pt-9 text-center">
+        <div className="flex shrink-0 flex-col items-center gap-3 px-6 pt-9 pb-4 text-center">
           <span className={cn('grid size-16 place-items-center rounded-2xl', cat.corIcone)}>
             <Icone className="size-8" />
           </span>
@@ -107,17 +115,17 @@ export default function AtualizacoesModal() {
             {cat.label}
           </span>
 
-          <DialogTitle className="text-center text-xl leading-snug">{atual.titulo}</DialogTitle>
-
-          {atual.subtitulo && (
-            <div className="mt-1 w-full">
-              <Descricao texto={atual.subtitulo} />
-            </div>
-          )}
+          <DialogTitle className="text-center text-xl leading-snug [overflow-wrap:anywhere]">{atual.titulo}</DialogTitle>
         </div>
 
+        {atual.subtitulo && (
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
+            <Descricao texto={atual.subtitulo} />
+          </div>
+        )}
+
         {/* Rodapé */}
-        <div className="border-t bg-muted/30 px-6 py-4">
+        <div className="shrink-0 border-t bg-muted/30 px-6 py-4">
           <Button className="w-full" onClick={fechar}>Entendi</Button>
         </div>
       </DialogContent>
