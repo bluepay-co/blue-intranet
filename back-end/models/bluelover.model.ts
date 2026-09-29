@@ -47,6 +47,9 @@ export interface Bluelover {
   /** Seção 09 — história ou momento marcante na Bluepay. */
   momento_marcante: string | null;
   momento_marcante_foto_url: string | null;
+  /** Card de gosto com imagem: personagem com quem a pessoa se identifica. */
+  personagem: string | null;
+  personagem_foto_url: string | null;
   ordem: number;
   publicado: boolean;
   criado_por: number;

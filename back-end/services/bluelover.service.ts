@@ -41,6 +41,8 @@ export interface PerfilEntrada {
   bluepayPessoaFotoUrl: string | null;
   momentoMarcante: string | null;
   momentoMarcanteFotoUrl: string | null;
+  personagem: string | null;
+  personagemFotoUrl: string | null;
 }
 
 /** Card da seção 02 ou momento da timeline (seção 06). */
@@ -70,6 +72,7 @@ const CAMPOS_GOSTO = [
   'gosto_emoji',
   'hobby',
   'presente_perfeito',
+  'personagem',
 ];
 const DATA_OK = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -159,6 +162,8 @@ function validarPerfil(entrada: PerfilEntrada) {
     bluepayPessoaFotoUrl: entrada.bluepayPessoaFotoUrl,
     momentoMarcante: opcional(entrada.momentoMarcante, MAX.momentoMarcante, 'Momento marcante'),
     momentoMarcanteFotoUrl: entrada.momentoMarcanteFotoUrl,
+    personagem: opcional(entrada.personagem, MAX.gosto, 'Personagem'),
+    personagemFotoUrl: entrada.personagemFotoUrl,
   };
 }
 
@@ -276,7 +281,8 @@ export async function criarPerfil(
         viagem_favorita_texto, viagem_favorita_foto_url, viagem_sonho, viagem_sonho_foto_url,
         inspiracao_texto, inspiracao_foto_url,
         bluepay_pessoa_texto, bluepay_pessoa_foto_url,
-        momento_marcante, momento_marcante_foto_url)
+        momento_marcante, momento_marcante_foto_url,
+        personagem, personagem_foto_url)
      VALUES ($1, $2, $3, $4, $5, $6, $7,
              $8, $9, $10, $11, $12,
              $13, $14, $15, $16, $17, $18,
@@ -284,7 +290,8 @@ export async function criarPerfil(
              $22, $23, $24, $25,
              $26, $27,
              $28, $29,
-             $30, $31)
+             $30, $31,
+             $32, $33)
      RETURNING id`,
     [
       dados.nome,
@@ -318,6 +325,8 @@ export async function criarPerfil(
       dados.bluepayPessoaFotoUrl,
       dados.momentoMarcante,
       dados.momentoMarcanteFotoUrl,
+      dados.personagem,
+      dados.personagemFotoUrl,
     ],
   );
   if (!rows[0]) throw new AppError('Falha ao persistir o perfil.', 500);
@@ -335,14 +344,15 @@ export async function atualizarFotosPerfil(
     inspiracaoFotoUrl: string | null;
     bluepayPessoaFotoUrl: string | null;
     momentoMarcanteFotoUrl: string | null;
+    personagemFotoUrl: string | null;
   },
 ): Promise<void> {
   await pool.query(
     `UPDATE blue_intranet.bluelovers
      SET foto_capa_url = $1, foto_destaque_url = $2, viagem_favorita_foto_url = $3,
          viagem_sonho_foto_url = $4, inspiracao_foto_url = $5, bluepay_pessoa_foto_url = $6,
-         momento_marcante_foto_url = $7
-     WHERE id = $8`,
+         momento_marcante_foto_url = $7, personagem_foto_url = $8
+     WHERE id = $9`,
     [
       fotos.fotoCapaUrl,
       fotos.fotoDestaqueUrl,
@@ -351,6 +361,7 @@ export async function atualizarFotosPerfil(
       fotos.inspiracaoFotoUrl,
       fotos.bluepayPessoaFotoUrl,
       fotos.momentoMarcanteFotoUrl,
+      fotos.personagemFotoUrl,
       id,
     ],
   );
@@ -380,7 +391,7 @@ export async function editarPerfil(
   const { rows } = await pool.query<FotosPerfil>(
     `SELECT foto_capa_url, foto_destaque_url, viagem_favorita_foto_url,
             viagem_sonho_foto_url, inspiracao_foto_url, bluepay_pessoa_foto_url,
-            momento_marcante_foto_url
+            momento_marcante_foto_url, personagem_foto_url
      FROM blue_intranet.bluelovers WHERE id = $1`,
     [id],
   );
@@ -401,8 +412,9 @@ export async function editarPerfil(
          inspiracao_texto = $25, inspiracao_foto_url = $26,
          bluepay_pessoa_texto = $27, bluepay_pessoa_foto_url = $28,
          momento_marcante = $29, momento_marcante_foto_url = $30,
+         personagem = $31, personagem_foto_url = $32,
          atualizado_em = now()
-     WHERE id = $31`,
+     WHERE id = $33`,
     [
       dados.nome,
       dados.cargo,
@@ -434,6 +446,8 @@ export async function editarPerfil(
       dados.bluepayPessoaFotoUrl,
       dados.momentoMarcante,
       dados.momentoMarcanteFotoUrl,
+      dados.personagem,
+      dados.personagemFotoUrl,
       id,
     ],
   );
@@ -446,6 +460,7 @@ export async function editarPerfil(
     substituida(anterior.inspiracao_foto_url, dados.inspiracaoFotoUrl),
     substituida(anterior.bluepay_pessoa_foto_url, dados.bluepayPessoaFotoUrl),
     substituida(anterior.momento_marcante_foto_url, dados.momentoMarcanteFotoUrl),
+    substituida(anterior.personagem_foto_url, dados.personagemFotoUrl),
   ].filter((path): path is string => path !== null);
 
   return { orfas };
@@ -454,6 +469,7 @@ export async function editarPerfil(
 /** Todas as imagens guardadas na própria linha do perfil. */
 interface FotosPerfil {
   momento_marcante_foto_url: string | null;
+  personagem_foto_url: string | null;
   foto_capa_url: string;
   foto_destaque_url: string | null;
   viagem_favorita_foto_url: string | null;
@@ -482,7 +498,7 @@ export async function deletarPerfil(id: number): Promise<string[]> {
     `DELETE FROM blue_intranet.bluelovers WHERE id = $1
      RETURNING foto_capa_url, foto_destaque_url, viagem_favorita_foto_url,
                viagem_sonho_foto_url, inspiracao_foto_url, bluepay_pessoa_foto_url,
-               momento_marcante_foto_url`,
+               momento_marcante_foto_url, personagem_foto_url`,
     [id],
   );
   const removido = rows[0];
@@ -496,6 +512,7 @@ export async function deletarPerfil(id: number): Promise<string[]> {
     removido.inspiracao_foto_url,
     removido.bluepay_pessoa_foto_url,
     removido.momento_marcante_foto_url,
+    removido.personagem_foto_url,
     ...fotosBlocos.map((f) => f.foto_url),
   ].filter((path): path is string => Boolean(path));
 }

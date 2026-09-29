@@ -24,7 +24,7 @@ const CAMPOS_TEXTO = [
   'nome', 'cargo', 'setor', 'frase',
   'apelido', 'data_nascimento', 'bio', 'talento',
   'gosto_comida', 'gosto_assiste', 'gosto_musica', 'gosto_cor', 'gosto_rede_social', 'gosto_emoji',
-  'hobby', 'presente_perfeito',
+  'hobby', 'presente_perfeito', 'personagem',
   'viagem_favorita_texto', 'viagem_sonho',
   'inspiracao_texto', 'bluepay_pessoa_texto',
   'momento_marcante',
@@ -39,6 +39,7 @@ const IMAGENS = [
   ['foto_inspiracao', 'inspiracao_foto_url'],
   ['foto_bluepay', 'bluepay_pessoa_foto_url'],
   ['foto_momento_marcante', 'momento_marcante_foto_url'],
+  ['foto_personagem', 'personagem_foto_url'],
 ]
 
 /**

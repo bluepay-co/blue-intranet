@@ -68,6 +68,7 @@ const uploadPerfil = upload.fields([
   { name: 'foto_inspiracao', maxCount: 1 },
   { name: 'foto_bluepay', maxCount: 1 },
   { name: 'foto_momento_marcante', maxCount: 1 },
+  { name: 'foto_personagem', maxCount: 1 },
 ]);
 
 const blueloverRouter = Router();

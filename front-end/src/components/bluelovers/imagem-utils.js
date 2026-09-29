@@ -22,6 +22,7 @@ export const IMAGENS_PERFIL = {
   conquista: { aspecto: 'aspect-[4/3]', dica: '4:3 — 1200 × 900 px' },
   momento: { aspecto: 'aspect-square', dica: '1:1 — 800 × 800 px (exibida em círculo)' },
   momentoMarcante: { aspecto: 'aspect-[4/5]', dica: '4:5 — 1080 × 1350 px' },
+  personagem: { aspecto: 'aspect-square', dica: '1:1 — 500 × 500 px (no lugar do emoji)' },
 }
 
 /** Mesma whitelist do backend (bluelover.routes.ts): SVG fica de fora. */

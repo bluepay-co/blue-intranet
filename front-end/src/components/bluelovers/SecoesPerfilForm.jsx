@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import CampoImagem from '@/components/bluelovers/CampoImagem'
 import { IMAGENS_PERFIL, imagemDoBanco } from '@/components/bluelovers/imagem-utils'
-import { GOSTOS, LIMITES_GOSTO } from '@/components/bluelovers/gostos'
+import { GOSTOS, LIMITES_GOSTO, PERGUNTA_PERSONAGEM } from '@/components/bluelovers/gostos'
 import { editarPerfil, payloadDoPerfil, urlFoto } from '@/api/modules/bluelovers'
 
 const CLASSE_TEXTAREA =
@@ -41,6 +41,7 @@ export default function SecoesPerfilForm({ perfil, onSalvo }) {
   const [momentoMarcante, setMomentoMarcante] = useState(
     imagemDoBanco(perfil.momento_marcante_foto_url, urlFoto),
   )
+  const [personagem, setPersonagem] = useState(imagemDoBanco(perfil.personagem_foto_url, urlFoto))
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
   const [aviso, setAviso] = useState('')
@@ -76,6 +77,8 @@ export default function SecoesPerfilForm({ perfil, onSalvo }) {
         bluepay_pessoa_foto_url: bluepay.file ? undefined : bluepay.urlRaw,
         foto_momento_marcante: momentoMarcante.file || undefined,
         momento_marcante_foto_url: momentoMarcante.file ? undefined : momentoMarcante.urlRaw,
+        foto_personagem: personagem.file || undefined,
+        personagem_foto_url: personagem.file ? undefined : personagem.urlRaw,
       })
       setAviso('Seções salvas.')
       onSalvo?.()
@@ -93,7 +96,7 @@ export default function SecoesPerfilForm({ perfil, onSalvo }) {
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {GOSTOS.map(([campo, emoji, padrao, exemplo]) => (
+          {GOSTOS.map(([campo, emoji, padrao, exemplo, campoImagem]) => (
             <div key={campo} className="flex flex-col gap-1.5 rounded-lg border p-3">
               <div className="flex items-center gap-2">
                 <span className="text-xl">{emoji}</span>
@@ -113,6 +116,20 @@ export default function SecoesPerfilForm({ perfil, onSalvo }) {
                 maxLength={LIMITES_GOSTO[campo] ?? 120}
                 onChange={editar(campo)}
               />
+              {/* Único gosto com imagem: ela ocupa o lugar do emoji no perfil. */}
+              {campoImagem && (
+                <>
+                  <p className="text-xs text-muted-foreground">{PERGUNTA_PERSONAGEM}</p>
+                  <CampoImagem
+                    rotulo="Imagem do personagem"
+                    dica={IMAGENS_PERFIL.personagem.dica}
+                    aspecto={IMAGENS_PERFIL.personagem.aspecto}
+                    valor={personagem}
+                    onChange={setPersonagem}
+                    onErro={setErro}
+                  />
+                </>
+              )}
             </div>
           ))}
         </div>
