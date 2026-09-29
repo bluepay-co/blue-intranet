@@ -19,6 +19,7 @@ import {
   getComentarios,
   postComentario,
   deleteComentario,
+  getReacoesDoPost,
 } from '../controllers/blog.controller';
 
 const uploadDir = path.join(__dirname, '..', 'uploads', 'blog');
@@ -60,6 +61,7 @@ const adminRouter = Router();
 adminRouter.use(authMiddleware, roleMiddleware(Role.MARKETING, Role.DESENVOLVEDOR), sincronizarAposEscrita('blog'));
 
 adminRouter.get('/posts', getAdminPosts);
+adminRouter.get('/posts/:id/reacoes', getReacoesDoPost);
 adminRouter.post('/posts', upload.single('imagem'), postCriarPost);
 adminRouter.put('/posts/:id', upload.single('imagem'), putEditarPost);
 adminRouter.delete('/posts/:id', deletePost);

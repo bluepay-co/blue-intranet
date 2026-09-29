@@ -134,3 +134,14 @@ export async function comentar(postId, texto) {
 export async function apagarComentario(comentarioId) {
   await api.delete(`/api/blog/comentarios/${comentarioId}`)
 }
+
+/**
+ * Quem reagiu a um post — painel do Marketing (engajamento por pessoa e por setor).
+ * @param {number} postId
+ * @returns {Promise<Array<{ tipo: 'like'|'heart'|'aplauso'|'foguete', criado_em: string,
+ *                           usuario_nome: string, usuario_role: string }>>}
+ */
+export async function listarReacoesDoPost(postId) {
+  const { data } = await api.get(`/api/blog/admin/posts/${postId}/reacoes`)
+  return data.reacoes
+}

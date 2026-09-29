@@ -7,6 +7,7 @@ import type {
   BlogComentario,
   BlogPostFeed,
   BlogPostAdmin,
+  BlogReacaoDetalhe,
   ReacaoResult,
   TipoReacao,
 } from '../models/blog.model';
@@ -262,4 +263,22 @@ export async function apagarComentario(usuario: AuthPayload, idBruto: unknown): 
   }
   await pool.query('DELETE FROM blog_comentarios WHERE id = $1', [id]);
   sincronizarSalas([salaPostBlog(comentario.post_id)], 'blog_comentarios');
+}
+
+/* ---------- métricas (painel do Marketing) ---------- */
+
+/** Quem reagiu a um post (mais recente primeiro), com o cargo para o engajamento por setor. */
+export async function listarReacoesDoPost(postIdBruto: unknown): Promise<BlogReacaoDetalhe[]> {
+  const postId = idValido(postIdBruto, 'Post');
+  const { rowCount } = await pool.query('SELECT 1 FROM blog_posts WHERE id = $1', [postId]);
+  if (!rowCount) throw new AppError('Post não encontrado.', 404);
+  const { rows } = await pool.query<BlogReacaoDetalhe>(
+    `SELECT br.tipo, br.criado_em, u.nome AS usuario_nome, u.role AS usuario_role
+       FROM blog_reacoes br
+       JOIN usuarios u ON u.id = br.usuario_id
+      WHERE br.post_id = $1
+      ORDER BY br.criado_em DESC`,
+    [postId],
+  );
+  return rows;
 }

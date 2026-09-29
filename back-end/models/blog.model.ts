@@ -63,3 +63,11 @@ export interface BlogComentario {
   criado_em: Date;
   pode_apagar: boolean;
 }
+
+/** Reação individual para o painel de métricas do Marketing (quem reagiu e de qual setor). */
+export interface BlogReacaoDetalhe {
+  tipo: TipoReacao;
+  criado_em: Date;
+  usuario_nome: string;
+  usuario_role: string;
+}

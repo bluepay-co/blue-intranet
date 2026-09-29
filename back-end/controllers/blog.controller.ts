@@ -13,6 +13,7 @@ import {
   listarComentarios,
   comentarPost,
   apagarComentario,
+  listarReacoesDoPost,
 } from '../services/blog.service';
 
 /** GET /api/blog — Feed público de posts publicados. */
@@ -171,5 +172,15 @@ export async function deleteComentario(req: Request, res: Response) {
     return res.status(200).json({ message: 'Comentário removido.' });
   } catch (err) {
     return responderErro(res, err, 'deleteComentario', 'Erro interno ao remover o comentário.');
+  }
+}
+
+/** GET /api/blog/admin/posts/:id/reacoes — Quem reagiu ao post (painel do Marketing). */
+export async function getReacoesDoPost(req: Request, res: Response) {
+  try {
+    const reacoes = await listarReacoesDoPost(req.params.id);
+    return res.status(200).json({ reacoes });
+  } catch (err) {
+    return responderErro(res, err, 'getReacoesDoPost', 'Erro interno ao carregar as reações.');
   }
 }
