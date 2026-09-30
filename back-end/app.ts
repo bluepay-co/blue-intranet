@@ -8,22 +8,15 @@ import helmet from 'helmet';
 import multer from 'multer';
 import { router } from './routes/index';
 import { apiRateLimit } from './middleware/api-rate-limit.middleware';
+import { uploadsAuthMiddleware } from './middleware/uploads-auth.middleware';
 import { AppError } from './utils/app-error';
 
 dotenv.config();
 
 const app = express();
 
-// O nginx fica na frente da API: sem isso o Express vê só o IP do proxy e
-// todos os usuários compartilham o mesmo balde dos rate limiters.
 app.set('trust proxy', 1);
 
-/**
- * CORS: por padrão reflete a origem da requisição (mesmo comportamento de
- * sempre), preservando o front-end atual e futuros domínios (ex.: Vercel).
- * Definir CORS_ORIGINS (lista separada por vírgula) no .env restringe a
- * apenas essas origens — recomendado antes de expor o back-end publicamente.
- */
 const origensPermitidas = (process.env.CORS_ORIGINS ?? '')
   .split(',')
   .map((o) => o.trim())
@@ -31,31 +24,21 @@ const origensPermitidas = (process.env.CORS_ORIGINS ?? '')
 
 const corsOptions: CorsOptions = {
   origin: origensPermitidas.length > 0 ? origensPermitidas : true,
+  credentials: true,
 };
 
 app.use(helmet({
-  // API pura (JSON + uploads estáticos) consumida por um front-end em outra
-  // origem — o CSP/COEP padrão do helmet é para páginas HTML e quebraria o
-  // carregamento cross-origin de imagens de /uploads. Mantemos só os
-  // cabeçalhos de proteção relevantes para uma API.
+  // CSP do frontend fica no nginx; aqui só os headers relevantes para API.
   contentSecurityPolicy: false,
   crossOriginResourcePolicy: { policy: 'cross-origin' },
   crossOriginEmbedderPolicy: false,
 }));
 app.use(cors(corsOptions));
-
-// Rate limit global por usuário logado (ver middleware/api-rate-limit).
 app.use('/api', apiRateLimit);
-
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', uploadsAuthMiddleware, express.static(path.join(__dirname, 'uploads')));
 app.use(router);
 
-/**
- * Handler global de erro. Garante que erros lançados fora do try/catch dos
- * controllers (ex.: falhas do multer no middleware de upload) sempre retornem
- * JSON — e não o 500 em HTML padrão do Express, que o front não consegue ler.
- */
 const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   if (err instanceof multer.MulterError) {
     const msg = err.code === 'LIMIT_FILE_SIZE'

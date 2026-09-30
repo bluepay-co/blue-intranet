@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AuthContext } from './auth-context'
-import { TOKEN_KEY, SESSAO_EXPIRADA_EVENT } from '@/api/api'
+import { SESSAO_EXPIRADA_EVENT } from '@/api/api'
 import {
   loginComGoogle,
   buscarUsuarioLogado,
@@ -9,15 +9,6 @@ import {
 } from '@/api/modules/auth'
 import { ehRetornoGoogleForms } from './google-forms'
 
-/**
- * Provedor de autenticação. Faz o "bootstrap" da sessão ao carregar o app:
- *
- * 1. Se a URL trouxer `?code=` (retorno do Google), troca pelo JWT + usuário.
- * 2. Senão, se houver um JWT salvo, valida-o no backend (`/api/auth/me`).
- * 3. Caso contrário, segue deslogado.
- *
- * Expõe `{ usuario, carregando, erro, autenticado, logout }`.
- */
 export default function AuthProvider({ children }) {
   const [usuario, setUsuario] = useState(null)
   const [carregando, setCarregando] = useState(true)
@@ -26,16 +17,13 @@ export default function AuthProvider({ children }) {
   const iniciado = useRef(false)
 
   useEffect(() => {
-    // O StrictMode roda o effect 2x em dev; o code do Google é de uso único.
     if (iniciado.current) return
     iniciado.current = true
 
     const params = new URLSearchParams(window.location.search)
-    // Retorno do consentimento do Google Forms: a sessão continua a mesma.
     const retornoForms = ehRetornoGoogleForms(params)
     const code = retornoForms ? null : params.get('code')
 
-    // Navega antes do await: depois de setUsuario, a rota "/" venceria a transition do router.
     if (retornoForms) {
       navigate(`/marketing/formularios${window.location.search}`, { replace: true })
     }
@@ -48,19 +36,15 @@ export default function AuthProvider({ children }) {
         }
 
         if (code) {
-          const { token, usuario: logado } = await loginComGoogle(code)
-          localStorage.setItem(TOKEN_KEY, token)
+          const { usuario: logado } = await loginComGoogle(code)
           setUsuario(logado)
-          // Remove o ?code= da URL e leva para a home.
           navigate('/', { replace: true })
           return
         }
 
-        if (localStorage.getItem(TOKEN_KEY)) {
-          setUsuario(await buscarUsuarioLogado())
-        }
+        // Tenta restaurar sessão pelo cookie httpOnly (enviado automaticamente).
+        setUsuario(await buscarUsuarioLogado())
       } catch (e) {
-        console.error('[auth] falha ao iniciar a sessão:', e)
         limparSessao()
         setUsuario(null)
         if (code) {
@@ -81,17 +65,15 @@ export default function AuthProvider({ children }) {
     navigate('/login', { replace: true })
   }, [navigate])
 
-  // JWT expirado no meio do uso (interceptor do Axios): encerra a sessão, o
-  // que desmonta o layout e para todo o polling.
   useEffect(() => {
     function aoExpirar() {
-      if (!localStorage.getItem(TOKEN_KEY)) return
+      if (!usuario) return
       setErro('Sua sessão expirou. Entre novamente.')
       logout()
     }
     window.addEventListener(SESSAO_EXPIRADA_EVENT, aoExpirar)
     return () => window.removeEventListener(SESSAO_EXPIRADA_EVENT, aoExpirar)
-  }, [logout])
+  }, [logout, usuario])
 
   const valor = {
     usuario,
