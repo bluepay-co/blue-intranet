@@ -2,7 +2,7 @@ import api from '@/api/api'
 
 /**
  * Domínio: Agenda (Google Calendar do usuário logado).
- * Consome a instância central do Axios (o Bearer token é injetado por interceptor).
+ * Consome a instância central do Axios (cookie httpOnly).
  */
 
 /**

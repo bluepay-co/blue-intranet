@@ -1,17 +1,24 @@
 import type { Request, Response } from 'express';
 import { autenticarComGoogle, buscarUsuarioPorId } from '../services/auth.service';
 import { AppError } from '../utils/app-error';
+import { SESSION_COOKIE } from '../middleware/auth-constants';
 
-/**
- * POST /api/auth/google
- * Recebe `{ code }` do Frontend, delega ao service e devolve `{ token, usuario }`.
- * Sem lógica de negócio: apenas orquestra requisição/resposta e mapeia erros.
- */
 export async function loginGoogle(req: Request, res: Response) {
   try {
     const { code } = req.body as { code?: string };
-    const result = await autenticarComGoogle(code ?? '');
-    return res.status(200).json(result);
+    const { token, usuario } = await autenticarComGoogle(code ?? '');
+
+    const isProducao = process.env.NODE_ENV === 'production';
+    res.cookie(SESSION_COOKIE, token, {
+      httpOnly: true,
+      secure: isProducao,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 8 * 60 * 60 * 1000,
+    });
+    res.clearCookie(SESSION_COOKIE, { path: '/uploads' });
+
+    return res.status(200).json({ usuario });
   } catch (err) {
     if (err instanceof AppError) {
       return res.status(err.statusCode).json({ message: err.message });
@@ -21,11 +28,12 @@ export async function loginGoogle(req: Request, res: Response) {
   }
 }
 
-/**
- * GET /api/auth/me  (protegida por authMiddleware)
- * Devolve os dados públicos do usuário do JWT — usada pelo Frontend para
- * restaurar/validar a sessão e montar a navegação por cargo (RBAC).
- */
+export function logout(_req: Request, res: Response) {
+  res.clearCookie(SESSION_COOKIE, { path: '/' });
+  res.clearCookie(SESSION_COOKIE, { path: '/uploads' });
+  return res.status(200).json({ message: 'Sessão encerrada.' });
+}
+
 export async function me(req: Request, res: Response) {
   try {
     if (!req.usuario) {

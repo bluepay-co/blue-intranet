@@ -10,8 +10,6 @@ const PORT = process.env.PORT || 3000;
 
 const httpServer = http.createServer(app);
 
-// Socket.IO — chat em tempo real. `origin: true` reflete a origem da requisição,
-// mantendo o mesmo comportamento aberto do CORS do Express (app.ts).
 const io = new Server(httpServer, {
   cors: { origin: true, credentials: true },
 });

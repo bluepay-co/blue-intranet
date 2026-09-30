@@ -2,6 +2,7 @@ import { google } from 'googleapis';
 import jwt from 'jsonwebtoken';
 import type { SignOptions } from 'jsonwebtoken';
 import { pool } from '../database/pool';
+import { JWT_ALGORITHM } from '../middleware/auth-constants';
 import { Role } from '../models/usuario.model';
 import type { UsuarioPublico } from '../models/usuario.model';
 import { AppError } from '../utils/app-error';
@@ -11,7 +12,6 @@ interface LoginResult {
   usuario: UsuarioPublico;
 }
 
-/** Cliente OAuth2 do Google reutilizado nas trocas de código por tokens. */
 function criarOAuthClient() {
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
@@ -20,19 +20,6 @@ function criarOAuthClient() {
   );
 }
 
-/**
- * Fluxo completo de login via Google Workspace.
- *
- * 1. Troca o `code` do OAuth2 pelos tokens do Google.
- * 2. Busca o perfil (nome/e-mail) do usuário.
- * 3. Valida ESTRITAMENTE se o e-mail pertence ao domínio corporativo.
- * 4. Faz upsert do usuário no banco `intranet_dev` (preserva role e refresh_token).
- * 5. Gera o JWT da sessão.
- *
- * @param code Código de autorização OAuth2 enviado pelo Frontend.
- * @returns `{ token, usuario }` — JWT e dados públicos do usuário.
- * @throws {AppError} 400 código ausente, 401 falha na troca, 403 domínio inválido.
- */
 export async function autenticarComGoogle(code: string): Promise<LoginResult> {
   if (!code || typeof code !== 'string' || code.trim().length === 0) {
     throw new AppError('Código de autorização ausente ou inválido.', 400);
@@ -40,7 +27,6 @@ export async function autenticarComGoogle(code: string): Promise<LoginResult> {
 
   const oauthClient = criarOAuthClient();
 
-  // 1. Troca code -> tokens
   let accessToken: string | null;
   let refreshToken: string | null;
   try {
@@ -52,7 +38,6 @@ export async function autenticarComGoogle(code: string): Promise<LoginResult> {
     throw new AppError('Falha ao validar o código junto ao Google.', 401);
   }
 
-  // 2. Perfil do usuário
   const oauth2 = google.oauth2({ version: 'v2', auth: oauthClient });
   const { data } = await oauth2.userinfo.get();
 
@@ -63,7 +48,6 @@ export async function autenticarComGoogle(code: string): Promise<LoginResult> {
     throw new AppError('Não foi possível obter o perfil do usuário no Google.', 401);
   }
 
-  // 3. Validação estrita de domínio corporativo
   const dominio = (process.env.CORPORATE_DOMAIN ?? '').trim().toLowerCase();
   if (!dominio) {
     throw new AppError('Domínio corporativo não configurado no servidor.', 500);
@@ -72,9 +56,7 @@ export async function autenticarComGoogle(code: string): Promise<LoginResult> {
     throw new AppError('E-mail fora do domínio corporativo autorizado.', 403);
   }
 
-  // 4. Upsert: novos usuários nascem como COLABORADOR; em conflito NÃO sobrescreve
-  //    o cargo (definido pela TI) e preserva o refresh_token quando o Google não
-  //    devolve um novo (só vem no primeiro consentimento).
+  // Upsert: preserva role (definido pela TI) e refresh_token existente.
   const { rows } = await pool.query<UsuarioPublico & { bloqueado: boolean }>(
     `INSERT INTO usuarios (nome, email, role, google_access_token, google_refresh_token)
      VALUES ($1, $2, $3, $4, $5)
@@ -92,20 +74,19 @@ export async function autenticarComGoogle(code: string): Promise<LoginResult> {
     throw new AppError('Falha ao persistir o usuário.', 500);
   }
 
-  // Bloqueio pela T.I: mesmo com e-mail corporativo válido, o acesso é negado.
   if (registro.bloqueado) {
     throw new AppError('Seu acesso à intranet foi bloqueado. Procure a equipe de T.I.', 403);
   }
 
   const { bloqueado: _bloqueado, ...usuario } = registro;
 
-  // 5. JWT da sessão
   const secret = process.env.JWT_SECRET;
   if (!secret) {
     throw new AppError('Segredo JWT não configurado no servidor.', 500);
   }
 
   const options: SignOptions = {
+    algorithm: JWT_ALGORITHM,
     expiresIn: (process.env.JWT_EXPIRES_IN ?? '8h') as NonNullable<SignOptions['expiresIn']>,
   };
   const token = jwt.sign(
@@ -117,14 +98,6 @@ export async function autenticarComGoogle(code: string): Promise<LoginResult> {
   return { token, usuario };
 }
 
-/**
- * Busca os dados públicos de um usuário pelo id (usado para restaurar a sessão
- * a partir do JWT). Não expõe os tokens do Google.
- *
- * @param id Identificador do usuário (vindo do payload do JWT).
- * @returns Dados públicos do usuário.
- * @throws {AppError} 404 quando o usuário não existe mais no banco.
- */
 export async function buscarUsuarioPorId(id: number): Promise<UsuarioPublico> {
   const { rows } = await pool.query<UsuarioPublico & { bloqueado: boolean }>(
     `SELECT id, nome, email, role, bloqueado FROM usuarios WHERE id = $1`,
@@ -136,7 +109,6 @@ export async function buscarUsuarioPorId(id: number): Promise<UsuarioPublico> {
     throw new AppError('Usuário não encontrado.', 404);
   }
 
-  // Usuário bloqueado depois de logado perde a sessão na próxima validação.
   if (registro.bloqueado) {
     throw new AppError('Seu acesso à intranet foi bloqueado. Procure a equipe de T.I.', 403);
   }

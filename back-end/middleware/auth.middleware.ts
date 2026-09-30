@@ -1,8 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { Role } from '../models/usuario.model';
+import { JWT_ALGORITHM, SESSION_COOKIE } from './auth-constants';
 
-/** Conteúdo assinado dentro do JWT da sessão. */
 export interface AuthPayload {
   id: number;
   email: string;
@@ -13,41 +13,46 @@ declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
-      /** Usuário autenticado, populado pelo authMiddleware. */
       usuario?: AuthPayload;
     }
   }
 }
 
-/**
- * Código dos 401 de sessão da intranet (JWT ausente/inválido/expirado). O
- * front-end desloga só com este código — outros 401 (ex.: sessão do Google
- * expirada na Agenda) não derrubam a sessão da intranet.
- */
+// Só este código faz o front deslogar — outros 401 não derrubam a sessão.
 export const CODIGO_SESSAO_INVALIDA = 'SESSAO_INVALIDA';
 
-/**
- * Valida o JWT do header Authorization (`Bearer <token>`) e injeta o usuário
- * autenticado em `req.usuario`. Responde 401 quando ausente/ inválido/ expirado.
- */
+const VERIFY_OPTS = { algorithms: [JWT_ALGORITHM] as [typeof JWT_ALGORITHM] };
+
+function lerCookie(req: Request, nome: string): string | undefined {
+  const raw = req.headers.cookie;
+  if (!raw) return undefined;
+  const par = raw.split(';').find((c) => c.trim().startsWith(`${nome}=`));
+  return par?.split('=').slice(1).join('=').trim();
+}
+
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
-  const header = req.headers.authorization;
-
-  if (!header || !header.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'Token de autenticação não fornecido.', codigo: CODIGO_SESSAO_INVALIDA });
-  }
-
-  const token = header.slice(7).trim();
   const secret = process.env.JWT_SECRET;
-
   if (!secret) {
     return res.status(500).json({ message: 'Configuração de autenticação ausente no servidor.' });
   }
 
-  try {
-    req.usuario = jwt.verify(token, secret) as AuthPayload;
-    return next();
-  } catch {
-    return res.status(401).json({ message: 'Token inválido ou expirado.', codigo: CODIGO_SESSAO_INVALIDA });
+  // 1. Header Authorization (compatibilidade com chamadas programáticas)
+  const header = req.headers.authorization;
+  if (header?.startsWith('Bearer ')) {
+    try {
+      req.usuario = jwt.verify(header.slice(7).trim(), secret, VERIFY_OPTS) as AuthPayload;
+      return next();
+    } catch { /* cai pro cookie */ }
   }
+
+  // 2. Cookie httpOnly (navegador — padrão principal)
+  const cookieToken = lerCookie(req, SESSION_COOKIE);
+  if (cookieToken) {
+    try {
+      req.usuario = jwt.verify(cookieToken, secret, VERIFY_OPTS) as AuthPayload;
+      return next();
+    } catch { /* expirado/inválido */ }
+  }
+
+  return res.status(401).json({ message: 'Token de autenticação não fornecido.', codigo: CODIGO_SESSAO_INVALIDA });
 }
