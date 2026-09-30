@@ -2,7 +2,7 @@ import api from '@/api/api'
 
 /**
  * Domínio: Tarefas (Google Tasks do usuário logado).
- * Consome a instância central do Axios (Bearer token via interceptor).
+ * Consome a instância central do Axios (cookie httpOnly).
  */
 
 /**
