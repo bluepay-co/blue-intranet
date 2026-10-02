@@ -9,6 +9,15 @@
 #  Uso: docker compose up -d --build
 # ============================================================================
 
+# Rotação de log de todos os containers. O driver json-file do Docker é
+# ilimitado por padrão: sem isto, o stdout de cada container cresce para
+# sempre em /var/lib/docker/containers e enche o disco da VM.
+x-log: &log
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   # ════════════════════════════════════════════════════════════════════════
   #  APLICAÇÃO (existentes — não mexer sem necessidade)
@@ -17,6 +26,7 @@ services:
   db:
     image: postgres:18
     restart: unless-stopped
+    logging: *log
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -39,6 +49,7 @@ services:
   backend:
     build: ./back-end
     restart: unless-stopped
+    logging: *log
     env_file:
       - ./back-end/.env
     environment:
@@ -62,6 +73,7 @@ services:
         VITE_CORPORATE_DOMAIN: ${VITE_CORPORATE_DOMAIN}
         VITE_POWERBI_EMBED_URL: ${VITE_POWERBI_EMBED_URL}
     restart: unless-stopped
+    logging: *log
     ports:
       - "80:80"
       - "443:443"
@@ -79,13 +91,16 @@ services:
   prometheus:
     image: prom/prometheus:latest
     restart: unless-stopped
+    logging: *log
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
-      - "--storage.tsdb.retention.time=30d"
+      # 15d alinhado ao Loki: 30d de métricas do cAdvisor pesavam no disco.
+      - "--storage.tsdb.retention.time=15d"
+      - "--storage.tsdb.retention.size=2GB"
       - "--web.console.libraries=/etc/prometheus/console_libraries"
       - "--web.console.templates=/etc/prometheus/consoles"
 
@@ -93,6 +108,7 @@ services:
   grafana:
     image: grafana/grafana:latest
     restart: unless-stopped
+    logging: *log
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_INSTALL_PLUGINS: grafana-clock-panel
@@ -109,6 +125,7 @@ services:
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
     restart: unless-stopped
+    logging: *log
     privileged: true
     volumes:
       - /:/rootfs:ro
@@ -121,6 +138,7 @@ services:
   node-exporter:
     image: prom/node-exporter:latest
     restart: unless-stopped
+    logging: *log
     pid: host
     volumes:
       - /proc:/host/proc:ro
@@ -136,6 +154,7 @@ services:
   postgres-exporter-local:
     image: prometheuscommunity/postgres-exporter:latest
     restart: unless-stopped
+    logging: *log
     environment:
       DATA_SOURCE_NAME: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}?sslmode=disable"
     depends_on:
@@ -146,6 +165,7 @@ services:
   postgres-exporter-prod:
     image: prometheuscommunity/postgres-exporter:latest
     restart: unless-stopped
+    logging: *log
     environment:
       DATA_SOURCE_URI: "${CONSULTA_DB_HOST}:${CONSULTA_DB_PORT}/${CONSULTA_DB_NAME}?sslmode=require"
       DATA_SOURCE_USER: "${CONSULTA_DB_USER}"
@@ -157,6 +177,7 @@ services:
   nginx-exporter:
     image: nginx/nginx-prometheus-exporter:latest
     restart: unless-stopped
+    logging: *log
     command:
       - "--nginx.scrape-uri=http://frontend:8080/nginx_status"
     depends_on:
@@ -166,6 +187,7 @@ services:
   loki:
     image: grafana/loki:latest
     restart: unless-stopped
+    logging: *log
     volumes:
       - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
       - loki_data:/loki
@@ -175,6 +197,7 @@ services:
   promtail:
     image: grafana/promtail:latest
     restart: unless-stopped
+    logging: *log
     volumes:
       - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro

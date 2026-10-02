@@ -64,7 +64,7 @@
     {
       "id": 2,
       "title": "Requisições na API",
-      "description": "Só /api/. O tráfego do próprio Grafana, dos arquivos do site, uploads e socket não entra nesta conta.",
+      "description": "Só /api/. Arquivos do site, uploads e socket não entram; o tráfego do próprio Grafana nem chega a ser gravado.",
       "type": "stat",
       "datasource": {
         "type": "loki",
@@ -72,7 +72,7 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 5,
+        "w": 4,
         "x": 0,
         "y": 1
       },
@@ -122,8 +122,8 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 5,
-        "x": 5,
+        "w": 4,
+        "x": 4,
         "y": 1
       },
       "targets": [
@@ -173,7 +173,7 @@
       "gridPos": {
         "h": 5,
         "w": 4,
-        "x": 10,
+        "x": 8,
         "y": 1
       },
       "targets": [
@@ -222,8 +222,8 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 5,
-        "x": 14,
+        "w": 4,
+        "x": 12,
         "y": 1
       },
       "targets": [
@@ -274,8 +274,8 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 5,
-        "x": 19,
+        "w": 4,
+        "x": 16,
         "y": 1
       },
       "targets": [
@@ -315,6 +315,56 @@
     },
     {
       "id": 7,
+      "title": "Requisições do Grafana",
+      "description": "Volume que o próprio Grafana gerou no período. As linhas são descartadas no Promtail para poupar disco — só o contador é mantido.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(logentry_dropped_lines_total{reason=\"trafego_grafana\"}[$__range]))",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
       "type": "row",
       "title": "De onde vem o tráfego",
       "collapsed": false,
@@ -327,9 +377,9 @@
       }
     },
     {
-      "id": 8,
+      "id": 9,
       "title": "Tráfego por área",
-      "description": "Separa o que é API, o próprio Grafana, arquivos do site, uploads e socket. Use para saber quanto do volume é monitoramento e não uso real.",
+      "description": "Separa API, arquivos do site, uploads e socket. O tráfego do Grafana não aparece aqui: é descartado no Promtail e contado no painel ao lado.",
       "type": "timeseries",
       "datasource": {
         "type": "loki",
@@ -378,7 +428,7 @@
       }
     },
     {
-      "id": 9,
+      "id": 10,
       "title": "Status codes da API",
       "description": "Distribuição de status só nas rotas /api/.",
       "type": "timeseries",
@@ -490,7 +540,7 @@
       }
     },
     {
-      "id": 10,
+      "id": 11,
       "type": "row",
       "title": "Quem está usando a intranet",
       "collapsed": false,
@@ -503,7 +553,7 @@
       }
     },
     {
-      "id": 11,
+      "id": 12,
       "title": "Usuários ativos",
       "description": "Quem fez requisições no período, com o cargo. Vem do log do back-end (JWT), por isso mostra a pessoa e não só o IP.",
       "type": "table",
@@ -554,7 +604,7 @@
       ]
     },
     {
-      "id": 12,
+      "id": 13,
       "title": "IPs conectados",
       "description": "IP real de cada acesso (vem do CF-Connecting-IP do Cloudflare). Linha sem usuário = requisição não autenticada (login, arquivos).",
       "type": "table",
@@ -605,7 +655,7 @@
       ]
     },
     {
-      "id": 13,
+      "id": 14,
       "type": "row",
       "title": "Falhas do back-end — o que quebrou e por quê",
       "collapsed": false,
@@ -618,7 +668,7 @@
       }
     },
     {
-      "id": 14,
+      "id": 15,
       "title": "Falhas por rota",
       "description": "Agrupa rota + status + motivo. O motivo vem do erro lançado no back-end (AppError), não só do código HTTP.",
       "type": "table",
@@ -670,7 +720,7 @@
       ]
     },
     {
-      "id": 15,
+      "id": 16,
       "title": "Últimas falhas",
       "description": "Linha a linha, com usuário e motivo. Clique para abrir todos os campos.",
       "type": "logs",
@@ -702,7 +752,7 @@
       }
     },
     {
-      "id": 16,
+      "id": 17,
       "title": "Erros não tratados (com stack)",
       "description": "Exceções inesperadas (500). Aqui aparece o stack trace completo — abra a linha para ver.",
       "type": "logs",
@@ -734,7 +784,7 @@
       }
     },
     {
-      "id": 17,
+      "id": 18,
       "type": "row",
       "title": "Desempenho das rotas",
       "collapsed": false,
@@ -747,7 +797,7 @@
       }
     },
     {
-      "id": 18,
+      "id": 19,
       "title": "Rotas mais chamadas",
       "description": "Rota já normalizada: /api/chamados/42 e /api/chamados/99 contam como /api/chamados/:id, e a query string é ignorada.",
       "type": "table",
@@ -797,7 +847,7 @@
       ]
     },
     {
-      "id": 19,
+      "id": 20,
       "title": "Rotas mais lentas",
       "description": "Tempo médio de processamento no back-end, por rota.",
       "type": "table",
@@ -849,7 +899,7 @@
       ]
     },
     {
-      "id": 20,
+      "id": 21,
       "title": "Requisições acima de 1s",
       "description": "Candidatas a otimização (query pesada, API externa lenta).",
       "type": "logs",
@@ -881,7 +931,7 @@
       }
     },
     {
-      "id": 21,
+      "id": 22,
       "type": "row",
       "title": "Busca livre nos logs",
       "collapsed": false,
@@ -894,7 +944,7 @@
       }
     },
     {
-      "id": 22,
+      "id": 23,
       "title": "Logs por serviço",
       "description": "Use os campos Serviço e Buscar no topo do dashboard.",
       "type": "logs",
