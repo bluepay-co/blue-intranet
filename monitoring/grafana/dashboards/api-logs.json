@@ -1,0 +1,929 @@
+{
+  "title": "API & Logs — Blue Intranet",
+  "uid": "blue-api-logs",
+  "schemaVersion": 39,
+  "editable": true,
+  "tags": [
+    "blue-intranet",
+    "api",
+    "logs"
+  ],
+  "timezone": "browser",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "refresh": "1m",
+  "annotations": {
+    "list": []
+  },
+  "links": [],
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "version": 0,
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "label": "Serviço",
+        "type": "custom",
+        "query": "frontend,backend,db,grafana,prometheus,loki",
+        "current": {
+          "text": "backend",
+          "value": "backend"
+        },
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": false
+      },
+      {
+        "name": "search",
+        "label": "Buscar",
+        "type": "textbox",
+        "current": {
+          "text": "",
+          "value": ""
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Visão geral da API (tráfego do Grafana e do site ficam de fora)",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": 2,
+      "title": "Requisições na API",
+      "description": "Só /api/. O tráfego do próprio Grafana, dos arquivos do site, uploads e socket não entra nesta conta.",
+      "type": "stat",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 0,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "sum(count_over_time({service=\"frontend\", area=\"api\"} [$__range]))",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "title": "Erros 4xx",
+      "description": "Requisições recusadas (validação, permissão, não encontrado). Veja o motivo em 'Falhas do back-end'.",
+      "type": "stat",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 5,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "sum(count_over_time({service=\"frontend\", area=\"api\", status=~\"4..\"} [$__range]))",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "orange",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "title": "Erros 5xx",
+      "description": "Falhas do servidor. Deve ficar em zero.",
+      "type": "stat",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 10,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "sum(count_over_time({service=\"frontend\", area=\"api\", status=~\"5..\"} [$__range]))",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "title": "Tempo médio de resposta",
+      "description": "Média real do período (soma dos tempos ÷ nº de requisições da API).",
+      "type": "stat",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 14,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "sum(sum_over_time({service=\"frontend\", area=\"api\"} | json | __error__=\"\" | unwrap request_time [$__range])) / sum(count_over_time({service=\"frontend\", area=\"api\"} | json | __error__=\"\" [$__range]))",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s",
+          "decimals": 3
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "title": "Usuários ativos (5 min)",
+      "description": "Pessoas distintas que fizeram alguma requisição autenticada nos últimos 5 minutos.",
+      "type": "stat",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 19,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "count(sum by (usuario) (count_over_time({service=\"backend\", evento=\"requisicao\"} | json | usuario != \"\" [5m])))",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "purple",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "type": "row",
+      "title": "De onde vem o tráfego",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 6
+      }
+    },
+    {
+      "id": 8,
+      "title": "Tráfego por área",
+      "description": "Separa o que é API, o próprio Grafana, arquivos do site, uploads e socket. Use para saber quanto do volume é monitoramento e não uso real.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 7
+      },
+      "targets": [
+        {
+          "expr": "sum by (area) (count_over_time({service=\"frontend\"} [$__interval]))",
+          "legendFormat": "{{area}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "sum"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineWidth": 0,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 9,
+      "title": "Status codes da API",
+      "description": "Distribuição de status só nas rotas /api/.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 7
+      },
+      "targets": [
+        {
+          "expr": "sum by (status) (count_over_time({service=\"frontend\", area=\"api\"} [$__interval]))",
+          "legendFormat": "HTTP {{status}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "sum"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineWidth": 0,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "HTTP 2.."
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "HTTP 3.."
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "HTTP 4.."
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "HTTP 5.."
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 10,
+      "type": "row",
+      "title": "Quem está usando a intranet",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      }
+    },
+    {
+      "id": 11,
+      "title": "Usuários ativos",
+      "description": "Quem fez requisições no período, com o cargo. Vem do log do back-end (JWT), por isso mostra a pessoa e não só o IP.",
+      "type": "table",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "targets": [
+        {
+          "expr": "topk(25, sum by (usuario, cargo) (count_over_time({service=\"backend\", evento=\"requisicao\"} | json | usuario != \"\" [$__range])))",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Requisições",
+            "desc": true
+          }
+        ]
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "usuario": "Usuário",
+              "cargo": "Cargo",
+              "Value": "Requisições"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "IPs conectados",
+      "description": "IP real de cada acesso (vem do CF-Connecting-IP do Cloudflare). Linha sem usuário = requisição não autenticada (login, arquivos).",
+      "type": "table",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "targets": [
+        {
+          "expr": "topk(25, sum by (ip, usuario) (count_over_time({service=\"backend\", evento=\"requisicao\"} | json | ip != \"\" [$__range])))",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Requisições",
+            "desc": true
+          }
+        ]
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "ip": "IP",
+              "usuario": "Usuário",
+              "Value": "Requisições"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "row",
+      "title": "Falhas do back-end — o que quebrou e por quê",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 25
+      }
+    },
+    {
+      "id": 14,
+      "title": "Falhas por rota",
+      "description": "Agrupa rota + status + motivo. O motivo vem do erro lançado no back-end (AppError), não só do código HTTP.",
+      "type": "table",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
+      "targets": [
+        {
+          "expr": "topk(20, sum by (rota, status, erro) (count_over_time({service=\"backend\", evento=\"requisicao\", nivel=~\"warn|error\"} | json [$__range])))",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Ocorrências",
+            "desc": true
+          }
+        ]
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "rota": "Rota",
+              "status": "Status",
+              "erro": "Motivo",
+              "Value": "Ocorrências"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "title": "Últimas falhas",
+      "description": "Linha a linha, com usuário e motivo. Clique para abrir todos os campos.",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 35
+      },
+      "targets": [
+        {
+          "expr": "{service=\"backend\", evento=\"requisicao\", nivel=~\"warn|error\"} | json | line_format \"{{.status}} {{.metodo}} {{.rota}} — {{.erro}} | {{.usuario}} ({{.ip}})\"",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    },
+    {
+      "id": 16,
+      "title": "Erros não tratados (com stack)",
+      "description": "Exceções inesperadas (500). Aqui aparece o stack trace completo — abra a linha para ver.",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 45
+      },
+      "targets": [
+        {
+          "expr": "{service=\"backend\", evento=\"erro_nao_tratado\"} | json | line_format \"{{.erro}}\"",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    },
+    {
+      "id": 17,
+      "type": "row",
+      "title": "Desempenho das rotas",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 53
+      }
+    },
+    {
+      "id": 18,
+      "title": "Rotas mais chamadas",
+      "description": "Rota já normalizada: /api/chamados/42 e /api/chamados/99 contam como /api/chamados/:id, e a query string é ignorada.",
+      "type": "table",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 54
+      },
+      "targets": [
+        {
+          "expr": "topk(15, sum by (rota) (count_over_time({service=\"backend\", evento=\"requisicao\"} | json [$__range])))",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Requisições",
+            "desc": true
+          }
+        ]
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "rota": "Rota",
+              "Value": "Requisições"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "title": "Rotas mais lentas",
+      "description": "Tempo médio de processamento no back-end, por rota.",
+      "type": "table",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 54
+      },
+      "targets": [
+        {
+          "expr": "topk(15, avg by (rota) (avg_over_time({service=\"backend\", evento=\"requisicao\"} | json | unwrap duracao_ms [$__range])))",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Média (ms)",
+            "desc": true
+          }
+        ]
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "rota": "Rota",
+              "Value": "Média (ms)"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "title": "Requisições acima de 1s",
+      "description": "Candidatas a otimização (query pesada, API externa lenta).",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 63
+      },
+      "targets": [
+        {
+          "expr": "{service=\"backend\", evento=\"requisicao\"} | json | duracao_ms > 1000 | line_format \"{{.duracao_ms}}ms | {{.metodo}} {{.rota}} | {{.usuario}}\"",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    },
+    {
+      "id": 21,
+      "type": "row",
+      "title": "Busca livre nos logs",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 71
+      }
+    },
+    {
+      "id": 22,
+      "title": "Logs por serviço",
+      "description": "Use os campos Serviço e Buscar no topo do dashboard.",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 72
+      },
+      "targets": [
+        {
+          "expr": "{service=~\"$service\"} |= `$search`",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    }
+  ]
+}
