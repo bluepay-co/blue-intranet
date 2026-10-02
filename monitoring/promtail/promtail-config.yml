@@ -26,8 +26,7 @@ scrape_configs:
       - source_labels: ["__meta_docker_container_label_com_docker_compose_project"]
         target_label: "project"
     pipeline_stages:
-      # ── Nginx JSON logs: parseia campos individuais ──────────────────────
-      # Se a linha começa com {, tenta parsear como JSON do Nginx
+      # ── Nginx (JSON): parseia campos e classifica o tráfego por área ─────
       - match:
           selector: '{service="frontend"}'
           stages:
@@ -40,14 +39,49 @@ scrape_configs:
                   body_bytes_sent: body_bytes_sent
                   request_time: request_time
                   http_user_agent: http_user_agent
+            # O mesmo nginx serve a intranet E o Grafana. Sem separar, as
+            # consultas do próprio Grafana entram na estatística da API e
+            # distorcem o "top rotas"/"total de requisições".
+            - template:
+                source: area
+                template: '{{ if hasPrefix "/grafana" .request_uri }}grafana{{ else if hasPrefix "/api/" .request_uri }}api{{ else if hasPrefix "/socket.io" .request_uri }}socket{{ else if hasPrefix "/uploads/" .request_uri }}uploads{{ else }}site{{ end }}'
+            # `remote_addr` NÃO vira label: cada IP criaria um stream novo no
+            # índice do Loki. Continua na linha, extraído na query com `| json`.
             - labels:
-                remote_addr:
+                area:
                 request_method:
                 status:
+      # O próprio Grafana era a maior parte do volume de log e não diz nada
+      # sobre o uso da intranet. As linhas são descartadas (disco da VM), mas
+      # o contador logentry_dropped_lines_total segue no /metrics do promtail.
+      - match:
+          selector: '{service="frontend", area="grafana"}'
+          action: drop
+          drop_counter_reason: trafego_grafana
+
+      # ── Back-end (JSON estruturado de utils/log.ts) ──────────────────────
+      - match:
+          selector: '{service="backend"} |= "\"evento\":"'
+          stages:
+            - json:
+                expressions:
+                  nivel: nivel
+                  evento: evento
+            - labels:
+                nivel:
+                evento:
+      # Linhas soltas do back-end (libs, console.log antigo): detecta o nível
+      - match:
+          selector: '{service="backend"} != "\"evento\":"'
+          stages:
+            - regex:
+                expression: '(?i)(?P<nivel>error|warn|info|debug)'
+            - labels:
+                nivel:
 
       # ── Demais containers: detecta nível de log nos logs brutos ──────────
       - match:
-          selector: '{service!="frontend"}'
+          selector: '{service!="frontend", service!="backend"}'
           stages:
             - regex:
                 expression: '(?i)(?P<level>error|warn|info|debug)'

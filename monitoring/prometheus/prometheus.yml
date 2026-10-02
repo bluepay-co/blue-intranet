@@ -49,3 +49,10 @@ scrape_configs:
       - targets: ["nginx-exporter:9113"]
         labels:
           instance: "frontend-nginx"
+
+  # ── Promtail — saúde da coleta e contagem de linhas descartadas ────────
+  - job_name: "promtail"
+    static_configs:
+      - targets: ["promtail:9080"]
+        labels:
+          instance: "vm-intranet"
