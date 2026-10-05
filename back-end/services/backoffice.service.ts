@@ -1,6 +1,6 @@
 import { pool } from '../database/pool';
 import { AppError } from '../utils/app-error';
-import { boGet, boPost, boPatch, boUpload } from './backoffice-client';
+import { boGet, boGetCache, boPost, boPatch, boUpload, invalidarCache } from './backoffice-client';
 import type {
   ChamadoLista, ChamadoDetalhe, ComentarioPublico, ChamadoResumo, DashboardTI,
 } from '../models/chamado.model';
@@ -15,9 +15,16 @@ import type {
 const AREA_INFRA = 7;
 const CATEGORIA_CATEGORY_ID = 2;
 
-const PRIORIDADE_POR_CRIT: Record<string, string> = { BAIXO: 'low', MEDIO: 'medium', ALTO: 'high', CRITICO: 'critical' };
-const CRIT_POR_PRIORIDADE: Record<string, string> = { low: 'BAIXO', medium: 'MEDIO', high: 'ALTO', critical: 'CRITICO' };
-const SLA_HORAS: Record<string, number> = { low: 24, medium: 8, high: 4, critical: 2 };
+const PATH_TICKETS = '/tickets';
+/** Cache da coleção: curto o bastante para parecer tempo real, longo o bastante
+ *  para a notificação de todas as abas custar uma requisição externa. */
+const TTL_COLECAO_MS = 30_000;
+/** Ticket avulso (só o fallback de quem não veio na coleção). */
+const TTL_TICKET_MS = 60_000;
+
+const PRIORIDADE_POR_CRIT: Record<string, string> = { BAIXO: 'low', MEDIO: 'medium', ALTO: 'high', CRITICO: 'critical', URGENTE: 'urgent' };
+const CRIT_POR_PRIORIDADE: Record<string, string> = { low: 'BAIXO', medium: 'MEDIO', high: 'ALTO', critical: 'CRITICO', urgent: 'URGENTE' };
+const SLA_HORAS: Record<string, number> = { low: 24, medium: 8, high: 4, critical: 2, urgent: 1 };
 const STATUS_BO_PARA_NOSSO: Record<string, string> = {
   open: 'ABERTO', pending: 'ABERTO',
   in_progress: 'EM_ANDAMENTO', in_tests: 'EM_ANDAMENTO', waiting_tests: 'EM_ANDAMENTO',
@@ -45,6 +52,35 @@ function htmlParaTexto(html: string): string {
     .replace(/\n{3,}/g, '\n\n').trim();
 }
 function ymd(d: Date): string { return d.toISOString().slice(0, 10); }
+/** Data+hora ISO para campos de prazo: `ymd` zeraria o horário em 00:00. */
+function iso(d: Date): string { return d.toISOString(); }
+/**
+ * Coleção de tickets da área de infra, do cache compartilhado.
+ * TODA leitura em lote passa por aqui: antes cada rota fazia uma requisição
+ * externa por ticket (N+1), o que inundava o backoffice a cada poll.
+ */
+async function ticketsInfra(): Promise<any[]> {
+  const all = await boGetCache<any[]>(PATH_TICKETS, TTL_COLECAO_MS);
+  return (all ?? []).filter((t) => t.requester_area_id === AREA_INFRA);
+}
+
+/**
+ * Resolve os tickets do usuário a partir da coleção cacheada. Só busca avulso
+ * (também cacheado) o que não vier na coleção — ela pode ser paginada pelo
+ * backoffice, e um chamado antigo não pode desaparecer da lista do dono.
+ */
+async function ticketsPorIds(ids: number[]): Promise<any[]> {
+  if (!ids.length) return [];
+  const colecao = new Map<number, any>((await ticketsInfra()).map((t) => [t.id, t]));
+  const achados = ids.map((id) => colecao.get(id)).filter(Boolean);
+  const faltando = ids.filter((id) => !colecao.has(id));
+  if (!faltando.length) return achados;
+  const avulsos = await Promise.all(
+    faltando.map((id) => boGetCache<any>(`${PATH_TICKETS}/${id}`, TTL_TICKET_MS).catch(() => null)),
+  );
+  return [...achados, ...avulsos.filter(Boolean)];
+}
+
 function validarId(id: unknown): number {
   const n = Number(id);
   if (!Number.isInteger(n) || n <= 0) throw new AppError('Identificador de chamado inválido.', 400);
@@ -148,7 +184,9 @@ export async function criarChamado(
     area_id: AREA_INFRA, requester_area_id: AREA_INFRA, assignee_area_id: AREA_INFRA,
     ticket_category_id: CATEGORIA_CATEGORY_ID,
     priority, title: titulo, description: descHtml,
-    start_date: ymd(hoje), due_date: ymd(due),
+    // start_date fica null: no backoffice a data de início só é preenchida
+    // quando o card é arrastado para "Em funcionamento".
+    start_date: null, due_date: iso(due),
   });
   if (!ticket?.id) throw new AppError('Falha ao criar o chamado no backoffice.', 502);
 
@@ -160,9 +198,11 @@ export async function criarChamado(
 
   if (anexo) {
     const up = await boUpload(anexo.buffer, anexo.originalname, anexo.mimetype);
-    await boPatch(`/tickets/${ticket.id}`, { ticket: { attachment_signed_ids: [up.signed_id] } });
+    await boPatch(`${PATH_TICKETS}/${ticket.id}`, { ticket: { attachment_signed_ids: [up.signed_id] } });
   }
 
+  // Sem isto o autor esperaria o TTL para ver o chamado que acabou de abrir.
+  invalidarCache(PATH_TICKETS);
   return { id: ticket.id };
 }
 
@@ -189,7 +229,8 @@ export async function editarChamado(
     `<b>Categoria:</b> ${escapeHtml(CATEGORIA_LABEL[m?.categoria ?? 'OUTROS'] ?? 'Outros')}<br>` +
     `<b>Patrimônio:</b> ${escapeHtml(m?.patrimonio || '—')}</p>`;
 
-  await boPatch(`/tickets/${id}`, { ticket: { title: titulo, description: descHtml } });
+  await boPatch(`${PATH_TICKETS}/${id}`, { ticket: { title: titulo, description: descHtml } });
+  invalidarCache(PATH_TICKETS, `${PATH_TICKETS}/${id}`);
   return { id };
 }
 
@@ -202,9 +243,8 @@ export async function listarMeus(usuarioId: number): Promise<ChamadoLista[]> {
   const ids: number[] = rows.map((r: { ticket_id: number }) => r.ticket_id);
   if (!ids.length) return [];
   const map = await mapasPorTickets(ids);
-  const tickets = await Promise.all(ids.map((id) => boGet<any>(`/tickets/${id}`).catch(() => null)));
+  const tickets = await ticketsPorIds(ids);
   return tickets
-    .filter((t): t is any => !!t)
     .map((t) => mapLista(t, map.get(t.id)))
     .sort((a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime());
 }
@@ -212,8 +252,7 @@ export async function listarMeus(usuarioId: number): Promise<ChamadoLista[]> {
 interface FiltrosTodos { status?: string | undefined; categoria?: string | undefined; criticidade?: string | undefined; busca?: string | undefined }
 
 export async function listarTodos(filtros: FiltrosTodos = {}): Promise<ChamadoLista[]> {
-  const all = await boGet<any[]>('/tickets');
-  const area7 = (all ?? []).filter((t) => t.requester_area_id === AREA_INFRA);
+  const area7 = await ticketsInfra();
   const map = await mapasPorTickets(area7.map((t) => t.id));
   let lista = area7.map((t) => mapLista(t, map.get(t.id)));
 
@@ -254,7 +293,8 @@ export async function adicionarComentario(
   if (!ehTI && m?.usuarioId !== usuario.id) throw new AppError('Acesso negado a este chamado.', 403);
 
   const { rows } = await pool.query('SELECT nome FROM usuarios WHERE id = $1', [usuario.id]);
-  const c = await boPost<any>(`/tickets/${id}/comments`, { content: conteudo });
+  const c = await boPost<any>(`${PATH_TICKETS}/${id}/comments`, { content: conteudo });
+  invalidarCache(PATH_TICKETS, `${PATH_TICKETS}/${id}`);
   return {
     id: c.id, chamado_id: id, autor_id: usuario.id,
     autor_nome: rows[0]?.nome ?? usuario.email, conteudo, criado_em: c.created_at,
@@ -266,7 +306,8 @@ export async function alterarStatus(idBruto: unknown, novoStatus: string): Promi
   const bo = STATUS_NOSSO_PARA_BO[novoStatus];
   if (!bo) throw new AppError('Status inválido.', 400);
   await ticketDeInfra(id);
-  await boPatch(`/tickets/${id}`, { ticket: { status: bo } });
+  await boPatch(`${PATH_TICKETS}/${id}`, { ticket: { status: bo } });
+  invalidarCache(PATH_TICKETS, `${PATH_TICKETS}/${id}`);
   return { id, status: novoStatus };
 }
 
@@ -274,12 +315,10 @@ export async function alterarStatus(idBruto: unknown, novoStatus: string): Promi
 export async function resumo(usuario: { id: number; role: string }): Promise<ChamadoResumo[]> {
   let tickets: any[];
   if (TI_ROLES.has(usuario.role)) {
-    const all = await boGet<any[]>('/tickets');
-    tickets = (all ?? []).filter((t) => t.requester_area_id === AREA_INFRA);
+    tickets = await ticketsInfra();
   } else {
     const { rows } = await pool.query('SELECT ticket_id FROM chamado_backoffice WHERE usuario_id = $1', [usuario.id]);
-    const ids: number[] = rows.map((r: { ticket_id: number }) => r.ticket_id);
-    tickets = (await Promise.all(ids.map((id) => boGet<any>(`/tickets/${id}`).catch(() => null)))).filter(Boolean);
+    tickets = await ticketsPorIds(rows.map((r: { ticket_id: number }) => r.ticket_id));
   }
   const map = await mapasPorTickets(tickets.map((t) => t.id));
   return tickets
@@ -296,13 +335,13 @@ export async function resumo(usuario: { id: number; role: string }): Promise<Cha
 }
 
 export async function dashboard(): Promise<DashboardTI> {
-  const all = await boGet<any[]>('/tickets');
-  const area7 = (all ?? []).filter((t) => t.requester_area_id === AREA_INFRA);
+  const area7 = await ticketsInfra();
   const map = await mapasPorTickets(area7.map((t) => t.id));
   const nossos = area7.map((t) => mapLista(t, map.get(t.id)));
 
   const ativos = nossos.filter((c) => c.status !== 'FECHADO').length;
-  const criticos = nossos.filter((c) => (c.criticidade === 'ALTO' || c.criticidade === 'CRITICO') && c.status !== 'FECHADO').length;
+  const CRITICAS = new Set(['ALTO', 'CRITICO', 'URGENTE']);
+  const criticos = nossos.filter((c) => CRITICAS.has(c.criticidade) && c.status !== 'FECHADO').length;
   const inicioMes = new Date(); inicioMes.setDate(1); inicioMes.setHours(0, 0, 0, 0);
   const totalMes = area7.filter((t) => new Date(t.created_at) >= inicioMes).length;
   const fechados = area7.filter((t) => (t.closed_at || t.resolved_at));
