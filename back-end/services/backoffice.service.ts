@@ -16,10 +16,9 @@ const AREA_INFRA = 7;
 const CATEGORIA_CATEGORY_ID = 2;
 
 const PATH_TICKETS = '/tickets';
-/** Cache da coleção: curto o bastante para parecer tempo real, longo o bastante
- *  para a notificação de todas as abas custar uma requisição externa. */
+/** Curto para parecer tempo real, longo para a notificação de todas as abas
+ *  custar uma única requisição externa. */
 const TTL_COLECAO_MS = 30_000;
-/** Ticket avulso (só o fallback de quem não veio na coleção). */
 const TTL_TICKET_MS = 60_000;
 
 const PRIORIDADE_POR_CRIT: Record<string, string> = { BAIXO: 'low', MEDIO: 'medium', ALTO: 'high', CRITICO: 'critical', URGENTE: 'urgent' };
@@ -52,12 +51,10 @@ function htmlParaTexto(html: string): string {
     .replace(/\n{3,}/g, '\n\n').trim();
 }
 function ymd(d: Date): string { return d.toISOString().slice(0, 10); }
-/** Data+hora ISO para campos de prazo: `ymd` zeraria o horário em 00:00. */
-function iso(d: Date): string { return d.toISOString(); }
 /**
- * Coleção de tickets da área de infra, do cache compartilhado.
- * TODA leitura em lote passa por aqui: antes cada rota fazia uma requisição
- * externa por ticket (N+1), o que inundava o backoffice a cada poll.
+ * Coleção de tickets de infra, do cache compartilhado. TODA leitura em lote
+ * passa por aqui: antes cada rota fazia uma requisição externa por ticket, o
+ * que inundava o backoffice a cada poll.
  */
 async function ticketsInfra(): Promise<any[]> {
   const all = await boGetCache<any[]>(PATH_TICKETS, TTL_COLECAO_MS);
@@ -65,8 +62,7 @@ async function ticketsInfra(): Promise<any[]> {
 }
 
 /**
- * Resolve os tickets do usuário a partir da coleção cacheada. Só busca avulso
- * (também cacheado) o que não vier na coleção — ela pode ser paginada pelo
+ * Só busca avulso o que não vier na coleção: ela pode ser paginada pelo
  * backoffice, e um chamado antigo não pode desaparecer da lista do dono.
  */
 async function ticketsPorIds(ids: number[]): Promise<any[]> {
@@ -184,9 +180,10 @@ export async function criarChamado(
     area_id: AREA_INFRA, requester_area_id: AREA_INFRA, assignee_area_id: AREA_INFRA,
     ticket_category_id: CATEGORIA_CATEGORY_ID,
     priority, title: titulo, description: descHtml,
-    // start_date fica null: no backoffice a data de início só é preenchida
-    // quando o card é arrastado para "Em funcionamento".
-    start_date: null, due_date: iso(due),
+    // start_date null: no backoffice a data de início só é preenchida quando o
+    // card é arrastado para "Em funcionamento". due_date leva hora, não só o
+    // dia — com ymd() um urgente criado às 15h nascia com prazo 00:00, vencido.
+    start_date: null, due_date: due.toISOString(),
   });
   if (!ticket?.id) throw new AppError('Falha ao criar o chamado no backoffice.', 502);
 
