@@ -3,27 +3,13 @@ import { AppError } from '../utils/app-error';
 /**
  * Cliente HTTP para a API do BluePay Backoffice (tickets de infra).
  * O token (JWT privilegiado) fica só no servidor — nunca vai para o navegador.
- * Usa fetch global (Node 18+); nada de expor credenciais no front.
  *
- * O backoffice é uma API de terceiro, compartilhada, que cai com frequência e
- * fica pesada. A premissa deste arquivo é que ela VAI falhar: a intranet precisa
- * continuar de pé quando isso acontecer. Daí as seis proteções abaixo — todas
- * nasceram de um incidente em 2026-10 que derrubou o back-end inteiro.
- *
- * 1. TIMEOUT — o fetch do Node não tem prazo padrão; sem ele, backoffice lento
- *    deixa requisições penduradas até saturar o agent HTTP e travar TODAS as
- *    rotas da intranet. Leitura e escrita têm prazos diferentes (ver constantes).
- * 2. CONCORRÊNCIA com FILA LIMITADA — teto de chamadas simultâneas; acima da
- *    fila, 503 imediato. Fila sem teto só troca o engarrafamento de lugar.
- * 3. SINGLE-FLIGHT — N pedidos do mesmo caminho viram UMA requisição externa.
- * 4. CACHE COM VALOR VELHO (stale-while-revalidate) — expirado, o valor antigo
- *    é servido na hora e a renovação corre em segundo plano. Se a renovação
- *    falhar, continua servindo o velho até `MAX_VELHO_MS`. É o que mantém a
- *    página funcionando durante uma queda do backoffice.
- * 5. CIRCUIT BREAKER — depois de várias falhas seguidas, as LEITURAS param de
- *    tentar por um tempo (nada de gastar o timeout a cada poll). Escritas são
- *    raras e iniciadas pelo usuário: sempre tentam.
- * 6. PODA DO CACHE — entradas velhas saem do Map; sem isso é vazamento lento.
+ * O backoffice é API de terceiro, compartilhada, que cai com frequência e fica
+ * pesada. Tudo aqui parte de que ela VAI falhar e a intranet tem que continuar
+ * de pé: timeout, teto de concorrência, cache com valor velho e circuit
+ * breaker. Em 2026-10 a falta dessas proteções derrubou o back-end inteiro —
+ * requisições penduradas num fetch sem prazo saturaram o agent HTTP e travaram
+ * rotas que nada tinham a ver com chamado.
  */
 
 const BASE = process.env.BACKOFFICE_API_URL;
@@ -33,30 +19,23 @@ if (!BASE) {
   throw new Error('BACKOFFICE_API_URL não configurada. Defina no .env antes de subir o servidor.');
 }
 
-/** Leitura: curto. Há cache e valor velho atrás, então desistir rápido é barato. */
+/** Curto: há cache e valor velho atrás, então desistir rápido é barato. */
 const TIMEOUT_LEITURA_MS = 8_000;
-/**
- * Escrita: generoso de propósito. Abortar um POST no meio pode deixar o ticket
- * criado no backoffice sem o nosso mapeamento — pior que esperar.
- */
+/** Generoso: abortar um POST no meio cria o ticket sem o nosso mapeamento. */
 const TIMEOUT_ESCRITA_MS = 20_000;
 
-/** Chamadas simultâneas. Baixo de propósito: a API é compartilhada e pesada. */
 const MAX_CONCORRENTES = 4;
-/** Fila de espera. Acima disso, 503 na hora em vez de acumular. */
+/** Acima da fila, 503 na hora: fila sem teto só muda o engarrafamento de lugar. */
 const MAX_FILA = 64;
 
-/** Falhas de infraestrutura seguidas para abrir o circuito. */
 const FALHAS_PARA_ABRIR = 5;
-/** Quanto tempo o circuito fica aberto antes de deixar uma leitura sondar. */
 const CIRCUITO_ABERTO_MS = 20_000;
 
 /** Teto para servir valor velho: além disso, erro é melhor que dado fóssil. */
 const MAX_VELHO_MS = 10 * 60_000;
-/** Entradas no cache antes de podar. */
 const MAX_ENTRADAS_CACHE = 200;
 
-// ── Semáforo: limita quantas chamadas saem ao mesmo tempo ─────────────────────
+// ── Semáforo ──────────────────────────────────────────────────────────────────
 let emUso = 0;
 const fila: Array<() => void> = [];
 
@@ -88,7 +67,7 @@ function circuitoAberto(): boolean {
   return Date.now() < circuitoAbertoAte;
 }
 
-/** Só falha de INFRA conta (timeout, rede, 5xx, 429). 404 não é API caindo. */
+/** Só falha de infra conta (timeout, rede, 5xx, 429); 404 não é API caindo. */
 function registrarFalha(): void {
   falhasSeguidas++;
   if (falhasSeguidas >= FALHAS_PARA_ABRIR) {
@@ -115,8 +94,8 @@ async function boFetch<T = unknown>(path: string, opts: Opts = {}): Promise<T> {
   const metodo = opts.method ?? 'GET';
   const ehLeitura = metodo === 'GET';
 
-  // Leitura com circuito aberto desiste na hora: quem tem valor velho já o
-  // devolveu em boGetCache; aqui só sobra quem não tem nada a mostrar.
+  // Quem tinha valor velho já foi atendido em boGetCache; aqui só sobra quem
+  // não tem nada a mostrar, e insistir num backoffice caído não ajuda.
   if (ehLeitura && circuitoAberto()) {
     throw new AppError('O backoffice está indisponível no momento. Tente novamente em instantes.', 503);
   }
@@ -172,13 +151,17 @@ async function boFetch<T = unknown>(path: string, opts: Opts = {}): Promise<T> {
   return data as T;
 }
 
-// ── Cache de leitura: single-flight + valor velho ─────────────────────────────
+// ── Cache de leitura ──────────────────────────────────────────────────────────
 interface Entrada { valor: unknown; expiraEm: number; gravadoEm: number }
 
 const cache = new Map<string, Entrada>();
 const emVoo = new Map<string, Promise<unknown>>();
+/** Conta invalidações por caminho, para descartar resposta anterior à escrita. */
+const geracao = new Map<string, number>();
 
-/** Remove entradas velhas demais para servir; evita o Map crescer sem fim. */
+const geracaoAtual = (path: string): number => geracao.get(path) ?? 0;
+
+/** Sem isto o Map cresce sem fim: as entradas expiram, mas nunca saem. */
 function podarCache(): void {
   if (cache.size <= MAX_ENTRADAS_CACHE) return;
   const limite = Date.now() - MAX_VELHO_MS;
@@ -187,58 +170,69 @@ function podarCache(): void {
   }
 }
 
-/** Valor velho ainda é melhor que erro — mas não velho demais. */
 function servivel(entrada: Entrada | undefined): entrada is Entrada {
-  return Boolean(entrada) && Date.now() - entrada!.gravadoEm < MAX_VELHO_MS;
+  return entrada !== undefined && Date.now() - entrada.gravadoEm < MAX_VELHO_MS;
 }
 
 /**
- * GET com cache de `ttlMs`, single-flight e degradação graciosa.
+ * GET com cache, single-flight e degradação graciosa:
+ * fresco → cache; expirado → devolve o velho e renova em segundo plano;
+ * renovação falha → segue no velho até `MAX_VELHO_MS`; sem nada e circuito
+ * aberto → 503 rápido.
  *
- * Fresco          → devolve do cache.
- * Expirado        → devolve o velho AGORA e renova em segundo plano.
- * Renovação falha → segue devolvendo o velho até `MAX_VELHO_MS`.
- * Sem nada no cache e circuito aberto → 503 rápido.
- *
- * É isto que impede a notificação (montada em toda aba) de multiplicar tráfego
- * e que mantém a tela de chamados funcionando quando o backoffice cai.
+ * É o que impede a notificação (montada em toda aba) de multiplicar tráfego e
+ * o que mantém a tela de chamados de pé quando o backoffice cai.
  */
 export async function boGetCache<T = unknown>(path: string, ttlMs: number): Promise<T> {
   const entrada = cache.get(path);
   if (entrada && entrada.expiraEm > Date.now()) return entrada.valor as T;
 
-  // Renovação já em andamento: com valor velho em mãos, não espera o terceiro.
   const voando = emVoo.get(path);
   if (voando) {
     if (servivel(entrada)) return entrada.valor as T;
     return voando as Promise<T>;
   }
 
-  // Circuito aberto: não castiga o backoffice; serve o que tem.
   if (circuitoAberto() && servivel(entrada)) return entrada.valor as T;
 
+  const geracaoNaPartida = geracaoAtual(path);
   const promessa = boFetch<T>(path)
     .then((valor) => {
-      cache.set(path, { valor, expiraEm: Date.now() + ttlMs, gravadoEm: Date.now() });
-      podarCache();
+      // Uma escrita invalidou o caminho enquanto esta chamada estava em voo:
+      // a resposta é anterior à escrita, então não pode virar cache — senão o
+      // autor ficaria o TTL inteiro sem ver o chamado que acabou de abrir.
+      if (geracaoAtual(path) === geracaoNaPartida) {
+        cache.set(path, { valor, expiraEm: Date.now() + ttlMs, gravadoEm: Date.now() });
+        podarCache();
+      }
       return valor;
     })
-    .finally(() => { emVoo.delete(path); });
+    .finally(() => {
+      if (emVoo.get(path) === promessa) emVoo.delete(path);
+    });
 
   emVoo.set(path, promessa);
 
-  // Stale-while-revalidate: responde já com o velho e deixa a renovação correr.
+  // Responde já com o velho e deixa a renovação correr em segundo plano.
   if (servivel(entrada)) {
-    promessa.catch(() => {}); // a renovação pode falhar; o velho já foi servido
+    promessa.catch(() => {}); // já respondemos; a falha não vai para ninguém
     return entrada.valor as T;
   }
 
   return promessa;
 }
 
-/** Invalida caminhos do cache após uma escrita, para o autor ver o próprio dado. */
+/**
+ * Invalida caminhos após uma escrita, para o autor ver o próprio dado.
+ * Também desregistra o voo em andamento: a próxima leitura precisa de uma
+ * chamada nova, não do resultado de uma que partiu antes da escrita.
+ */
 export function invalidarCache(...paths: string[]): void {
-  for (const p of paths) cache.delete(p);
+  for (const p of paths) {
+    cache.delete(p);
+    emVoo.delete(p);
+    geracao.set(p, geracaoAtual(p) + 1);
+  }
 }
 
 export const boGet   = <T = unknown>(path: string) => boFetch<T>(path);
