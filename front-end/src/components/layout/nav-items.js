@@ -25,7 +25,7 @@ export const NAV_SECTIONS = [
       { to: '/tarefas', label: 'Tarefas', icon: ListTodo },
       { to: '/blog', label: 'Blog', icon: Newspaper },
       { to: '/bluelovers', label: 'Bluelovers', icon: UserRound },
-      { to: '/chamados', label: 'Chamados', icon: LifeBuoy },
+      { to: '/chamados', label: 'Chamados', icon: LifeBuoy, rolesBloqueados: ['TI', 'DESENVOLVEDOR'] },
       { to: '/chat', label: 'Mensagens', icon: MessageSquare },
     ],
   },
@@ -169,7 +169,11 @@ export function secoesVisiveis(role) {
     .map((secao) => ({
       ...secao,
       label: secao.labelPorRole?.[role] ?? secao.label,
-      items: secao.items.filter((item) => !item.roles || item.roles.includes(role)),
+      items: secao.items.filter(
+        (item) =>
+          (!item.roles || item.roles.includes(role)) &&
+          !item.rolesBloqueados?.includes(role),
+      ),
     }))
     .filter((secao) => secao.items.length)
 }

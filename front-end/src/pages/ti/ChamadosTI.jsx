@@ -21,10 +21,11 @@ import { CriticidadeBadge } from '@/components/chamados/badges'
 import { tempoDecorrido } from '@/components/chamados/tempo'
 
 /** Prioridade de ordenação (menor = mais urgente). */
-const PRIORIDADE = { CRITICO: 0, ALTO: 1, MEDIO: 2, BAIXO: 3 }
+const PRIORIDADE = { URGENTE: 0, CRITICO: 1, ALTO: 2, MEDIO: 3, BAIXO: 4 }
 
 /** Cor da borda esquerda do card por criticidade. */
 const BORDA = {
+  URGENTE: 'border-l-red-500',
   CRITICO: 'border-l-destructive',
   ALTO: 'border-l-amber-500',
   MEDIO: 'border-l-blue-500',
@@ -105,16 +106,16 @@ export default function ChamadosTI() {
 
   useEffect(() => {
     let ativo = true
-    ;(async () => {
-      try {
-        const data = await listarTodos()
-        if (ativo) setChamados(data)
-      } catch (e) {
-        if (ativo) setErro(e?.response?.data?.message ?? 'Falha ao carregar os chamados.')
-      } finally {
-        if (ativo) setCarregando(false)
-      }
-    })()
+      ; (async () => {
+        try {
+          const data = await listarTodos()
+          if (ativo) setChamados(data)
+        } catch (e) {
+          if (ativo) setErro(e?.response?.data?.message ?? 'Falha ao carregar os chamados.')
+        } finally {
+          if (ativo) setCarregando(false)
+        }
+      })()
     return () => {
       ativo = false
     }

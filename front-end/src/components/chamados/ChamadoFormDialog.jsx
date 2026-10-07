@@ -135,7 +135,7 @@ export default function ChamadoFormDialog({ aberto, onFechar, chamadoEditando, o
                 </option>
                 {CRITICIDADES.map((c) => (
                   <option key={c.value} value={c.value}>
-                    {c.label} — {c.prazo}
+                    {c.label}
                   </option>
                 ))}
               </select>
