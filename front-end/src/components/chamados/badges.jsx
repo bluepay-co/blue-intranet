@@ -12,6 +12,7 @@ const ESTILO_CRITICIDADE = {
   MEDIO: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
   ALTO: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
   CRITICO: 'bg-destructive/10 text-destructive',
+  URGENTE: 'bg-destructive text-destructive-foreground',
 }
 
 const base =

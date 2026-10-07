@@ -28,10 +28,11 @@ export const CATEGORIAS_CX = [
 
 /** Níveis de criticidade com o rótulo de prazo (SLA) exibido ao usuário. */
 export const CRITICIDADES = [
-  { value: 'BAIXO', label: 'Baixo', prazo: 'até 5 dias úteis' },
-  { value: 'MEDIO', label: 'Médio', prazo: 'até 3 dias úteis' },
-  { value: 'ALTO', label: 'Alto', prazo: 'até 1 dia útil' },
-  { value: 'CRITICO', label: 'Crítico', prazo: 'imediato' },
+  { value: 'BAIXO', label: 'Baixo' },
+  { value: 'MEDIO', label: 'Médio' },
+  { value: 'ALTO', label: 'Alto' },
+  { value: 'CRITICO', label: 'Crítico' },
+  { value: 'URGENTE', label: 'Urgente' },
 ]
 
 /** Status do chamado. */

@@ -12,6 +12,7 @@ import ChamadoFormDialog from '@/components/chamados/ChamadoFormDialog'
 
 /** Cor da borda esquerda do card por criticidade. */
 const BORDA = {
+  URGENTE: 'border-l-destructive',
   CRITICO: 'border-l-destructive',
   ALTO: 'border-l-amber-500',
   MEDIO: 'border-l-blue-500',

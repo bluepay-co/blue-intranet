@@ -20,9 +20,9 @@ function Carregando() {
  * A proteção real dos DADOS continua no backend (authMiddleware + roleMiddleware);
  * aqui controlamos apenas a navegação/exibição.
  *
- * @param {{ children: React.ReactNode, roles?: string[] }} props
+ * @param {{ children: React.ReactNode, roles?: string[], rolesBloqueados?: string[] }} props
  */
-export default function ProtectedRoute({ children, roles }) {
+export default function ProtectedRoute({ children, roles, rolesBloqueados }) {
   const { usuario, carregando } = useAuth()
   const location = useLocation()
 
@@ -33,6 +33,12 @@ export default function ProtectedRoute({ children, roles }) {
   }
 
   if (roles && !roles.includes(usuario.role)) {
+    return <Navigate to="/" replace />
+  }
+
+  // `rolesBloqueados` é o inverso de `roles`: evita listar os outros ~15 cargos
+  // quando a regra é "todos, exceto estes".
+  if (rolesBloqueados?.includes(usuario.role)) {
     return <Navigate to="/" replace />
   }
 

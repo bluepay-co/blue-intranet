@@ -29,6 +29,7 @@ export enum CriticidadeChamado {
   MEDIO = 'MEDIO',
   ALTO = 'ALTO',
   CRITICO = 'CRITICO',
+  URGENTE = 'URGENTE',
 }
 
 /** Linha completa da tabela `chamados`. */
